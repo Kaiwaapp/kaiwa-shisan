@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { Store } from './store';
 import { IdbRepository } from './idbRepository';
-import { searchEntries } from './search';
+import { searchEntries, sortEntriesBy, sortNames, statsBy } from './search';
 import { parseBackup, toBackup } from './backup';
 
 let n = 0;
@@ -65,5 +65,61 @@ describe('Store', () => {
     await s2.importData(parseBackup(json), 'replace');
     expect(s2.snapshot.entries).toHaveLength(1);
     expect(() => parseBackup('{"a":1}')).toThrow();
+  });
+
+  it('新規の人・話題は保存時に作られる', async () => {
+    const s = await fresh();
+    await s.saveEntry({ text: 'x', personIds: [], topicIds: [], newPeople: ['山田'], newTopics: ['#映画'], talkedOn: '2026-11-20' });
+    expect(s.snapshot.people.map((p) => p.name)).toEqual(['山田']);
+    expect(s.snapshot.topics.map((t) => t.name)).toEqual(['映画']);
+    expect(s.snapshot.entries[0].personIds).toEqual([s.snapshot.people[0].id]);
+  });
+
+  it('人を統合すると記録が付け替わり、重複しない', async () => {
+    const s = await fresh();
+    const a = await s.addPerson('たなか');
+    const b = await s.addPerson('田中さん');
+    await s.updatePerson(a.id, { memo: '大学の友達' });
+    await s.saveEntry({ text: '1', personIds: [a.id, b.id], topicIds: [], talkedOn: '2026-11-20' });
+    await s.saveEntry({ text: '2', personIds: [a.id], topicIds: [], talkedOn: '2026-11-21' });
+    await s.mergePeople(a.id, b.id);
+    expect(s.snapshot.people).toHaveLength(1);
+    expect(s.snapshot.people[0].memo).toBe('大学の友達');
+    expect(s.snapshot.entries.every((e) => e.personIds.length === 1 && e.personIds[0] === b.id)).toBe(true);
+  });
+
+  it('話題を統合できる', async () => {
+    const s = await fresh();
+    const a = await s.addTopic('ごはん');
+    const b = await s.addTopic('グルメ');
+    await s.saveEntry({ text: '1', personIds: [], topicIds: [a.id, b.id], talkedOn: '2026-11-20' });
+    await s.mergeTopics(a.id, b.id);
+    expect(s.snapshot.topics.map((t) => t.name)).toEqual(['グルメ']);
+    expect(s.snapshot.entries[0].topics).toEqual([{ topicId: b.id, source: 'manual' }]);
+  });
+
+  it('フォルダを消すと中の記録は未分類になる', async () => {
+    const s = await fresh();
+    const f = await s.addFolder('仕事');
+    const e = await s.saveEntry({ text: '1', personIds: [], topicIds: [], talkedOn: '2026-11-20', folderId: f.id });
+    expect(e.folderId).toBe(f.id);
+    await s.deleteFolder(f.id);
+    expect(s.snapshot.entries[0].folderId).toBeNull();
+    expect(s.snapshot.folders).toHaveLength(0);
+  });
+
+  it('並べ替え', async () => {
+    const s = await fresh();
+    const a = await s.addPerson('A');
+    const b = await s.addPerson('B');
+    await s.saveEntry({ text: '1', personIds: [a.id], topicIds: [], talkedOn: '2026-01-01' });
+    await s.saveEntry({ text: '2', personIds: [b.id], topicIds: [], talkedOn: '2026-02-01' });
+    await s.saveEntry({ text: '3', personIds: [b.id], topicIds: [], talkedOn: '2026-03-01' });
+    expect(sortEntriesBy(s.snapshot.entries, 'oldest').map((e) => e.text)).toEqual(['1', '2', '3']);
+    const st = statsBy(s.snapshot, 'person');
+    const items = s.snapshot.people.map((p) => ({ ...p, stat: st.get(p.id)! }));
+    expect(sortNames(items, 'last').map((p) => p.name)).toEqual(['B', 'A']);
+    expect(sortNames(items, 'first').map((p) => p.name)).toEqual(['A', 'B']);
+    expect(sortNames(items, 'count').map((p) => p.name)).toEqual(['B', 'A']);
   });
 });

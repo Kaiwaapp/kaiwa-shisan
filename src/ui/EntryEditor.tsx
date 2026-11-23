@@ -1,19 +1,30 @@
 import { useMemo, useState } from 'react';
 import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
-import { ChipPicker, Header } from './components';
+import { ComboPicker, Header } from './components';
 
-export function EntryEditor({ id, initialPerson, initialTopic }: { id?: ID; initialPerson?: ID; initialTopic?: ID }) {
+const NEW_FOLDER = '__new__';
+
+export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: {
+  id?: ID;
+  initialPerson?: ID;
+  initialTopic?: ID;
+  initialFolder?: ID;
+}) {
   const store = useStore();
   const data = useData();
   const existing = id ? data.entries.find((e) => e.id === id) : undefined;
   const [text, setText] = useState(existing?.text ?? '');
   const [personIds, setPersonIds] = useState<ID[]>(existing?.personIds ?? (initialPerson ? [initialPerson] : []));
+  const [newPeople, setNewPeople] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<ID[]>(existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : []));
+  const [newTopics, setNewTopics] = useState<string[]>([]);
   const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? today());
+  const [folder, setFolder] = useState<string>(existing ? (existing.folderId ?? '') : (initialFolder ?? ''));
+  const [newFolder, setNewFolder] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // よく使う順(最近話した記録に出てくるほど上)
+  // よく使う順(最近の記録に出てくるほど上)
   const rank = useMemo(() => {
     const r = new Map<ID, number>();
     for (const e of data.entries) {
@@ -26,9 +37,6 @@ export function EntryEditor({ id, initialPerson, initialTopic }: { id?: ID; init
   const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, rank: rank.get(p.id) ?? p.createdAt / 1e3 }));
   const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, rank: rank.get(t.id) ?? t.createdAt / 1e3 }));
 
-  const toggle = (list: ID[], set: (v: ID[]) => void) => (x: ID) =>
-    set(list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
-
   if (id && !existing) {
     return (
       <div className="screen">
@@ -38,11 +46,13 @@ export function EntryEditor({ id, initialPerson, initialTopic }: { id?: ID; init
     );
   }
 
-  const canSave = text.trim().length > 0 && !saving;
+  const canSave = text.trim().length > 0 && !saving && !(folder === NEW_FOLDER && !newFolder.trim());
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
-    await store.saveEntry({ text, personIds, topicIds, talkedOn }, id);
+    let folderId: ID | null = folder || null;
+    if (folder === NEW_FOLDER) folderId = (await store.addFolder(newFolder)).id;
+    await store.saveEntry({ text, personIds, newPeople, topicIds, newTopics, talkedOn, folderId }, id);
     back();
   };
   const remove = async () => {
@@ -69,30 +79,42 @@ export function EntryEditor({ id, initialPerson, initialTopic }: { id?: ID; init
         />
         <section className="field">
           <label>話した相手</label>
-          <ChipPicker
+          <ComboPicker
             kind="person"
             options={personOpts}
             selected={personIds}
-            onToggle={toggle(personIds, setPersonIds)}
-            onCreate={async (name) => {
-              const p = await store.addPerson(name);
-              setPersonIds((l) => (l.includes(p.id) ? l : [...l, p.id]));
-            }}
+            newNames={newPeople}
+            onChange={(s, n) => { setPersonIds(s); setNewPeople(n); }}
           />
         </section>
         <section className="field">
           <label>話題</label>
-          <ChipPicker
+          <ComboPicker
             kind="topic"
             options={topicOpts}
             selected={topicIds}
-            onToggle={toggle(topicIds, setTopicIds)}
-            onCreate={async (name) => {
-              const t = await store.addTopic(name);
-              setTopicIds((l) => (l.includes(t.id) ? l : [...l, t.id]));
-            }}
+            newNames={newTopics}
+            onChange={(s, n) => { setTopicIds(s); setNewTopics(n); }}
           />
         </section>
+        <section className="field row">
+          <label htmlFor="folder">フォルダ</label>
+          <select id="folder" className="select" value={folder} onChange={(e) => setFolder(e.target.value)}>
+            <option value="">未分類</option>
+            {data.folders
+              .slice()
+              .sort((a, b) => a.name.localeCompare(b.name, 'ja'))
+              .map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            <option value={NEW_FOLDER}>＋ 新しいフォルダ…</option>
+          </select>
+        </section>
+        {folder === NEW_FOLDER && (
+          <section className="field">
+            <input value={newFolder} onChange={(e) => setNewFolder(e.target.value)} placeholder="新しいフォルダの名前" autoFocus />
+          </section>
+        )}
         <section className="field row">
           <label htmlFor="talkedOn">話した日</label>
           <input id="talkedOn" type="date" value={talkedOn} onChange={(e) => setTalkedOn(e.target.value || today())} />

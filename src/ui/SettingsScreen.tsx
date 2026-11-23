@@ -56,6 +56,7 @@ export function SettingsScreen() {
           <div><b>{data.entries.length}</b><span>記録</span></div>
           <div><b>{data.people.length}</b><span>人</span></div>
           <div><b>{data.topics.length}</b><span>話題</span></div>
+          <div><b>{data.folders.length}</b><span>フォルダ</span></div>
         </div>
 
         <section className="panel">
@@ -72,7 +73,7 @@ export function SettingsScreen() {
           {pending && (
             <div className="confirm">
               <p>
-                読み込むファイル: 記録{pending.entries.length}件・人{pending.people.length}人・話題{pending.topics.length}件
+                読み込むファイル: 記録{pending.entries.length}件・人{pending.people.length}人・話題{pending.topics.length}件・フォルダ{pending.folders.length}個
               </p>
               <button className="btn primary block" onClick={() => apply('merge')}>今のデータに統合する</button>
               <button className="btn danger block" onClick={() => apply('replace')}>今のデータを置き換える</button>
@@ -96,7 +97,7 @@ export function SettingsScreen() {
           )}
         </section>
 
-        <p className="muted small center">会話資産 試作版 v0.1</p>
+        <p className="muted small center">会話資産 試作版 v0.2</p>
       </div>
     </div>
   );

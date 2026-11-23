@@ -33,6 +33,15 @@ export interface Entry {
   topics: TopicTag[];
   /** 話した日 (YYYY-MM-DD) */
   talkedOn: string;
+  /** 入っているフォルダ。null は未分類 */
+  folderId: ID | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Folder {
+  id: ID;
+  name: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -41,6 +50,7 @@ export interface AppData {
   people: Person[];
   topics: Topic[];
   entries: Entry[];
+  folders: Folder[];
 }
 
 export const newId = (): ID =>

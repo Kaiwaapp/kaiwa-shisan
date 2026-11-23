@@ -1,7 +1,7 @@
-import type { AppData, Entry, Person, Topic } from './types';
+import type { AppData, Entry, Folder, Person, Topic } from './types';
 
 export const BACKUP_FORMAT = 'kaiwa-shisan-backup';
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 export interface BackupFile extends AppData {
   format: typeof BACKUP_FORMAT;
@@ -16,6 +16,7 @@ export const toBackup = (data: AppData): BackupFile => ({
   people: data.people,
   topics: data.topics,
   entries: data.entries,
+  folders: data.folders,
 });
 
 export function parseBackup(json: string): AppData {
@@ -29,7 +30,12 @@ export function parseBackup(json: string): AppData {
   if (!r || r.format !== BACKUP_FORMAT) throw new Error('会話資産のバックアップファイルではありません');
   if (!Array.isArray(r.people) || !Array.isArray(r.topics) || !Array.isArray(r.entries))
     throw new Error('ファイルの中身が壊れています');
-  return { people: r.people as Person[], topics: r.topics as Topic[], entries: r.entries as Entry[] };
+  return {
+    people: r.people as Person[],
+    topics: r.topics as Topic[],
+    entries: (r.entries as Entry[]).map((e) => ({ ...e, folderId: e.folderId ?? null })),
+    folders: Array.isArray(r.folders) ? (r.folders as Folder[]) : [],
+  };
 }
 
 /** 既存データにバックアップを統合。同じIDは更新日時が新しい方を残す */
@@ -46,5 +52,6 @@ export function mergeData(current: AppData, incoming: AppData): AppData {
     people: merge(current.people, incoming.people),
     topics: merge(current.topics, incoming.topics),
     entries: merge(current.entries, incoming.entries),
+    folders: merge(current.folders, incoming.folders),
   };
 }
