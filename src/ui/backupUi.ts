@@ -1,5 +1,6 @@
 import { toBackup } from '../core/backup';
 import { today, type AppData } from '../core/types';
+import { t } from '../i18n';
 
 const KEY = 'kaiwa-shisan:lastBackupAt';
 
@@ -23,7 +24,7 @@ export async function exportBackup(data: AppData): Promise<'shared' | 'downloade
   const file = new File([json], name, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: '会話資産のバックアップ' });
+      await navigator.share({ files: [file], title: t('会話資産のバックアップ') });
       markBackup();
       return 'shared';
     } catch (e) {

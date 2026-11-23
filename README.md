@@ -33,3 +33,9 @@ npm run build   # 本番ビルド（BASE_PATH=/リポジトリ名/ でGitHub Pag
 ```
 
 `main` にpushすると GitHub Actions で GitHub Pages に自動デプロイされる。
+
+## 多言語対応
+
+画面の文言は `t('日本語の文言')` で書き、各言語の辞書（`src/i18n/en.ts` など）で置き換える。キーは日本語の文言そのもの。
+言語を足すときは `en.ts` をコピーして訳を書き、`src/i18n/index.ts` の `DICTS` と `LANGS` に追加する。
+`npm test` の翻訳チェックが、英訳のない文言を見つけると失敗する。記録の本文や人名など、ユーザーが書いた内容は翻訳しない。

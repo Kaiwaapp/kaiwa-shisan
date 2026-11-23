@@ -4,6 +4,7 @@ import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
 import { formatDate, go } from './hooks';
 import { copyText, SelectMark, useInteract, usePress, type ItemRef } from './interact';
+import { t } from '../i18n';
 
 export function Header({ title, left, right }: { title: ReactNode; left?: ReactNode; right?: ReactNode }) {
   return (
@@ -26,7 +27,7 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
         enterKeyHint="search"
       />
       {value && (
-        <button className="search-clear" onClick={() => onChange('')} aria-label="クリア">
+        <button className="search-clear" onClick={() => onChange('')} aria-label={t('クリア')}>
           ×
         </button>
       )}
@@ -50,20 +51,20 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
     .map((t) => data.topics.find((x) => x.id === t.topicId))
     .filter(Boolean);
   const folder = !hideFolder && entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
-  const item: ItemRef = { kind: 'entry', id: entry.id, label: entry.text.split('\n')[0].slice(0, 24) || '（本文なし）', scope: 'entry' };
+  const item: ItemRef = { kind: 'entry', id: entry.id, label: entry.text.split('\n')[0].slice(0, 24) || t('（本文なし）'), scope: 'entry' };
   const { lifted, handlers } = usePress(item, () => go(`/edit/${entry.id}`));
   const { sel } = useInteract();
   return (
     <article className={`card ${lifted ? 'lifted' : ''} ${sel.active ? 'selecting' : ''}`} {...handlers}>
       <SelectMark item={item} />
       <div className="card-text">
-        {entry.pinned && <span className="pin" aria-label="ピン留め">📌</span>}
-        {entry.text || <span className="muted">（本文なし）</span>}
+        {entry.pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
+        {entry.text || <span className="muted">{t('（本文なし）')}</span>}
       </div>
       {!sel.active && (
         <button
           className="copy-btn"
-          aria-label="本文をコピー"
+          aria-label={t('本文をコピー')}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); copyText(entry.text); }}
         >
@@ -101,9 +102,9 @@ export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hid
     const props = { data, hidePersonId, hideTopicId, hideFolder };
     return (
       <>
-        <div className="section-title">📌 ピン留め</div>
+        <div className="section-title">{t('📌 ピン留め')}</div>
         <EntryList entries={pinned} empty="" {...props} />
-        {rest.length > 0 && <div className="section-title">記録</div>}
+        {rest.length > 0 && <div className="section-title">{t('記録')}</div>}
         {rest.length > 0 && <EntryList entries={rest} empty="" {...props} />}
       </>
     );
@@ -144,7 +145,7 @@ export function LoadMore({ onVisible, rest }: { onVisible: () => void; rest: num
   }, [rest]);
   return (
     <div ref={ref} className="load-more">
-      <button className="link" onClick={onVisible}>さらに表示（残り{rest}件）</button>
+      <button className="link" onClick={onVisible}>{t('さらに表示（残り{n}件）', { n: rest })}</button>
     </div>
   );
 }
@@ -158,9 +159,9 @@ export function SortSelect<K extends string>({ value, options, onChange }: {
   return (
     <label className="sort">
       <span aria-hidden>⇅</span>
-      <select value={value} onChange={(e) => onChange(e.target.value as K)} aria-label="並べ替え">
+      <select value={value} onChange={(e) => onChange(e.target.value as K)} aria-label={t('並べ替え')}>
         {options.map((o) => (
-          <option key={o.key} value={o.key}>{o.label}</option>
+          <option key={o.key} value={o.key}>{t(o.label)}</option>
         ))}
       </select>
     </label>
@@ -226,7 +227,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
           })}
           {newNames.map((n) => (
             <button key={'new:' + n} type="button" className={`chip ${kind} on`} onClick={() => onChange(selected, newNames.filter((x) => x !== n))}>
-              {prefix}{n} <span className="new">新規</span> <span className="x">×</span>
+              {prefix}{n} <span className="new">{t('新規')}</span> <span className="x">×</span>
             </button>
           ))}
         </div>
@@ -238,7 +239,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
           onFocus={openList}
           onClick={openList}
           onBlur={() => setTimeout(() => setOpen(false), 200)}
-          placeholder={kind === 'person' ? '🔍 名前で検索して選ぶ／新規入力' : '🔍 話題で検索して選ぶ／新規入力'}
+          placeholder={kind === 'person' ? t('🔍 名前で検索して選ぶ／新規入力') : t('🔍 話題で検索して選ぶ／新規入力')}
           enterKeyHint="done"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
@@ -250,10 +251,10 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
         <span className="combo-caret" aria-hidden>▾</span>
         {open && (
           <ul className="dropdown" onMouseDown={keep}>
-            {!clean && list.length > 0 && <li className="dd-head">最後に選んだ順</li>}
+            {!clean && list.length > 0 && <li className="dd-head">{t('最後に選んだ順')}</li>}
             {clean && !exact && (
               <li className="dd-item add" onClick={addNew}>
-                ＋「{prefix}{clean}」を新しく追加
+                {t('＋「{name}」を新しく追加', { name: prefix + clean })}
               </li>
             )}
             {list.map((o) => {
@@ -267,7 +268,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
               );
             })}
             {list.length === 0 && !clean && (
-              <li className="dd-empty">まだありません。名前を入力すると追加できます</li>
+              <li className="dd-empty">{t('まだありません。名前を入力すると追加できます')}</li>
             )}
           </ul>
         )}

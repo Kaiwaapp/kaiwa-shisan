@@ -10,6 +10,7 @@ import { Crumbs, FolderEdit, FolderRows, FolderSelect, UpButton, makeDeepCount, 
 import { SelectButton, SelectionBar, toast, useInteract, usePress, SelectMark, type ItemRef } from './interact';
 import type { Folder } from '../core/types';
 import { EntryList, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
+import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
@@ -72,32 +73,32 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
   return (
     <div className="screen">
       <Header
-        title={folder ? folder.name : '記録'}
+        title={folder ? folder.name : t('記録')}
         left={folder && <UpButton scope="entry" parent={parent} />}
-        right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? '閉じる' : '編集'}</button>}</span>}
+        right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
       <Crumbs scope="entry" path={path} />
       {editing && folder ? (
         <FolderEdit id={folder.id} onDone={() => setEditing(false)} />
       ) : (
         <>
-          <SearchBox value={q} onChange={setQ} placeholder={folder ? `「${folder.name}」の中を検索` : '本文・人・話題で検索'} />
+          <SearchBox value={q} onChange={setQ} placeholder={folder ? t('「{name}」の中を検索', { name: folder.name }) : t('本文・人・話題で検索')} />
           {results ? (
             <>
               <div className="toolbar">
-                <span className="count">{results.length}件</span>
+                <span className="count">{t('{n}件', { n: results.length })}</span>
                 <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
               </div>
-              <EntryList entries={results} data={data} empty="見つかりませんでした" />
+              <EntryList entries={results} data={data} empty={t('見つかりませんでした')} />
             </>
           ) : (
             <>
               <div className="toolbar">
                 <span className="count">
-                  {children.length > 0 && `${children.length}フォルダ・`}{memos.length}件
+                  {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t('{n}件', { n: memos.length })}
                 </span>
                 <span className="toolbar-right">
-                  {!adding && !selecting && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
+                  {!adding && !selecting && <button className="link small-link" onClick={() => setAdding(true)}>{t('＋ フォルダ')}</button>}
                   <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
                 </span>
               </div>
@@ -105,7 +106,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
               {!folderId && trash.length > 0 && !selecting && (
                 <ul className="rows folder-rows">
                   <li className="row-item" onClick={() => go('/trash')}>
-                    <span className="name"><span className="folder-icon">🗑</span>最近削除した項目</span>
+                    <span className="name"><span className="folder-icon">🗑</span>{t('最近削除した項目')}</span>
                     <span className="sub">{trash.length}</span>
                     <span className="chev">›</span>
                   </li>
@@ -118,8 +119,8 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                 hideFolder
                 empty={
                   folder
-                    ? <>このフォルダはまだ空です。<br />右下の＋で記録を、「＋ フォルダ」でフォルダを作れます。</>
-                    : children.length ? 'フォルダに入っていない記録はありません' : <>まだ記録がありません。<br />右下の＋から、話したことを書いてみましょう。</>
+                    ? <>{t('このフォルダはまだ空です。')}<br />{t('右下の＋で記録を、「＋ フォルダ」でフォルダを作れます。')}</>
+                    : children.length ? t('フォルダに入っていない記録はありません') : <>{t('まだ記録がありません。')}<br />{t('右下の＋から、話したことを書いてみましょう。')}</>
                 }
               />
               <SelectionBar all={[
@@ -149,32 +150,32 @@ export function TrashScreen() {
   const targets = picked.size ? [...picked] : trash.map((e) => e.id);
   return (
     <div className="screen">
-      <Header title="最近削除した項目" left={<button className="link" onClick={() => location.replace('#/')}>‹ 記録</button>} />
-      <p className="muted small pad">削除した記録は30日間ここに残り、その後完全に消えます。タップで選んで、復元か完全に削除ができます。</p>
+      <Header title={t('最近削除した項目')} left={<button className="link" onClick={() => location.replace('#/')}>{t('‹ 記録')}</button>} />
+      <p className="muted small pad">{t('削除した記録は30日間ここに残り、その後完全に消えます。タップで選んで、復元か完全に削除ができます。')}</p>
       {trash.length === 0 ? (
-        <div className="empty">最近削除した項目はありません</div>
+        <div className="empty">{t('最近削除した項目はありません')}</div>
       ) : (
         <>
           <div className="list">
             {trash.map((e) => (
               <article key={e.id} className={`card selecting ${picked.has(e.id) ? 'picked' : ''}`} onClick={() => toggle(e.id)}>
                 <span className={`select-mark ${picked.has(e.id) ? 'on' : ''}`}>{picked.has(e.id) ? '✓' : ''}</span>
-                <div className="card-text">{e.text || '（本文なし）'}</div>
-                <div className="card-meta"><span className="date">あと{daysLeft(e.deletedAt!)}日</span></div>
+                <div className="card-text">{e.text || t('（本文なし）')}</div>
+                <div className="card-meta"><span className="date">{t('あと{n}日', { n: daysLeft(e.deletedAt!) })}</span></div>
               </article>
             ))}
           </div>
           <div className="select-bar">
             <button className="link" onClick={async () => {
               await store.restoreEntries(targets);
-              toast(`${targets.length}件を復元しました`);
+              toast(t('{n}件を復元しました', { n: targets.length }));
               setPicked(new Set());
-            }}>{picked.size ? `${picked.size}件を復元` : 'すべて復元'}</button>
+            }}>{picked.size ? t('{n}件を復元', { n: picked.size }) : t('すべて復元')}</button>
             <button className="link danger" onClick={async () => {
-              if (!confirm(`${targets.length}件を完全に削除します。元に戻せません。よろしいですか？`)) return;
+              if (!confirm(t('{n}件を完全に削除します。元に戻せません。よろしいですか？', { n: targets.length }))) return;
               await store.purgeEntries(targets);
               setPicked(new Set());
-            }}>{picked.size ? `${picked.size}件を完全に削除` : 'すべて完全に削除'}</button>
+            }}>{picked.size ? t('{n}件を完全に削除', { n: picked.size }) : t('すべて完全に削除')}</button>
           </div>
         </>
       )}
@@ -190,13 +191,13 @@ export function AllEntriesScreen() {
   const list = useMemo(() => sortEntriesBy(searchEntries(data, q), sort), [data, q, sort]);
   return (
     <div className="screen">
-      <Header title="すべての記録" left={<button className="link" onClick={() => location.replace('#/')}>‹ 記録</button>} />
-      <SearchBox value={q} onChange={setQ} placeholder="本文・人・話題で検索（読み仮名も可）" />
+      <Header title={t('すべての記録')} left={<button className="link" onClick={() => location.replace('#/')}>{t('‹ 記録')}</button>} />
+      <SearchBox value={q} onChange={setQ} placeholder={t('本文・人・話題で検索（読み仮名も可）')} />
       <div className="toolbar">
-        <span className="count">{list.length}件</span>
+        <span className="count">{t('{n}件', { n: list.length })}</span>
         <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
       </div>
-      <EntryList entries={list} data={data} pinSplit empty={q ? '見つかりませんでした' : 'まだ記録がありません'} />
+      <EntryList entries={list} data={data} pinSplit empty={q ? t('見つかりませんでした') : t('まだ記録がありません')} />
     </div>
   );
 }
@@ -256,8 +257,8 @@ function NameRow({ kind, x, sort, showFolder }: {
         )}
       </span>
       <span className="sub">
-        {x.stat.count}件
-        {x.stat.count > 0 && (sort === 'first' ? ` ・ 最初 ${formatDate(x.stat.first)}` : ` ・ 最終 ${formatDate(x.stat.last)}`)}
+        {t('{n}件', { n: x.stat.count })}
+        {x.stat.count > 0 && (sort === 'first' ? t(' ・ 最初 {d}', { d: formatDate(x.stat.first) }) : t(' ・ 最終 {d}', { d: formatDate(x.stat.last) }))}
       </span>
       <span className="chev">›</span>
     </li>
@@ -277,7 +278,7 @@ function PinnedSplit({ kind, items, sort, showFolder, restTitle }: {
   const rest = items.filter((x) => !x.pinned);
   return (
     <>
-      <div className="section-title">📌 ピン留め</div>
+      <div className="section-title">{t('📌 ピン留め')}</div>
       <NameRows kind={kind} items={pinned} sort={sort} showFolder={showFolder} />
       {rest.length > 0 && <div className="section-title">{restTitle}</div>}
       <NameRows kind={kind} items={rest} sort={sort} showFolder={showFolder} />
@@ -297,8 +298,8 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
   const folders = useMemo(() => foldersOf(data.folders, kind), [data.folders, kind]);
   const folder = folderId ? folders.find((f) => f.id === folderId) : undefined;
   useEffect(() => { if (folderId) store.markViewed('folder', folderId); }, [store, folderId]);
-  const label = kind === 'person' ? '人' : '話題';
-  const unit = kind === 'person' ? '人' : '件';
+  const label = kind === 'person' ? t('人') : t('話題');
+  const unit = kind === 'person' ? '{n}人' : '{n}件';
 
   const path = useMemo(() => folderPath(folders, folderId), [folders, folderId]);
   const deepCount = useMemo(() => makeDeepCount(folders, kind === 'person' ? data.people : data.topics), [folders, data, kind]);
@@ -341,36 +342,36 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
       <Header
         title={folder ? folder.name : label}
         left={folder && <UpButton scope={kind} parent={parent} />}
-        right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? '閉じる' : '編集'}</button>}</span>}
+        right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
       <Crumbs scope={kind} path={path} />
       {editing && folder ? (
         <FolderEdit id={folder.id} onDone={() => setEditing(false)} />
       ) : (
         <>
-          <SearchBox value={q} onChange={setQ} placeholder={folder ? `「${folder.name}」の中を探す・追加する` : `${label}を探す（読み仮名も可）・追加する`} />
+          <SearchBox value={q} onChange={setQ} placeholder={folder ? t('「{name}」の中を探す・追加する', { name: folder.name }) : t(kind === 'person' ? '人を探す・追加する' : '話題を探す・追加する')} />
           {clean && !exact && (
             <button className="btn block ghost" onClick={add}>
-              「{clean}」を{folder ? `「${folder.name}」に` : `${label}に`}追加
+              {folder ? t('「{name}」を「{folder}」に追加', { name: clean, folder: folder.name }) : t(kind === 'person' ? '「{name}」を人に追加' : '「{name}」を話題に追加', { name: clean })}
             </button>
           )}
           {results ? (
             <>
               <div className="toolbar">
-                <span className="count">{results.length}{unit}</span>
+                <span className="count">{t(unit, { n: results.length })}</span>
                 <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
               </div>
               <NameRows kind={kind} items={results} sort={sort} showFolder />
-              {results.length === 0 && <div className="empty">見つかりませんでした</div>}
+              {results.length === 0 && <div className="empty">{t('見つかりませんでした')}</div>}
             </>
           ) : (
             <>
               <div className="toolbar">
                 <span className="count">
-                  {children.length > 0 && `${children.length}フォルダ・`}{here.length}{unit}
+                  {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t(unit, { n: here.length })}
                 </span>
                 <span className="toolbar-right">
-                  {!adding && !selecting && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
+                  {!adding && !selecting && <button className="link small-link" onClick={() => setAdding(true)}>{t('＋ フォルダ')}</button>}
                   <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
                 </span>
               </div>
@@ -383,12 +384,12 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
               {here.length === 0 && (
                 <div className="empty">
                   {folder
-                    ? <>このフォルダはまだ空です。<br />{label}の「編集」でフォルダを選ぶか、上の検索欄から追加できます。</>
+                    ? <>{t('このフォルダはまだ空です。')}<br />{t(kind === 'person' ? '人の「編集」でフォルダを選ぶか、上の検索欄から追加できます。' : '話題の「編集」でフォルダを選ぶか、上の検索欄から追加できます。')}</>
                     : all.length === 0
                       ? (kind === 'person'
-                        ? <>まだ誰もいません。<br />記録を書くときに話した相手を追加できます。</>
-                        : <>まだ話題がありません。<br />記録を書くときに話題タグを付けられます。</>)
-                      : `フォルダに入っていない${label}はありません`}
+                        ? <>{t('まだ誰もいません。')}<br />{t('記録を書くときに話した相手を追加できます。')}</>
+                        : <>{t('まだ話題がありません。')}<br />{t('記録を書くときに話題タグを付けられます。')}</>)
+                      : t(kind === 'person' ? 'フォルダに入っていない人はいません' : 'フォルダに入っていない話題はありません')}
                 </div>
               )}
             </>
@@ -404,17 +405,17 @@ export function NameAllScreen({ kind }: { kind: NameKind }) {
   const [sort, setSort] = usePref<NameSort>(kind + 'Sort', 'last');
   const all = useNameItems(kind, sort);
   const list = all.filter((x) => nameMatches(x, q));
-  const label = kind === 'person' ? '人' : '話題';
+  const label = kind === 'person' ? t('人') : t('話題');
   return (
     <div className="screen">
-      <Header title={`すべての${label}`} left={<button className="link" onClick={() => location.replace('#' + rootHref(kind))}>‹ {label}</button>} />
-      <SearchBox value={q} onChange={setQ} placeholder={`${label}を探す（読み仮名も可）`} />
+      <Header title={t(kind === 'person' ? 'すべての人' : 'すべての話題')} left={<button className="link" onClick={() => location.replace('#' + rootHref(kind))}>‹ {label}</button>} />
+      <SearchBox value={q} onChange={setQ} placeholder={t(kind === 'person' ? '人を探す' : '話題を探す')} />
       <div className="toolbar">
-        <span className="count">{list.length}{kind === 'person' ? '人' : '件'}</span>
+        <span className="count">{t(kind === 'person' ? '{n}人' : '{n}件', { n: list.length })}</span>
         <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
       </div>
       <PinnedSplit kind={kind} items={list} sort={sort} showFolder restTitle={label} />
-      {list.length === 0 && <div className="empty">{q ? '見つかりませんでした' : 'まだありません'}</div>}
+      {list.length === 0 && <div className="empty">{q ? t('見つかりませんでした') : t('まだありません')}</div>}
     </div>
   );
 }
@@ -432,7 +433,7 @@ function MergeBox({ kind, id, name }: { kind: 'person' | 'topic'; id: ID; name: 
   const targetName = list.find((x) => x.id === target)?.name;
   const run = async () => {
     if (!target || !targetName) return;
-    const msg = `「${p}${name}」を「${p}${targetName}」に統合します。\n${p}${name}の記録はすべて${p}${targetName}のものになり、「${p}${name}」は消えます。よろしいですか？`;
+    const msg = t('「{a}」を「{b}」に統合します。\n{a}の記録はすべて{b}のものになり、「{a}」は消えます。よろしいですか？', { a: p + name, b: p + targetName });
     if (!confirm(msg)) return;
     if (kind === 'person') await store.mergePeople(id, target);
     else await store.mergeTopics(id, target);
@@ -440,18 +441,18 @@ function MergeBox({ kind, id, name }: { kind: 'person' | 'topic'; id: ID; name: 
   };
   return (
     <section className="panel">
-      <h2>{kind === 'person' ? '別の人に統合' : '別の話題に統合'}</h2>
+      <h2>{kind === 'person' ? t('別の人に統合') : t('別の話題に統合')}</h2>
       <p className="muted small">
-        同じ{kind === 'person' ? '人' : '話題'}を別名で登録してしまったときに、1つにまとめます。
+        {t(kind === 'person' ? '同じ人を別名で登録してしまったときに、1つにまとめます。' : '同じ話題を別名で登録してしまったときに、1つにまとめます。')}
       </p>
       <select className="select block" value={target} onChange={(e) => setTarget(e.target.value)}>
-        <option value="">統合先を選ぶ</option>
+        <option value="">{t('統合先を選ぶ')}</option>
         {list.map((x) => (
           <option key={x.id} value={x.id}>{p}{x.name}</option>
         ))}
       </select>
       <button className="btn block" disabled={!target} onClick={run}>
-        {targetName ? `「${p}${targetName}」に統合する` : '統合する'}
+        {targetName ? t('「{name}」に統合する', { name: p + targetName }) : t('統合する')}
       </button>
     </section>
   );
@@ -489,44 +490,46 @@ export function PersonScreen({ id }: { id: ID }) {
     <div className="screen">
       <Header
         title={person.name}
-        left={<button className="link" onClick={() => back('/people')}>‹ 人</button>}
-        right={<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setEditing(!editing); }}>{editing ? '閉じる' : '編集'}</button>}
+        left={<button className="link" onClick={() => back('/people')}>{t('‹ 人')}</button>}
+        right={<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button>}
       />
       {editing ? (
         <div className="form">
           <section className="field">
-            <label>名前</label>
+            <label>{t('名前')}</label>
             <input value={name} onChange={(e) => setName(e.target.value)} />
           </section>
+          {currentLang() === 'ja' && (
+            <section className="field">
+              <label>{t('読み仮名（検索用）')}</label>
+              <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder={t('例：たなか')} />
+            </section>
+          )}
           <section className="field">
-            <label>読み仮名（検索用）</label>
-            <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder="例：たなか" />
-          </section>
-          <section className="field">
-            <label>フォルダ</label>
+            <label>{t('フォルダ')}</label>
             <FolderSelect scope="person" value={pfolder} onChange={setPfolder} />
           </section>
           <section className="field">
-            <label>メモ（関係・好きなものなど）</label>
+            <label>{t('メモ（関係・好きなものなど）')}</label>
             <textarea className="textarea" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
           </section>
           <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder }); setEditing(false); }}>
-            保存
+            {t('保存')}
           </button>
           <MergeBox kind="person" id={id} name={person.name} />
           <button className="btn danger block" onClick={async () => {
-            if (!confirm(`「${person.name}」を削除しますか？\n記録は残り、この人の紐づけだけ外れます。`)) return;
+            if (!confirm(t('「{name}」を削除しますか？\n記録は残り、この人の紐づけだけ外れます。', { name: person.name }))) return;
             await store.deletePerson(id);
             back('/people');
           }}>
-            この人を削除
+            {t('この人を削除')}
           </button>
         </div>
       ) : (
         <>
           {person.memo && <p className="memo">{person.memo}</p>}
           <div className="section-title">
-            {person.name}に話したこと <span className="muted">{mine.length}件</span>
+            {t('{name}に話したこと', { name: person.name })} <span className="muted">{t('{n}件', { n: mine.length })}</span>
           </div>
           {topicCounts.length > 0 && (
             <div className="chips filter">
@@ -541,16 +544,16 @@ export function PersonScreen({ id }: { id: ID }) {
               })}
             </div>
           )}
-          {mine.length > 3 && <SearchBox value={q} onChange={setQ} placeholder={`${person.name}に話したことを検索`} />}
+          {mine.length > 3 && <SearchBox value={q} onChange={setQ} placeholder={t('{name}に話したことを検索', { name: person.name })} />}
           {mine.length > 1 && (
             <div className="toolbar">
-              <span className="count">{shown.length}件</span>
+              <span className="count">{t('{n}件', { n: shown.length })}</span>
               <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
             </div>
           )}
-          <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? '該当なし' : 'まだ記録がありません'} />
+          <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? t('該当なし') : t('まだ記録がありません')} />
           <button className="btn block ghost" onClick={() => go(`/new?person=${id}`)}>
-            ＋ {person.name}に話したことを記録
+            {t('＋ {name}に話したことを記録', { name: person.name })}
           </button>
         </>
       )}
@@ -584,38 +587,40 @@ export function TopicScreen({ id }: { id: ID }) {
     <div className="screen">
       <Header
         title={`#${topic.name}`}
-        left={<button className="link" onClick={() => back('/topics')}>‹ 話題</button>}
-        right={<button className="link" onClick={() => { setName(topic.name); setReading(topic.reading ?? ''); setTfolder(topic.folderId ?? null); setEditing(!editing); }}>{editing ? '閉じる' : '編集'}</button>}
+        left={<button className="link" onClick={() => back('/topics')}>{t('‹ 話題')}</button>}
+        right={<button className="link" onClick={() => { setName(topic.name); setReading(topic.reading ?? ''); setTfolder(topic.folderId ?? null); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button>}
       />
       {editing ? (
         <div className="form">
           <section className="field">
-            <label>話題の名前</label>
+            <label>{t('話題の名前')}</label>
             <input value={name} onChange={(e) => setName(e.target.value)} />
           </section>
+          {currentLang() === 'ja' && (
+            <section className="field">
+              <label>{t('読み仮名（検索用）')}</label>
+              <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder={t('例：りょこう')} />
+            </section>
+          )}
           <section className="field">
-            <label>読み仮名（検索用）</label>
-            <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder="例：りょこう" />
-          </section>
-          <section className="field">
-            <label>フォルダ</label>
+            <label>{t('フォルダ')}</label>
             <FolderSelect scope="topic" value={tfolder} onChange={setTfolder} />
           </section>
           <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updateTopic(id, { name: name.trim(), reading: reading.trim(), folderId: tfolder }); setEditing(false); }}>
-            保存
+            {t('保存')}
           </button>
           <MergeBox kind="topic" id={id} name={topic.name} />
           <button className="btn danger block" onClick={async () => {
-            if (!confirm(`「#${topic.name}」を削除しますか？\n記録は残り、このタグだけ外れます。`)) return;
+            if (!confirm(t('「{name}」を削除しますか？\n記録は残り、このタグだけ外れます。', { name: '#' + topic.name }))) return;
             await store.deleteTopic(id);
             back('/topics');
           }}>
-            この話題を削除
+            {t('この話題を削除')}
           </button>
         </div>
       ) : (
         <>
-          <div className="section-title">話した相手 <span className="muted">{people.length}人</span></div>
+          <div className="section-title">{t('話した相手')} <span className="muted">{t('{n}人', { n: people.length })}</span></div>
           {people.length > 0 ? (
             <div className="chips filter">
               {people.map(([pid, n]) => {
@@ -629,15 +634,15 @@ export function TopicScreen({ id }: { id: ID }) {
               })}
             </div>
           ) : (
-            <p className="muted pad">まだ誰にも話していません</p>
+            <p className="muted pad">{t('まだ誰にも話していません')}</p>
           )}
           <div className="toolbar">
-            <span className="section-title inline">この話題の記録 <span className="muted">{entries.length}件</span></span>
+            <span className="section-title inline">{t('この話題の記録')} <span className="muted">{t('{n}件', { n: entries.length })}</span></span>
             {entries.length > 1 && <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />}
           </div>
-          <EntryList entries={shown} data={data} hideTopicId={id} empty="まだ記録がありません" />
+          <EntryList entries={shown} data={data} hideTopicId={id} empty={t('まだ記録がありません')} />
           <button className="btn block ghost" onClick={() => go(`/new?topic=${id}`)}>
-            ＋ #{topic.name}の記録を追加
+            {t('＋ {name}の記録を追加', { name: '#' + topic.name })}
           </button>
         </>
       )}
@@ -648,8 +653,8 @@ export function TopicScreen({ id }: { id: ID }) {
 function Missing() {
   return (
     <div className="screen">
-      <Header title="" left={<button className="link" onClick={() => back()}>‹ 戻る</button>} />
-      <div className="empty">見つかりませんでした（削除された可能性があります）</div>
+      <Header title="" left={<button className="link" onClick={() => back()}>{t('‹ 戻る')}</button>} />
+      <div className="empty">{t('見つかりませんでした（削除された可能性があります）')}</div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 // 試作では、ユーザー自身のAPIキーを端末内に保存し、ブラウザから直接 Claude API を呼ぶ。
 // 将来の課金版では、この関数の中身をサーバー経由の呼び出しに差し替える想定。
 import Anthropic from '@anthropic-ai/sdk';
+import { currentLang, t } from '../i18n';
 
 export const AI_MODEL = 'claude-haiku-5-5';
 // 料金(USD / 100万トークン)と、目安の為替(円/USD)。表示用の概算
@@ -62,7 +63,7 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function demoTranscribe(): Promise<{ text: string; yen: number }> {
   await wait(700);
   return {
-    text: '(お試し表示: APIキーを入れると、ここに画像の文字起こしが入ります)\n田中: 来月、京都に紅葉を見に行くんだ\n自分: いいね、おすすめのお寺を教えるよ',
+    text: t('(お試し表示: APIキーを入れると、ここに画像の文字起こしが入ります)\n田中: 来月、京都に紅葉を見に行くんだ\n自分: いいね、おすすめのお寺を教えるよ'),
     yen: 0,
   };
 }
@@ -74,11 +75,11 @@ export async function demoSuggest(text: string, known: { people: string[]; topic
   const body = n(text);
   const people = known.people.filter((p) => p.trim() && body.includes(n(p)));
   for (const m of text.matchAll(/^\s*([^\s:：()（）]{1,10})[:：]/gm)) {
-    if (!/^(自分|私|わたし|僕|俺)$/.test(m[1]) && !people.includes(m[1])) people.push(m[1]);
+    if (!/^(自分|私|わたし|僕|俺|me|i)$/i.test(m[1]) && !people.includes(m[1])) people.push(m[1]);
   }
   const topics = known.topics.filter((t) => t.trim() && body.includes(n(t)));
   for (const m of text.matchAll(/[ァ-ヴー]{3,}/g)) if (topics.length < 4 && !topics.includes(m[0])) topics.push(m[0]);
-  if (!topics.length) topics.push('雑談');
+  if (!topics.length) topics.push(t('雑談'));
   return { topics: topics.slice(0, 4), people: people.slice(0, 4), yen: 0 };
 }
 
@@ -96,7 +97,7 @@ function record(usage: { input_tokens: number; output_tokens: number }): number 
 }
 
 function textOf(msg: Anthropic.Message): string {
-  if (msg.stop_reason === 'refusal') throw new Error('AIがこの内容の処理を断りました');
+  if (msg.stop_reason === 'refusal') throw new Error(t('AIがこの内容の処理を断りました'));
   return msg.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
@@ -105,17 +106,17 @@ function textOf(msg: Anthropic.Message): string {
 }
 
 export function aiErrorMessage(e: unknown): string {
-  if (e instanceof Anthropic.AuthenticationError) return 'APIキーが正しくないようです。設定を確認してください';
-  if (e instanceof Anthropic.PermissionDeniedError) return 'このAPIキーでは使えません(権限がありません)';
-  if (e instanceof Anthropic.RateLimitError) return '短時間に使いすぎました。少し待ってからもう一度お試しください';
+  if (e instanceof Anthropic.AuthenticationError) return t('APIキーが正しくないようです。設定を確認してください');
+  if (e instanceof Anthropic.PermissionDeniedError) return t('このAPIキーでは使えません(権限がありません)');
+  if (e instanceof Anthropic.RateLimitError) return t('短時間に使いすぎました。少し待ってからもう一度お試しください');
   if (e instanceof Anthropic.BadRequestError) {
     const m = e.message || '';
-    if (/credit|balance/i.test(m)) return 'APIのクレジット残高が足りません。Claude Consoleでチャージしてください';
-    return 'リクエストが受け付けられませんでした: ' + m;
+    if (/credit|balance/i.test(m)) return t('APIのクレジット残高が足りません。Claude Consoleでチャージしてください');
+    return t('リクエストが受け付けられませんでした: {v}', { v: m });
   }
-  if (e instanceof Anthropic.APIConnectionError) return '通信できませんでした。電波を確認してください';
-  if (e instanceof Anthropic.APIError) return 'AIの呼び出しに失敗しました(' + (e.status ?? '?') + ')';
-  return (e as Error)?.message || 'AIの呼び出しに失敗しました';
+  if (e instanceof Anthropic.APIConnectionError) return t('通信できませんでした。電波を確認してください');
+  if (e instanceof Anthropic.APIError) return t('AIの呼び出しに失敗しました({v})', { v: e.status ?? '?' });
+  return (e as Error)?.message || t('AIの呼び出しに失敗しました');
 }
 
 /** 画像を長辺1568pxまでに縮めてJPEGのbase64にする(料金と通信量を抑える) */
@@ -144,8 +145,8 @@ export async function transcribeImage(apiKey: string, image: Blob): Promise<{ te
     max_tokens: 4000,
     output_config: { effort: 'low' },
     system:
-      'あなたは画像の文字起こし係です。画像に写っている文章をそのまま日本語のテキストにしてください。' +
-      'チャットやSNSの画面なら、発言ごとに1行で「名前: 発言」の形にしてください(自分側の発言は「自分: 」)。' +
+      'あなたは画像の文字起こし係です。画像に写っている文章を、元の言語のままテキストにしてください。' +
+      'チャットやSNSの画面なら、発言ごとに1行で「名前: 発言」の形にしてください(自分側の発言は「自分: 」、英語の画面なら「Me: 」)。' +
       '時刻・既読・ボタン・電波表示などの画面の飾りは省いてください。説明や前置きは書かず、文字起こしした本文だけを出力してください。',
     messages: [
       {
@@ -194,7 +195,8 @@ export async function suggestTags(
     system:
       'あなたは会話メモの整理係です。ユーザーが誰かと話した内容のメモを読み、あとで「この話を別の人にもしよう」と探しやすくなる話題タグと、話した相手を提案します。\n' +
       '- topics: 話題タグを1〜4個。短い名詞(例: 旅行、転職、子育て、キャンプ)。既存の話題に合うものがあれば、その名前をそのまま使う。\n' +
-      '- people: メモから話した相手だとはっきり分かる人だけ。既存の人に合う人がいれば、その名前をそのまま使う。自分自身や、話の中に出てくるだけの第三者は入れない。分からなければ空にする。',
+      '- people: メモから話した相手だとはっきり分かる人だけ。既存の人に合う人がいれば、その名前をそのまま使う。自分自身や、話の中に出てくるだけの第三者は入れない。分からなければ空にする。' +
+      (currentLang() === 'en' ? '\n- 新しく作る話題名は英語にする。' : ''),
     messages: [
       {
         role: 'user',
@@ -213,7 +215,7 @@ export async function suggestTags(
       people: Array.isArray(j.people) ? j.people.filter((x: unknown) => typeof x === 'string') : [],
     };
   } catch {
-    throw new Error('AIの返事を読み取れませんでした。もう一度お試しください');
+    throw new Error(t('AIの返事を読み取れませんでした。もう一度お試しください'));
   }
   const clean = (xs: string[]) => [...new Set(xs.map((x) => x.trim().replace(/^#/, '')).filter(Boolean))];
   return { topics: clean(parsed.topics), people: clean(parsed.people), yen: record(msg.usage) };
@@ -276,7 +278,8 @@ export async function suggestFolders(
       '- 合うものがなければ、新しいフォルダ名を短い名詞で作る(例: 仕事、家族、趣味、旅行)。似たものは同じフォルダにまとめ、1件だけのフォルダはなるべく作らない。フォルダの数は多くても10個程度。\n' +
       '- どこにも入れないほうがよいものは一覧に含めない。\n' +
       (kind === 'person' ? '- 人は、関係(家族、職場、学生時代の友人など)で分ける。[]内はその人とよく話す話題。\n' : '') +
-      (kind === 'entry' ? '- []内は記録に付いている話題と相手。\n' : ''),
+      (kind === 'entry' ? '- []内は記録に付いている話題と相手。\n' : '') +
+      (currentLang() === 'en' ? '- 新しく作るフォルダ名は英語にする。\n' : ''),
     messages: [
       {
         role: 'user',
@@ -294,7 +297,7 @@ export async function suggestFolders(
       (a: FolderAssignment) => Number.isInteger(a?.index) && a.index >= 0 && a.index < items.length && typeof a.folder === 'string' && a.folder.trim(),
     );
   } catch {
-    throw new Error('AIの返事を読み取れませんでした。もう一度お試しください');
+    throw new Error(t('AIの返事を読み取れませんでした。もう一度お試しください'));
   }
   return { assignments: list.map((a) => ({ index: a.index, folder: a.folder.trim() })), yen: record(msg.usage) };
 }

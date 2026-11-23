@@ -6,6 +6,7 @@ import { TrashScreen, AllEntriesScreen, FolderScreen, NameAllScreen, NameFolderS
 import { EntryEditor } from './EntryEditor';
 import { SettingsScreen } from './SettingsScreen';
 import { needsBackupReminder } from './backupUi';
+import { t, useLang } from '../i18n';
 
 const TABS = [
   { key: '', label: '記録', icon: '✎' },
@@ -15,9 +16,11 @@ const TABS = [
 ];
 
 export function App({ store }: { store: Store }) {
+  // 言語を切り替えたら全体を描き直す
+  const lang = useLang();
   return (
     <StoreContext.Provider value={store}>
-      <InteractProvider>
+      <InteractProvider key={lang}>
         <Shell />
       </InteractProvider>
     </StoreContext.Provider>
@@ -31,7 +34,7 @@ function Shell() {
   const selecting = useInteract().sel.active;
   const [head, sub] = path;
 
-  if (!loaded) return <div className="loading">読み込み中…</div>;
+  if (!loaded) return <div className="loading">{t('読み込み中…')}</div>;
 
   if (head === 'new' || head === 'edit') {
     return (
@@ -71,26 +74,26 @@ function Shell() {
     <div className="app">
       {remind && (
         <button className="reminder" onClick={() => go('/settings')}>
-          しばらくバックアップしていません。設定から書き出しておきましょう ›
+          {t('しばらくバックアップしていません。設定から書き出しておきましょう ›')}
         </button>
       )}
       <main className="main">{screen}</main>
       {showFab && (
-        <button className="fab" aria-label="記録を追加" onClick={() => {
+        <button className="fab" aria-label={t('記録を追加')} onClick={() => {
           go(head === 'f' && sub ? `/new?folder=${sub}` : '/new');
         }}>
           ＋
         </button>
       )}
       <nav className="tabbar">
-        {TABS.map((t) => (
+        {TABS.map((tb) => (
           <button
-            key={t.key}
-            className={`tab ${tab === t.key ? 'on' : ''}`}
-            onClick={() => switchTab(t.key)}
+            key={tb.key}
+            className={`tab ${tab === tb.key ? 'on' : ''}`}
+            onClick={() => switchTab(tb.key)}
           >
-            <span className="tab-icon">{t.icon}</span>
-            <span className="tab-label">{t.label}</span>
+            <span className="tab-icon">{tb.icon}</span>
+            <span className="tab-label">{t(tb.label)}</span>
           </button>
         ))}
       </nav>

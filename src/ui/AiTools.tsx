@@ -18,6 +18,7 @@ import {
 } from '../core/ai';
 import { normalize } from '../core/search';
 import { go } from './hooks';
+import { t } from '../i18n';
 
 export function useAiSettings(): [AiSettings, (patch: Partial<AiSettings>) => void] {
   const [s, setS] = useState(loadAiSettings);
@@ -28,7 +29,8 @@ export function useAiSettings(): [AiSettings, (patch: Partial<AiSettings>) => vo
   return [s, (patch) => saveAiSettings({ ...loadAiSettings(), ...patch })];
 }
 
-const yenText = (y: number) => (y < 0.01 ? '0.01円未満' : y < 1 ? `約${y.toFixed(2)}円` : `約${y.toFixed(1)}円`);
+export const yenText = (y: number) =>
+  y < 0.01 ? t('0.01円未満') : t('約{v}円', { v: y < 1 ? y.toFixed(2) : y.toFixed(1) });
 
 /** 記録の編集画面で使う。スクショ文字起こしボタン・貼り付け対応・話題/相手の提案 */
 export function useEntryAi(opts: {
@@ -53,9 +55,9 @@ export function useEntryAi(opts: {
     setBusy('ocr'); setErr(''); setInfo('');
     try {
       const r = isDemo(s) ? await demoTranscribe() : await transcribeImage(s.apiKey, img);
-      if (!r.text) throw new Error('文字が見つかりませんでした');
+      if (!r.text) throw new Error(t('文字が見つかりませんでした'));
       opts.setText((prev) => (prev.trim() ? prev.replace(/\s*$/, '') + '\n\n' : '') + r.text);
-      setInfo(isDemo(s) ? 'お試し表示です(APIキー未設定のためサンプルの文章)' : `文字起こししました(${yenText(r.yen)})`);
+      setInfo(isDemo(s) ? t('お試し表示です(APIキー未設定のためサンプルの文章)') : t('文字起こししました({v})', { v: yenText(r.yen) }));
     } catch (e) {
       setErr(aiErrorMessage(e));
     } finally {
@@ -79,7 +81,7 @@ export function useEntryAi(opts: {
       const known = { people: opts.knownPeople, topics: opts.knownTopics };
       const r = isDemo(s) ? await demoSuggest(opts.text, known) : await suggestTags(s.apiKey, opts.text, known);
       setSug({ topics: r.topics, people: r.people });
-      setInfo(isDemo(s) ? 'お試し表示です(APIキー未設定のため簡易的な提案)。タップで追加できます' : `提案しました(${yenText(r.yen)})。タップで追加できます`);
+      setInfo(isDemo(s) ? t('お試し表示です(APIキー未設定のため簡易的な提案)。タップで追加できます') : t('提案しました({v})。タップで追加できます', { v: yenText(r.yen) }));
     } catch (e) {
       setErr(aiErrorMessage(e));
     } finally {
@@ -100,7 +102,7 @@ export function useEntryAi(opts: {
       {showOcr && (
         <>
           <button className="btn small" disabled={!!busy} onClick={() => fileRef.current?.click()}>
-            {busy === 'ocr' ? '文字起こし中…' : '📷 スクショから文字起こし'}
+            {busy === 'ocr' ? t('文字起こし中…') : t('📷 スクショから文字起こし')}
           </button>
           <input
             ref={fileRef}
@@ -117,7 +119,7 @@ export function useEntryAi(opts: {
       )}
       {showSuggest && (
         <button className="btn small" disabled={!!busy || !opts.text.trim()} onClick={suggest}>
-          {busy === 'suggest' ? '考え中…' : '✨ 話題と相手を提案'}
+          {busy === 'suggest' ? t('考え中…') : t('✨ 話題と相手を提案')}
         </button>
       )}
     </div>
@@ -128,7 +130,7 @@ export function useEntryAi(opts: {
   const suggestions = sug && (restTopics.length > 0 || restPeople.length > 0) && (
     <div className="ai-sug">
       <div className="ai-sug-head">
-        <span className="muted small">AIの提案</span>
+        <span className="muted small">{t('AIの提案')}</span>
         <button
           className="link small"
           onClick={() => {
@@ -136,19 +138,19 @@ export function useEntryAi(opts: {
             restTopics.forEach(opts.addTopic);
           }}
         >
-          すべて追加
+          {t('すべて追加')}
         </button>
-        <button className="link small muted" onClick={() => setSug(null)}>閉じる</button>
+        <button className="link small muted" onClick={() => setSug(null)}>{t('閉じる')}</button>
       </div>
       <div className="chips">
         {restPeople.map((n) => (
           <button key={'p' + n} className="chip person" onClick={() => opts.addPerson(n)}>
-            ＋ {n}{!isKnown(opts.knownPeople, n) && <span className="n"> 新</span>}
+            ＋ {n}{!isKnown(opts.knownPeople, n) && <span className="n"> {t('新')}</span>}
           </button>
         ))}
         {restTopics.map((n) => (
           <button key={'t' + n} className="chip topic" onClick={() => opts.addTopic(n)}>
-            ＋ #{n}{!isKnown(opts.knownTopics, n) && <span className="n"> 新</span>}
+            ＋ #{n}{!isKnown(opts.knownTopics, n) && <span className="n"> {t('新')}</span>}
           </button>
         ))}
       </div>
@@ -177,14 +179,14 @@ export function AiSettingsPanel() {
 
   const saveKey = () => {
     update({ apiKey: key.trim() });
-    setMsg(key.trim() ? 'APIキーを保存しました' : 'APIキーを消しました');
+    setMsg(key.trim() ? t('APIキーを保存しました') : t('APIキーを消しました'));
   };
   const test = async () => {
     setTesting(true); setMsg('');
     try {
       update({ apiKey: key.trim() });
       await testApiKey(key);
-      setMsg('つながりました。使える状態です');
+      setMsg(t('つながりました。使える状態です'));
     } catch (e) {
       setMsg(aiErrorMessage(e));
     } finally {
@@ -194,41 +196,40 @@ export function AiSettingsPanel() {
 
   return (
     <section className="panel">
-      <h2>AI機能（試作）</h2>
+      <h2>{t('AI機能（試作）')}</h2>
       <p className="muted small">
-        Claude（Haiku）を使って、スクショの文字起こしと、話題・相手の提案をします。1回あたりおよそ0.1円以下です。
-        試作版では、あなた自身のAPIキーをこの端末の中だけに保存して使います。
+        {t('スクショの文字起こし、話題・相手の提案、フォルダの整理をAI（Claude Haiku）が手伝います。APIキーがなければ「お試し表示」で画面と動きだけ確認できます。')}
       </p>
       <label className="toggle main">
         <input type="checkbox" checked={s.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
-        <span>AI機能を使う</span>
+        <span>{t('AI機能を使う')}</span>
       </label>
       {s.enabled && (
         <div className="sub-toggles">
           <label className="toggle">
             <input type="checkbox" checked={s.ocr} onChange={(e) => update({ ocr: e.target.checked })} />
-            <span>スクショから文字起こし</span>
+            <span>{t('スクショから文字起こし')}</span>
           </label>
           <label className="toggle">
             <input type="checkbox" checked={s.suggest} onChange={(e) => update({ suggest: e.target.checked })} />
-            <span>話題と相手を自動で提案</span>
+            <span>{t('話題と相手を自動で提案')}</span>
           </label>
           <label className="toggle">
             <input type="checkbox" checked={s.organize} onChange={(e) => update({ organize: e.target.checked })} />
-            <span>フォルダの自動整理</span>
+            <span>{t('フォルダの自動整理')}</span>
           </label>
           {s.organize && (
             <div className="ai-bar">
-              <button className="btn small" onClick={() => go('/organize/entry')}>📁 記録を整理</button>
-              <button className="btn small" onClick={() => go('/organize/person')}>📁 人を整理</button>
-              <button className="btn small" onClick={() => go('/organize/topic')}>📁 話題を整理</button>
+              <button className="btn small" onClick={() => go('/organize/entry')}>{t('📁 記録を整理')}</button>
+              <button className="btn small" onClick={() => go('/organize/person')}>{t('📁 人を整理')}</button>
+              <button className="btn small" onClick={() => go('/organize/topic')}>{t('📁 話題を整理')}</button>
             </div>
           )}
         </div>
       )}
       {s.enabled && isDemo(s) && (
         <p className="ai-msg">
-          APIキーが未設定なので「お試し表示」です。ボタンや提案の画面は使えますが、AIは呼ばずにサンプルの結果を出します（料金はかかりません）。
+          {t('APIキーが未設定なので「お試し表示」です。ボタンや提案の画面は使えますが、AIは呼ばずにサンプルの結果を出します（料金はかかりません）。')}
         </p>
       )}
       <div className="row-input">
@@ -236,25 +237,25 @@ export function AiSettingsPanel() {
           type={show ? 'text' : 'password'}
           value={key}
           onChange={(e) => setKey(e.target.value)}
-          placeholder="APIキー（sk-ant-…）"
+          placeholder={t('APIキー（sk-ant-…）')}
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
         />
-        <button className="btn small" onClick={() => setShow(!show)}>{show ? '隠す' : '表示'}</button>
+        <button className="btn small" onClick={() => setShow(!show)}>{show ? t('隠す') : t('表示')}</button>
       </div>
-      <button className="btn primary block" disabled={key.trim() === s.apiKey} onClick={saveKey}>キーを保存</button>
+      <button className="btn primary block" disabled={key.trim() === s.apiKey} onClick={saveKey}>{t('キーを保存')}</button>
       <button className="btn block" disabled={!key.trim() || testing} onClick={test}>
-        {testing ? '確認中…' : 'つながるか確認'}
+        {testing ? t('確認中…') : t('つながるか確認')}
       </button>
       {msg && <p className="notice">{msg}</p>}
       <p className="muted small">
-        これまでに使った金額の目安: {yenText(s.spentYen)}{' '}
-        {s.spentYen > 0 && <button className="link small" onClick={() => update({ spentYen: 0 })}>リセット</button>}
+        {t('これまでに使った金額の目安: {v}', { v: yenText(s.spentYen) })}{' '}
+        {s.spentYen > 0 && <button className="link small" onClick={() => update({ spentYen: 0 })}>{t('リセット')}</button>}
       </p>
       <p className="muted small">
-        APIキーは <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">Claude Console</a> で作れます。
-        送った画像や本文はAnthropicに送信されますが、バックアップのファイルにキーは含まれません。
+        {t('APIキーはClaude Consoleで作れます。APIを使うと画像や本文がAnthropicに送られます。キーはバックアップのファイルには含まれません。')}{' '}
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">Claude Console</a>
       </p>
     </section>
   );

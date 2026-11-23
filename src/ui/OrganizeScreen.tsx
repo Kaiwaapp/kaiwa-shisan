@@ -7,7 +7,8 @@ import type { FolderScope, ID } from '../core/types';
 import { back, go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { folderChoices, rootHref, SCOPE_LABEL } from './folders';
-import { useAiSettings } from './AiTools';
+import { useAiSettings, yenText } from './AiTools';
+import { t } from '../i18n';
 
 const MAX_ITEMS = 100;
 
@@ -23,6 +24,7 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
   const [err, setErr] = useState('');
   const [info, setInfo] = useState('');
   const [plan, setPlan] = useState<Plan[] | null>(null);
+  const [moved, setMoved] = useState<number | null>(null);
 
   const choices = useMemo(() => folderChoices(foldersOf(data.folders, scope)), [data.folders, scope]);
 
@@ -61,14 +63,14 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
   if (!organizeReady(s)) {
     return (
       <div className="screen">
-        <Header title="AIでフォルダ整理" left={<button className="link" onClick={() => back()}>戻る</button>} />
-        <div className="empty">設定の「AI機能（試作）」で「AI機能を使う」と「フォルダの自動整理」をONにしてください。</div>
+        <Header title={t('AIでフォルダ整理')} left={<button className="link" onClick={() => back()}>{t('戻る')}</button>} />
+        <div className="empty">{t('設定の「AI機能（試作）」で「AI機能を使う」と「フォルダの自動整理」をONにしてください。')}</div>
       </div>
     );
   }
 
   const run = async () => {
-    setBusy(true); setErr(''); setInfo(''); setPlan(null);
+    setBusy(true); setErr(''); setInfo(''); setPlan(null); setMoved(null);
     try {
       const labels = choices.map((c) => c.label);
       const items = targets.map((r) => r.item);
@@ -80,8 +82,8 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
       setPlan(filtered);
       setInfo(
         isDemo(s)
-          ? 'お試し表示です(APIキー未設定のため、フォルダ名や話題名で簡易的に振り分けています)'
-          : `提案しました(約${r.yen < 0.01 ? '0.01円未満' : r.yen.toFixed(2) + '円'})`,
+          ? t('お試し表示です(APIキー未設定のため、フォルダ名や話題名で簡易的に振り分けています)')
+          : t('提案しました({v})', { v: yenText(r.yen) }),
       );
     } catch (e) {
       setErr(aiErrorMessage(e));
@@ -115,7 +117,8 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
     for (const [fid, ids] of byFolder) { await store.moveItems(scope, ids, fid); n += ids.length; }
     setBusy(false);
     setPlan(null);
-    setInfo(`${n}件をフォルダに移動しました`);
+    setInfo('');
+    setMoved(n);
   };
 
   const groups = plan
@@ -126,36 +129,37 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
   return (
     <div className="screen">
       <Header
-        title={`AIで${SCOPE_LABEL[scope]}を整理`}
-        left={<button className="link" onClick={() => back()}>戻る</button>}
+        title={t('AIで{kind}を整理', { kind: t(SCOPE_LABEL[scope]) })}
+        left={<button className="link" onClick={() => back()}>{t('戻る')}</button>}
       />
       <div className="form">
         <div className="chips">
           {(['entry', 'person', 'topic'] as const).map((k) => (
             <button key={k} className={'chip folder' + (k === scope ? ' on' : '')} onClick={() => go('/organize/' + k)}>
-              {SCOPE_LABEL[k]}
+              {t(SCOPE_LABEL[k])}
             </button>
           ))}
         </div>
         <section className="panel">
           <p className="muted small">
-            AIが{SCOPE_LABEL[scope]}の振り分け先のフォルダを提案します。既存のフォルダを優先し、合うものがなければ新しいフォルダを提案します。確認してから移動するので、勝手には動きません。
+            {t('AIが{kind}の振り分け先のフォルダを提案します。既存のフォルダを優先し、合うものがなければ新しいフォルダを提案します。確認してから移動するので、勝手には動きません。', { kind: t(SCOPE_LABEL[scope]) })}
           </p>
           <label className="toggle">
             <input type="checkbox" checked={onlyLoose} onChange={(e) => { setOnlyLoose(e.target.checked); setPlan(null); }} />
-            <span>フォルダに入っていないものだけ</span>
+            <span>{t('フォルダに入っていないものだけ')}</span>
           </label>
           <p className="muted small">
-            対象: {targets.length}件{rows.length > MAX_ITEMS && targets.length === MAX_ITEMS ? `(1回に${MAX_ITEMS}件まで)` : ''}
+            {t('対象: {n}件', { n: targets.length })}
+            {rows.length > MAX_ITEMS && targets.length === MAX_ITEMS ? t('(1回に{n}件まで)', { n: MAX_ITEMS }) : ''}
           </p>
           <button className="btn primary block" disabled={busy || targets.length === 0} onClick={run}>
-            {busy && !plan ? '考え中…' : '✨ 振り分けを提案してもらう'}
+            {busy && !plan ? t('考え中…') : t('✨ 振り分けを提案してもらう')}
           </button>
           {err && <p className="ai-msg error">{err}</p>}
           {info && <p className="ai-msg">{info}</p>}
         </section>
 
-        {plan && plan.length === 0 && <div className="empty">移動したほうがよいものは見つかりませんでした。</div>}
+        {plan && plan.length === 0 && <div className="empty">{t('移動したほうがよいものは見つかりませんでした。')}</div>}
         {plan && plan.length > 0 && (
           <>
             {groups.map(([folder, idxs]) => {
@@ -163,7 +167,7 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
               return (
                 <section key={folder} className="panel organize-group">
                   <h2>
-                    📁 {folder} {isNew && <span className="badge-new">新しいフォルダ</span>}
+                    📁 {folder} {isNew && <span className="badge-new">{t('新しいフォルダ')}</span>}
                   </h2>
                   {idxs.map((i) => (
                     <label key={plan[i].id} className="toggle">
@@ -172,20 +176,23 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
                         checked={plan[i].on}
                         onChange={(e) => setPlan(plan.map((p, j) => (j === i ? { ...p, on: e.target.checked } : p)))}
                       />
-                      <span className="organize-label">{plan[i].label || '(本文なし)'}</span>
+                      <span className="organize-label">{plan[i].label || t('(本文なし)')}</span>
                     </label>
                   ))}
                 </section>
               );
             })}
             <button className="btn primary block" disabled={busy || checked === 0} onClick={apply}>
-              選んだ{checked}件を移動する
+              {t('選んだ{n}件を移動する', { n: checked })}
             </button>
-            <button className="btn ghost block" onClick={() => setPlan(null)}>やめる</button>
+            <button className="btn ghost block" onClick={() => setPlan(null)}>{t('やめる')}</button>
           </>
         )}
-        {!plan && info.endsWith('移動しました') && (
-          <button className="btn block" onClick={() => go(rootHref(scope))}>{SCOPE_LABEL[scope]}の一覧を見る</button>
+        {!plan && moved !== null && (
+          <>
+            <p className="notice">{t('{n}件をフォルダに移動しました', { n: moved })}</p>
+            <button className="btn block" onClick={() => go(rootHref(scope))}>{t('{kind}の一覧を見る', { kind: t(SCOPE_LABEL[scope]) })}</button>
+          </>
         )}
       </div>
     </div>

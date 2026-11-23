@@ -5,6 +5,7 @@ import { ComboPicker, Header } from './components';
 import { copyText } from './interact';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
+import { t } from '../i18n';
 
 
 export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: {
@@ -74,8 +75,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   if (id && !existing) {
     return (
       <div className="screen">
-        <Header title="記録" left={<button className="link" onClick={() => back()}>戻る</button>} />
-        <div className="empty">この記録は見つかりませんでした。</div>
+        <Header title={t('記録')} left={<button className="link" onClick={() => back()}>{t('戻る')}</button>} />
+        <div className="empty">{t('この記録は見つかりませんでした。')}</div>
       </div>
     );
   }
@@ -90,7 +91,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
     back();
   };
   const remove = async () => {
-    if (!id || !confirm('この記録を削除しますか？\n30日間は「最近削除した項目」から戻せます。')) return;
+    if (!id || !confirm(t('この記録を削除しますか？\n30日間は「最近削除した項目」から戻せます。'))) return;
     await store.deleteEntry(id);
     back();
   };
@@ -98,9 +99,9 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   return (
     <div className="screen editor">
       <Header
-        title={existing ? '記録を編集' : '新しい記録'}
-        left={<button className="link" onClick={() => back()}>キャンセル</button>}
-        right={<button className="link strong" disabled={!canSave} onClick={save}>保存</button>}
+        title={existing ? t('記録を編集') : t('新しい記録')}
+        left={<button className="link" onClick={() => back()}>{t('キャンセル')}</button>}
+        right={<button className="link strong" disabled={!canSave} onClick={save}>{t('保存')}</button>}
       />
       <div className="form">
         <textarea
@@ -108,16 +109,16 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           value={text}
           onChange={(e) => setText(e.target.value)}
           onPaste={ai.onPaste}
-          placeholder="話した内容を自由に書く"
+          placeholder={t('話した内容を自由に書く')}
           autoFocus={!existing}
           rows={6}
         />
         {text.trim() && (
-          <button type="button" className="link small-link copy-line" onClick={() => copyText(text)}>⧉ 本文をコピー</button>
+          <button type="button" className="link small-link copy-line" onClick={() => copyText(text)}>{t('⧉ 本文をコピー')}</button>
         )}
         {ai.panel}
         <section className="field">
-          <label>話した相手</label>
+          <label>{t('話した相手')}</label>
           <ComboPicker
             kind="person"
             options={personOpts}
@@ -127,7 +128,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           />
         </section>
         <section className="field">
-          <label>話題</label>
+          <label>{t('話題')}</label>
           <ComboPicker
             kind="topic"
             options={topicOpts}
@@ -137,12 +138,12 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           />
         </section>
         <section className="field row">
-          <label htmlFor="talkedOn">最初に話した日</label>
+          <label htmlFor="talkedOn">{t('最初に話した日')}</label>
           <input id="talkedOn" type="date" value={talkedOn} onChange={(e) => setTalkedOn(e.target.value || today())} />
         </section>
         {existing && (
           <button className="btn danger block" onClick={remove}>
-            この記録を削除
+            {t('この記録を削除')}
           </button>
         )}
       </div>

@@ -4,6 +4,7 @@ import type { Store } from '../core/store';
 import { foldersOf, folderDescendants, folderPath } from '../core/store';
 import { folderChoices } from './folders';
 import { useData, useStore } from './hooks';
+import { t } from '../i18n';
 
 /** 長押し・ドラッグ・複数選択の対象 */
 export type ItemKind = 'entry' | 'person' | 'topic' | 'folder';
@@ -120,11 +121,11 @@ export async function deleteItems(store: Store, items: ItemRef[]): Promise<boole
   const entries = items.filter((i) => i.kind === 'entry');
   const others = items.filter((i) => i.kind !== 'entry');
   if (others.length) {
-    const names = others.map((i) => `${KIND_LABEL[i.kind]}「${i.label}」`).slice(0, 5).join('\n');
+    const names = others.map((i) => t('{kind}「{name}」', { kind: t(KIND_LABEL[i.kind]), name: i.label })).slice(0, 5).join('\n');
     const msg =
-      `${names}${others.length > 5 ? `\nほか${others.length - 5}件` : ''}\nを削除しますか？\n` +
-      (others.some((i) => i.kind === 'folder') ? 'フォルダの中身は消えず、1つ上の階層に移ります。\n' : '') +
-      (others.some((i) => i.kind === 'person' || i.kind === 'topic') ? '人・話題を消しても記録は残ります。' : '');
+      names + (others.length > 5 ? '\n' + t('ほか{n}件', { n: others.length - 5 }) : '') + '\n' + t('を削除しますか？') + '\n' +
+      (others.some((i) => i.kind === 'folder') ? t('フォルダの中身は消えず、1つ上の階層に移ります。\n') : '') +
+      (others.some((i) => i.kind === 'person' || i.kind === 'topic') ? t('人・話題を消しても記録は残ります。') : '');
     if (!confirm(msg)) return false;
   }
   if (entries.length) await store.trashEntries(entries.map((i) => i.id));
@@ -133,7 +134,7 @@ export async function deleteItems(store: Store, items: ItemRef[]): Promise<boole
     else if (i.kind === 'person') await store.deletePerson(i.id);
     else if (i.kind === 'topic') await store.deleteTopic(i.id);
   }
-  toast(entries.length && !others.length ? '「最近削除した項目」に移しました' : '削除しました');
+  toast(entries.length && !others.length ? t('「最近削除した項目」に移しました') : t('削除しました'));
   return true;
 }
 
@@ -151,7 +152,7 @@ export async function moveTo(store: Store, items: ItemRef[], folderId: ID | null
       moved += ids.length;
     }
   }
-  toast(moved ? `「${folderName}」に移動しました` : 'そこには移動できません');
+  toast(moved ? t('「{name}」に移動しました', { name: folderName }) : t('そこには移動できません'));
 }
 
 function ItemMenu() {
@@ -171,17 +172,17 @@ function ItemMenu() {
       {item.kind !== 'folder' && (
         <button className="sheet-item" onClick={act(async () => {
           await store.setPinned(item.kind as 'entry' | 'person' | 'topic', [item.id], !pinned);
-          toast(pinned ? 'ピン留めを外しました' : 'ピン留めしました');
+          toast(pinned ? t('ピン留めを外しました') : t('ピン留めしました'));
         })}>
-          <span className="ic">📌</span>{pinned ? 'ピン留めを外す' : 'ピン留め'}
+          <span className="ic">📌</span>{pinned ? t('ピン留めを外す') : t('ピン留め')}
         </button>
       )}
       {entry && (
         <>
-          <button className="sheet-item" onClick={act(() => copyText(entry.text))}><span className="ic">⧉</span>本文をコピー</button>
+          <button className="sheet-item" onClick={act(() => copyText(entry.text))}><span className="ic">⧉</span>{t('本文をコピー')}</button>
           {'share' in navigator && (
             <button className="sheet-item" onClick={act(() => navigator.share({ text: entry.text }).catch(() => {}))}>
-              <span className="ic">↑</span>共有
+              <span className="ic">↑</span>{t('共有')}
             </button>
           )}
         </>
@@ -191,11 +192,11 @@ function ItemMenu() {
           const name = prompt('フォルダの新しい名前', item.label);
           if (name && name.trim()) await store.renameFolder(item.id, name);
         })}>
-          <span className="ic">✎</span>名前を変更
+          <span className="ic">✎</span>{t('名前を変更')}
         </button>
       )}
-      <button className="sheet-item" onClick={() => openMove([item])}><span className="ic">▤</span>フォルダへ移動</button>
-      <button className="sheet-item danger" onClick={act(() => deleteItems(store, [item]))}><span className="ic">🗑</span>削除</button>
+      <button className="sheet-item" onClick={() => openMove([item])}><span className="ic">▤</span>{t('フォルダへ移動')}</button>
+      <button className="sheet-item danger" onClick={act(() => deleteItems(store, [item]))}><span className="ic">🗑</span>{t('削除')}</button>
     </Sheet>
   );
 }
@@ -217,12 +218,12 @@ function MoveSheet() {
     await moveTo(store, items, id, name);
   };
   return (
-    <Sheet onClose={close} title={items.length === 1 ? `「${items[0].label}」の移動先` : `${items.length}件の移動先`}>
-      <button className="sheet-item" onClick={() => go(null, '一番上')}><span className="ic">⌂</span>一番上</button>
+    <Sheet onClose={close} title={items.length === 1 ? t('「{name}」の移動先', { name: items[0].label }) : t('{n}件の移動先', { n: items.length })}>
+      <button className="sheet-item" onClick={() => go(null, t('一番上'))}><span className="ic">⌂</span>{t('一番上')}</button>
       {choices.map((c) => (
         <button key={c.id} className="sheet-item" onClick={() => go(c.id, c.label)}><span className="ic">▤</span>{c.label}</button>
       ))}
-      {choices.length === 0 && <p className="muted small pad">移せるフォルダがありません。先にフォルダを作ってください。</p>}
+      {choices.length === 0 && <p className="muted small pad">{t('移せるフォルダがありません。先にフォルダを作ってください。')}</p>}
     </Sheet>
   );
 }
@@ -233,7 +234,7 @@ export function Sheet({ title, onClose, children }: { title?: string; onClose: (
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog">
         {title && <div className="sheet-title">{title}</div>}
         <div className="sheet-body">{children}</div>
-        <button className="sheet-item cancel" onClick={onClose}>キャンセル</button>
+        <button className="sheet-item cancel" onClick={onClose}>{t('キャンセル')}</button>
       </div>
     </div>
   );
@@ -398,8 +399,8 @@ export function SelectionBar({ all }: { all: ItemRef[] }) {
       <button className="link" onClick={() => {
         if (allSelected) items.forEach(toggle);
         else all.forEach((i) => { if (!sel.selected.has(itemKey(i))) toggle(i); });
-      }}>{allSelected ? '選択解除' : 'すべて選択'}</button>
-      <span className="muted small">{n}件選択</span>
+      }}>{allSelected ? t('選択解除') : t('すべて選択')}</button>
+      <span className="muted small">{t('{n}件選択', { n })}</span>
       <div className="select-actions">
         <button className="link" disabled={!pinnable.length} onClick={async () => {
           const kind = pinnable[0].kind as 'entry' | 'person' | 'topic';
@@ -407,8 +408,8 @@ export function SelectionBar({ all }: { all: ItemRef[] }) {
           toast('ピン留めしました');
           clearSel();
         }}>📌</button>
-        <button className="link" disabled={!n} onClick={() => openMove(items)}>移動</button>
-        <button className="link danger" disabled={!n} onClick={async () => { if (await deleteItems(store, items)) clearSel(); }}>削除</button>
+        <button className="link" disabled={!n} onClick={() => openMove(items)}>{t('移動')}</button>
+        <button className="link danger" disabled={!n} onClick={async () => { if (await deleteItems(store, items)) clearSel(); }}>{t('削除')}</button>
       </div>
     </div>
   );
@@ -419,11 +420,11 @@ export function SelectButton() {
   const { sel, setSelecting } = useInteract();
   return (
     <button className="link small-link" onClick={() => setSelecting(!sel.active)}>
-      {sel.active ? '完了' : '選択'}
+      {sel.active ? t('完了') : t('選択')}
     </button>
   );
 }
 
 /** パス表記 */
 export const folderLabel = (folders: Parameters<typeof folderPath>[0], id: ID | null) =>
-  id ? folderPath(folders, id).map((f) => f.name).join(' / ') : '一番上';
+  id ? folderPath(folders, id).map((f) => f.name).join(' / ') : t('一番上');
