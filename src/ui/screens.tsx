@@ -5,141 +5,179 @@ import {
   type EntrySort, type NameSort,
 } from '../core/search';
 import { back, formatDate, go, useData, usePref, useStore } from './hooks';
+import { folderDescendants } from '../core/store';
 import { EntryList, Header, SearchBox, SortSelect } from './components';
 
-const ALL = '';
-const UNFILED = '__unfiled__';
-
-// ---- 記録タブ(フォルダ・並べ替え・検索) ----
-export function EntriesScreen() {
+// ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
+export function FolderScreen({ folderId }: { folderId: ID | null }) {
   const data = useData();
+  const store = useStore();
   const [q, setQ] = useState('');
   const [sort, setSort] = usePref<EntrySort>('entrySort', 'newest');
-  const [folder, setFolder] = usePref<string>('folder', ALL);
-  const folders = useMemo(() => [...data.folders].sort((a, b) => a.name.localeCompare(b.name, 'ja')), [data.folders]);
-  const counts = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const e of data.entries) m.set(e.folderId ?? UNFILED, (m.get(e.folderId ?? UNFILED) ?? 0) + 1);
-    return m;
-  }, [data.entries]);
-  // 消されたフォルダを選んだままなら「すべて」に戻す
-  const current = folder === ALL || folder === UNFILED || data.folders.some((f) => f.id === folder) ? folder : ALL;
-  const list = useMemo(() => {
-    const inFolder =
-      current === ALL ? data.entries : data.entries.filter((e) => (e.folderId ?? UNFILED) === current);
-    return sortEntriesBy(searchEntries({ ...data, entries: inFolder }, q), sort);
-  }, [data, q, sort, current]);
-  const folderName = data.folders.find((f) => f.id === current)?.name;
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [editing, setEditing] = useState(false);
+  const folder = folderId ? data.folders.find((f) => f.id === folderId) : undefined;
+
+  const children = useMemo(
+    () => data.folders.filter((f) => f.parentId === folderId).sort((a, b) => a.name.localeCompare(b.name, 'ja')),
+    [data.folders, folderId],
+  );
+  /** フォルダごとの記録数(中のフォルダの分も含む) */
+  const deepCount = useMemo(() => {
+    const direct = new Map<string, number>();
+    for (const e of data.entries) if (e.folderId) direct.set(e.folderId, (direct.get(e.folderId) ?? 0) + 1);
+    return (id: ID) => [id, ...folderDescendants(data.folders, id)].reduce((n, x) => n + (direct.get(x) ?? 0), 0);
+  }, [data]);
+  const memos = useMemo(
+    () => sortEntriesBy(data.entries.filter((e) => e.folderId === folderId), sort),
+    [data.entries, folderId, sort],
+  );
+  // 検索はこのフォルダ以下すべて(一番上なら全体)が対象
+  const results = useMemo(() => {
+    if (!q.trim()) return null;
+    const scope = folderId ? new Set([folderId, ...folderDescendants(data.folders, folderId)]) : null;
+    const pool = scope ? data.entries.filter((e) => e.folderId && scope.has(e.folderId)) : data.entries;
+    return sortEntriesBy(searchEntries({ ...data, entries: pool }, q), sort);
+  }, [q, data, folderId, sort]);
+
+  if (folderId && !folder) return <Missing />;
+  const parent = folder?.parentId ? data.folders.find((f) => f.id === folder.parentId) : undefined;
+  const upPath = parent ? `/f/${parent.id}` : '/';
+
+  const createFolder = async () => {
+    if (!newName.trim()) return;
+    await store.addFolder(newName, folderId);
+    setNewName('');
+    setAdding(false);
+  };
 
   return (
     <div className="screen">
-      <Header title={folderName ?? (current === UNFILED ? '未分類' : '記録')} />
-      <div className="chips folders">
-        <button className={`chip folder ${current === ALL ? 'on' : ''}`} onClick={() => setFolder(ALL)}>
-          すべて <span className="n">{data.entries.length}</span>
-        </button>
-        {folders.map((f) => (
-          <button key={f.id} className={`chip folder ${current === f.id ? 'on' : ''}`} onClick={() => setFolder(f.id)}>
-            ▤ {f.name} <span className="n">{counts.get(f.id) ?? 0}</span>
-          </button>
-        ))}
-        {folders.length > 0 && (
-          <button className={`chip folder ${current === UNFILED ? 'on' : ''}`} onClick={() => setFolder(UNFILED)}>
-            未分類 <span className="n">{counts.get(UNFILED) ?? 0}</span>
-          </button>
-        )}
-        <button className="chip folder ghost" onClick={() => go('/folders')}>
-          {folders.length ? 'フォルダを管理' : '＋ フォルダを作る'}
-        </button>
-      </div>
-      <SearchBox value={q} onChange={setQ} placeholder="本文・人・話題で検索" />
-      <div className="toolbar">
-        <span className="count">{list.length}件</span>
-        <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
-      </div>
-      <EntryList
-        entries={list}
-        data={data}
-        empty={
-          q ? '見つかりませんでした'
-            : current !== ALL ? 'このフォルダにはまだ記録がありません'
-            : <>まだ記録がありません。<br />右下の＋から、話したことを書いてみましょう。</>
-        }
+      <Header
+        title={folder ? folder.name : '記録'}
+        left={folder && <button className="link" onClick={() => location.replace('#' + upPath)}>‹ {parent ? parent.name : '記録'}</button>}
+        right={folder && <button className="link" onClick={() => setEditing(!editing)}>{editing ? '閉じる' : '編集'}</button>}
       />
+      {editing && folder ? (
+        <FolderEdit id={folder.id} onDone={() => setEditing(false)} />
+      ) : (
+        <>
+          <SearchBox value={q} onChange={setQ} placeholder={folder ? `「${folder.name}」の中を検索` : '本文・人・話題で検索'} />
+          {results ? (
+            <>
+              <div className="toolbar">
+                <span className="count">{results.length}件</span>
+                <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
+              </div>
+              <EntryList entries={results} data={data} empty="見つかりませんでした" />
+            </>
+          ) : (
+            <>
+              {(children.length > 0 || adding) && (
+                <ul className="rows folder-rows">
+                  {children.map((f) => (
+                    <li key={f.id} className="row-item" onClick={() => go(`/f/${f.id}`)}>
+                      <span className="name"><span className="folder-icon">▤</span>{f.name}</span>
+                      <span className="sub">{deepCount(f.id)}</span>
+                      <span className="chev">›</span>
+                    </li>
+                  ))}
+                  {adding && (
+                    <li className="row-edit">
+                      <input
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="新しいフォルダの名前"
+                        autoFocus
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) createFolder(); }}
+                      />
+                      <div className="row-actions">
+                        <button className="btn small primary" disabled={!newName.trim()} onClick={createFolder}>作成</button>
+                        <button className="btn small" onClick={() => { setAdding(false); setNewName(''); }}>やめる</button>
+                      </div>
+                    </li>
+                  )}
+                </ul>
+              )}
+              <div className="toolbar">
+                <span className="count">{memos.length}件</span>
+                <span className="toolbar-right">
+                  {!adding && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
+                  {memos.length > 1 && <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />}
+                </span>
+              </div>
+              <EntryList
+                entries={memos}
+                data={data}
+                hideFolder
+                empty={
+                  folder
+                    ? <>このフォルダはまだ空です。<br />右下の＋で記録を、「＋ フォルダ」でフォルダを作れます。</>
+                    : children.length ? 'フォルダに入っていない記録はありません' : <>まだ記録がありません。<br />右下の＋から、話したことを書いてみましょう。</>
+                }
+              />
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-/** 新規記録を、いま開いているフォルダに入れるため */
-export const currentFolderForNew = (): string | undefined => {
-  try {
-    const v = localStorage.getItem('kaiwa-shisan:pref:folder');
-    return v && v !== UNFILED ? v : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-// ---- フォルダの管理 ----
-export function FoldersScreen() {
+/** フォルダの名前変更・移動・削除 */
+function FolderEdit({ id, onDone }: { id: ID; onDone: () => void }) {
   const data = useData();
   const store = useStore();
-  const [name, setName] = useState('');
-  const [editing, setEditing] = useState<ID | null>(null);
-  const [editName, setEditName] = useState('');
-  const counts = new Map<string, number>();
-  for (const e of data.entries) if (e.folderId) counts.set(e.folderId, (counts.get(e.folderId) ?? 0) + 1);
-  const folders = [...data.folders].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-  const add = async () => {
-    if (!name.trim()) return;
-    await store.addFolder(name);
-    setName('');
+  const folder = data.folders.find((f) => f.id === id)!;
+  const [name, setName] = useState(folder.name);
+  const [parent, setParent] = useState(folder.parentId ?? '');
+  const blocked = folderDescendants(data.folders, id);
+  const choices = folderChoices(data.folders).filter((c) => c.id !== id && !blocked.has(c.id));
+  const save = async () => {
+    if (name.trim() !== folder.name) await store.renameFolder(id, name);
+    if ((parent || null) !== folder.parentId) await store.moveFolder(id, parent || null);
+    onDone();
   };
   return (
-    <div className="screen">
-      <Header title="フォルダ" left={<button className="link" onClick={() => back('/')}>‹ 記録</button>} />
-      <div className="form">
-        <div className="picker-input">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="新しいフォルダの名前"
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) add(); }}
-          />
-          <button className="btn small primary" disabled={!name.trim()} onClick={add}>作成</button>
-        </div>
-        {folders.length === 0 ? (
-          <div className="empty">まだフォルダがありません。<br />「仕事」「家族」など、記録を分けて管理できます。</div>
-        ) : (
-          <ul className="rows">
-            {folders.map((f) =>
-              editing === f.id ? (
-                <li key={f.id} className="row-edit">
-                  <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus />
-                  <div className="row-actions">
-                    <button className="btn small primary" disabled={!editName.trim()} onClick={async () => { await store.renameFolder(f.id, editName); setEditing(null); }}>保存</button>
-                    <button className="btn small danger" onClick={async () => {
-                      if (!confirm(`フォルダ「${f.name}」を削除しますか？\n中の記録は消えず、未分類に移ります。`)) return;
-                      await store.deleteFolder(f.id);
-                      setEditing(null);
-                    }}>削除</button>
-                    <button className="btn small" onClick={() => setEditing(null)}>やめる</button>
-                  </div>
-                </li>
-              ) : (
-                <li key={f.id} className="row-item" onClick={() => { setEditing(f.id); setEditName(f.name); }}>
-                  <span className="name">▤ {f.name}</span>
-                  <span className="sub">{counts.get(f.id) ?? 0}件</span>
-                  <span className="chev">✎</span>
-                </li>
-              ),
-            )}
-          </ul>
-        )}
-        <p className="muted small">記録をフォルダに入れるには、記録の編集画面で「フォルダ」を選びます。</p>
-      </div>
+    <div className="form">
+      <section className="field">
+        <label>フォルダの名前</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} />
+      </section>
+      <section className="field">
+        <label>入れる場所</label>
+        <select className="select block" value={parent} onChange={(e) => setParent(e.target.value)}>
+          <option value="">一番上</option>
+          {choices.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </section>
+      <button className="btn primary block" disabled={!name.trim()} onClick={save}>保存</button>
+      <button className="btn danger block" onClick={async () => {
+        if (!confirm(`フォルダ「${folder.name}」を削除しますか？\n中の記録とフォルダは消えず、1つ上の階層に移ります。`)) return;
+        const up = folder.parentId;
+        await store.deleteFolder(id);
+        location.replace(up ? `#/f/${up}` : '#/');
+      }}>
+        このフォルダを削除
+      </button>
     </div>
   );
+}
+
+/** フォルダ選択肢を「仕事 / 会議」のようなパス付きで、階層順に */
+export function folderChoices(folders: { id: ID; name: string; parentId: ID | null }[]) {
+  const out: { id: ID; label: string }[] = [];
+  const walk = (parentId: ID | null, prefix: string, depth: number) => {
+    if (depth > 20) return;
+    for (const f of folders.filter((x) => x.parentId === parentId).sort((a, b) => a.name.localeCompare(b.name, 'ja'))) {
+      const label = prefix ? `${prefix} / ${f.name}` : f.name;
+      out.push({ id: f.id, label });
+      walk(f.id, label, depth + 1);
+    }
+  };
+  walk(null, '', 0);
+  return out;
 }
 
 // ---- 人・話題の一覧 ----

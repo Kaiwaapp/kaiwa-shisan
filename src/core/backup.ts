@@ -34,7 +34,7 @@ export function parseBackup(json: string): AppData {
     people: r.people as Person[],
     topics: r.topics as Topic[],
     entries: (r.entries as Entry[]).map((e) => ({ ...e, folderId: e.folderId ?? null })),
-    folders: Array.isArray(r.folders) ? (r.folders as Folder[]) : [],
+    folders: Array.isArray(r.folders) ? (r.folders as Folder[]).map((f) => ({ ...f, parentId: f.parentId ?? null })) : [],
   };
 }
 

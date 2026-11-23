@@ -1,6 +1,7 @@
 import React, { useMemo, useState, type ReactNode } from 'react';
 import type { AppData, Entry, ID } from '../core/types';
 import { normalize } from '../core/search';
+import { folderPath } from '../core/store';
 import { formatDate, go } from './hooks';
 
 export function Header({ title, left, right }: { title: ReactNode; left?: ReactNode; right?: ReactNode }) {
@@ -32,11 +33,12 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
   );
 }
 
-export function EntryCard({ entry, data, hidePersonId, hideTopicId }: {
+export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }: {
   entry: Entry;
   data: AppData;
   hidePersonId?: ID;
   hideTopicId?: ID;
+  hideFolder?: boolean;
 }) {
   const people = entry.personIds
     .filter((id) => id !== hidePersonId)
@@ -46,13 +48,13 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId }: {
     .filter((t) => t.topicId !== hideTopicId)
     .map((t) => data.topics.find((x) => x.id === t.topicId))
     .filter(Boolean);
-  const folder = entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
+  const folder = !hideFolder && entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
   return (
     <article className="card" onClick={() => go(`/edit/${entry.id}`)}>
       <div className="card-text">{entry.text || <span className="muted">（本文なし）</span>}</div>
       <div className="card-meta">
         <span className="date">{formatDate(entry.talkedOn)}</span>
-        {folder && <span className="chip folder small">▤ {folder.name}</span>}
+        {folder && <span className="chip folder small">▤ {folderPath(data.folders, folder.id).map((f) => f.name).join(' / ')}</span>}
         {people.map((p) => (
           <span key={p!.id} className="chip person small">{p!.name}</span>
         ))}
@@ -64,18 +66,19 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId }: {
   );
 }
 
-export function EntryList({ entries, data, empty, hidePersonId, hideTopicId }: {
+export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hideFolder }: {
   entries: Entry[];
   data: AppData;
   empty: ReactNode;
   hidePersonId?: ID;
   hideTopicId?: ID;
+  hideFolder?: boolean;
 }) {
   if (entries.length === 0) return <div className="empty">{empty}</div>;
   return (
     <div className="list">
       {entries.map((e) => (
-        <EntryCard key={e.id} entry={e} data={data} hidePersonId={hidePersonId} hideTopicId={hideTopicId} />
+        <EntryCard key={e.id} entry={e} data={data} hidePersonId={hidePersonId} hideTopicId={hideTopicId} hideFolder={hideFolder} />
       ))}
     </div>
   );

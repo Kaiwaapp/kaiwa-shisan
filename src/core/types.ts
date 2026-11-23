@@ -48,6 +48,8 @@ export interface Entry {
 export interface Folder {
   id: ID;
   name: string;
+  /** 親フォルダ。null は一番上 */
+  parentId: ID | null;
   createdAt: number;
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */

@@ -211,37 +211,55 @@ export class Store {
     });
   }
 
-  // ---- フォルダ ----
-  async addFolder(name: string): Promise<Folder> {
+  // ---- フォルダ(入れ子可) ----
+  async addFolder(name: string, parentId: ID | null = null): Promise<Folder> {
     const n = normalize(name.trim());
-    const existing = this.data.folders.find((f) => normalize(f.name) === n);
+    const existing = this.data.folders.find((f) => f.parentId === parentId && normalize(f.name) === n);
     if (existing) return existing;
     const now = Date.now();
-    const f: Folder = { id: newId(), name: name.trim(), createdAt: now, updatedAt: now };
+    const f: Folder = { id: newId(), name: name.trim(), parentId, createdAt: now, updatedAt: now };
     await this.repo.putFolder(f);
     this.set({ ...this.data, folders: [...this.data.folders, f] });
     return f;
   }
 
+  private putFolderState = async (next: Folder) => {
+    await this.repo.putFolder(next);
+    this.set({ ...this.data, folders: this.data.folders.map((x) => (x.id === next.id ? next : x)) });
+  };
+
   async renameFolder(id: ID, name: string) {
     const f = this.data.folders.find((x) => x.id === id);
     if (!f || !name.trim()) return;
-    const next = { ...f, name: name.trim(), updatedAt: Date.now() };
-    await this.repo.putFolder(next);
-    this.set({ ...this.data, folders: this.data.folders.map((x) => (x.id === id ? next : x)) });
+    await this.putFolderState({ ...f, name: name.trim(), updatedAt: Date.now() });
   }
 
-  /** フォルダを削除。中の記録は消さずに未分類へ */
+  /** フォルダを別のフォルダの中へ移す。自分や自分の子孫の中へは移せない */
+  async moveFolder(id: ID, parentId: ID | null) {
+    const f = this.data.folders.find((x) => x.id === id);
+    if (!f) return;
+    if (parentId && folderDescendants(this.data.folders, id).has(parentId)) return;
+    if (parentId === id) return;
+    await this.putFolderState({ ...f, parentId, updatedAt: Date.now() });
+  }
+
+  /** フォルダを削除。中の記録とフォルダは消さず、1つ上の階層へ移す */
   async deleteFolder(id: ID) {
+    const f = this.data.folders.find((x) => x.id === id);
+    if (!f) return;
+    const up = f.parentId;
     const now = Date.now();
-    const touched = this.data.entries.filter((e) => e.folderId === id).map((e) => ({ ...e, folderId: null, updatedAt: now }));
-    for (const e of touched) await this.repo.putEntry(e);
+    const entries = this.data.entries.filter((e) => e.folderId === id).map((e) => ({ ...e, folderId: up, updatedAt: now }));
+    const kids = this.data.folders.filter((x) => x.parentId === id).map((x) => ({ ...x, parentId: up, updatedAt: now }));
+    for (const e of entries) await this.repo.putEntry(e);
+    for (const k of kids) await this.repo.putFolder(k);
     await this.repo.deleteFolder(id);
-    const map = new Map(touched.map((e) => [e.id, e]));
+    const em = new Map(entries.map((e) => [e.id, e]));
+    const fm = new Map(kids.map((k) => [k.id, k]));
     this.set({
       ...this.data,
-      folders: this.data.folders.filter((f) => f.id !== id),
-      entries: this.data.entries.map((e) => map.get(e.id) ?? e),
+      folders: this.data.folders.filter((x) => x.id !== id).map((x) => fm.get(x.id) ?? x),
+      entries: this.data.entries.map((e) => em.get(e.id) ?? e),
     });
   }
 
@@ -275,4 +293,28 @@ export class Store {
     await this.repo.replaceAll(next);
     this.set(next);
   }
+}
+
+/** あるフォルダの子孫フォルダ全部(自分は含まない) */
+export function folderDescendants(folders: Folder[], id: ID): Set<ID> {
+  const out = new Set<ID>();
+  const stack = [id];
+  while (stack.length) {
+    const cur = stack.pop()!;
+    for (const f of folders) if (f.parentId === cur && !out.has(f.id)) { out.add(f.id); stack.push(f.id); }
+  }
+  return out;
+}
+
+/** 「仕事 / 会議」のようなフォルダのパス */
+export function folderPath(folders: Folder[], id: ID | null): Folder[] {
+  const path: Folder[] = [];
+  const seen = new Set<ID>();
+  let cur = id ? folders.find((f) => f.id === id) : undefined;
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    path.unshift(cur);
+    cur = cur.parentId ? folders.find((f) => f.id === cur!.parentId) : undefined;
+  }
+  return path;
 }

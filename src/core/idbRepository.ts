@@ -31,7 +31,7 @@ export class IdbRepository implements Repository {
       db.getAll('folders'),
     ]);
     // v1のデータには folderId がないので補う
-    return { people, topics, entries: entries.map((e) => ({ ...e, folderId: e.folderId ?? null })), folders };
+    return { people, topics, entries: entries.map((e) => ({ ...e, folderId: e.folderId ?? null })), folders: folders.map((f) => ({ ...f, parentId: f.parentId ?? null })) };
   }
 
   async putPerson(p: Person) { await (await this.db).put('people', p); }

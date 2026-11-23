@@ -228,3 +228,10 @@ button:disabled { opacity: .4; cursor: default; }
 .row-edit input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 16px; }
 .row-actions { display: flex; gap: 8px; }
 .btn.small.primary { color: var(--surface); }
+
+/* ---- v0.4 フォルダの入れ子 ---- */
+.folder-rows { margin-bottom: 12px; }
+.folder-icon { color: var(--topic); margin-right: 8px; }
+.toolbar-right { display: inline-flex; align-items: center; gap: 14px; }
+.small-link { font-size: 13px; font-weight: 600; padding: 4px 0; }
+.field .select { max-width: 100%; }

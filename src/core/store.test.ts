@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
-import { Store } from './store';
+import { Store, folderPath } from './store';
 import { IdbRepository } from './idbRepository';
 import { searchEntries, sortEntriesBy, sortNames, statsBy } from './search';
 import { parseBackup, toBackup } from './backup';
@@ -137,5 +137,19 @@ describe('Store', () => {
     await new Promise((r) => setTimeout(r, 5));
     await s.markViewed('entry', e1.id);
     expect(sortEntriesBy(s.snapshot.entries, 'viewed').map((e) => e.text)).toEqual(['1', '2']);
+  });
+
+  it('フォルダの入れ子・移動・削除', async () => {
+    const s = await fresh();
+    const work = await s.addFolder('仕事');
+    const mtg = await s.addFolder('会議', work.id);
+    const deep = await s.addFolder('週次', mtg.id);
+    expect(folderPath(s.snapshot.folders, deep.id).map((f) => f.name)).toEqual(['仕事', '会議', '週次']);
+    await s.moveFolder(work.id, deep.id); // 子孫の中へは移せない
+    expect(s.snapshot.folders.find((f) => f.id === work.id)!.parentId).toBeNull();
+    await s.saveEntry({ text: 'm', personIds: [], topicIds: [], talkedOn: '2026-01-01', folderId: mtg.id });
+    await s.deleteFolder(mtg.id);
+    expect(s.snapshot.entries[0].folderId).toBe(work.id);
+    expect(s.snapshot.folders.find((f) => f.id === deep.id)!.parentId).toBe(work.id);
   });
 });
