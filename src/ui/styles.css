@@ -245,3 +245,16 @@ button:disabled { opacity: .4; cursor: default; }
 .reading { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--muted); }
 .load-more { text-align: center; padding: 14px 0 4px; }
 .load-more .link { font-size: 14px; }
+
+/* AI機能(試作) */
+.ai-tools { display: flex; flex-direction: column; gap: 8px; }
+.ai-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-msg { margin: 0; font-size: 13px; color: var(--muted); }
+.ai-msg.error { color: var(--danger); }
+.ai-sug { border: 1px dashed var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ai-sug-head { display: flex; align-items: center; gap: 12px; }
+.ai-sug-head > span { flex: 1; }
+.toggle { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+.row-input { display: flex; gap: 8px; }
+.row-input input { flex: 1; min-width: 0; }

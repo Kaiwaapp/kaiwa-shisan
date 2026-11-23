@@ -4,6 +4,7 @@ import type { AppData } from '../core/types';
 import { useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup } from './backupUi';
+import { AiSettingsPanel } from './AiTools';
 
 export function SettingsScreen() {
   const data = useData();
@@ -83,6 +84,8 @@ export function SettingsScreen() {
           {msg && <p className="notice">{msg}</p>}
         </section>
 
+        <AiSettingsPanel />
+
         <section className="panel">
           <h2>保存の状態</h2>
           <p className="muted small">
@@ -97,7 +100,7 @@ export function SettingsScreen() {
           )}
         </section>
 
-        <p className="muted small center">会話資産 試作版 v0.8</p>
+        <p className="muted small center">会話資産 試作版 v0.9</p>
       </div>
     </div>
   );

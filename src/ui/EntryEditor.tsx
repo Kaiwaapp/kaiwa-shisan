@@ -4,6 +4,8 @@ import { back, useData, useStore } from './hooks';
 import { ComboPicker, Header } from './components';
 import { folderChoices } from './folders';
 import { foldersOf } from '../core/store';
+import { normalize } from '../core/search';
+import { useEntryAi } from './AiTools';
 
 const NEW_FOLDER = '__new__';
 
@@ -26,6 +28,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   const [folder, setFolder] = useState<string>(existing ? (existing.folderId ?? '') : (initialFolder ?? ''));
   const [newFolder, setNewFolder] = useState('');
   const [saving, setSaving] = useState(false);
+  const [aiTopicIds, setAiTopicIds] = useState<ID[]>([]);
+  const [aiNewTopics, setAiNewTopics] = useState<string[]>([]);
 
   // 候補は「最後に選択した順」。まだ選んだことがなければ、最後に記録で使った日時
   const used = useMemo(() => {
@@ -43,6 +47,34 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
     for (const x of next) if (!prev.includes(x)) store.markSelected(kind, x);
   };
 
+  const nameIs = (a: string, b: string) => normalize(a.trim()) === normalize(b.trim());
+  const ai = useEntryAi({
+    text,
+    setText,
+    knownPeople: data.people.map((p) => p.name),
+    knownTopics: data.topics.map((t) => t.name),
+    chosenPeople: [...data.people.filter((p) => personIds.includes(p.id)).map((p) => p.name), ...newPeople],
+    chosenTopics: [...data.topics.filter((t) => topicIds.includes(t.id)).map((t) => t.name), ...newTopics],
+    addPerson: (name) => {
+      const found = data.people.find((p) => nameIs(p.name, name));
+      if (found) {
+        setPersonIds((xs) => (xs.includes(found.id) ? xs : [...xs, found.id]));
+        store.markSelected('person', found.id);
+      } else setNewPeople((xs) => (xs.some((x) => nameIs(x, name)) ? xs : [...xs, name]));
+    },
+    addTopic: (name) => {
+      const found = data.topics.find((t) => nameIs(t.name, name));
+      if (found) {
+        setTopicIds((xs) => (xs.includes(found.id) ? xs : [...xs, found.id]));
+        setAiTopicIds((xs) => [...xs, found.id]);
+        store.markSelected('topic', found.id);
+      } else {
+        setNewTopics((xs) => (xs.some((x) => nameIs(x, name)) ? xs : [...xs, name]));
+        setAiNewTopics((xs) => [...xs, name]);
+      }
+    },
+  });
+
   if (id && !existing) {
     return (
       <div className="screen">
@@ -58,7 +90,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
     setSaving(true);
     let folderId: ID | null = folder || null;
     if (folder === NEW_FOLDER) folderId = (await store.addFolder(newFolder)).id;
-    await store.saveEntry({ text, personIds, newPeople, topicIds, newTopics, talkedOn, folderId }, id);
+    await store.saveEntry({ text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId }, id);
     back();
   };
   const remove = async () => {
@@ -79,10 +111,12 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           className="textarea"
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onPaste={ai.onPaste}
           placeholder="話した内容を自由に書く"
           autoFocus={!existing}
           rows={6}
         />
+        {ai.panel}
         <section className="field">
           <label>話した相手</label>
           <ComboPicker

@@ -27,6 +27,18 @@ describe('Store', () => {
     expect(s2.snapshot.entries[0].topics[0].source).toBe('manual');
   });
 
+  it('AIの提案から付けた話題は source が ai になる', async () => {
+    const s = await fresh();
+    const t = await s.addTopic('旅行');
+    const m = await s.addTopic('仕事');
+    const e = await s.saveEntry({
+      text: '京都旅行の話', personIds: [], topicIds: [t.id, m.id], newTopics: ['紅葉'],
+      aiTopicIds: [t.id], aiNewTopics: ['紅葉'], talkedOn: '2026-11-20',
+    });
+    const src = Object.fromEntries(e.topics.map((x) => [s.snapshot.topics.find((y) => y.id === x.topicId)!.name, x.source]));
+    expect(src).toEqual({ 旅行: 'ai', 仕事: 'manual', 紅葉: 'ai' });
+  });
+
   it('同じ名前の人・話題は重複作成しない', async () => {
     const s = await fresh();
     const a = await s.addPerson('ヤマダ');

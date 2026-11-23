@@ -12,6 +12,9 @@ export interface EntryInput {
   /** 保存時に新しく作る人・話題の名前 */
   newPeople?: string[];
   newTopics?: string[];
+  /** AIの提案から付けた話題(既存のid・新規の名前)。source を 'ai' にする */
+  aiTopicIds?: ID[];
+  aiNewTopics?: string[];
   talkedOn: string;
   folderId?: ID | null;
 }
@@ -50,7 +53,14 @@ export class Store {
     const personIds = [...input.personIds];
     for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name)).id);
     const topicIds = [...input.topicIds];
-    for (const name of input.newTopics ?? []) if (name.trim()) topicIds.push((await this.addTopic(name)).id);
+    const aiIds = new Set(input.aiTopicIds ?? []);
+    const aiNew = new Set((input.aiNewTopics ?? []).map((n) => normalize(n.trim())));
+    for (const name of input.newTopics ?? []) {
+      if (!name.trim()) continue;
+      const t = await this.addTopic(name);
+      topicIds.push(t.id);
+      if (aiNew.has(normalize(name.trim()))) aiIds.add(t.id);
+    }
     const entry: Entry = {
       id: prev?.id ?? newId(),
       text: input.text.trim(),
@@ -58,7 +68,7 @@ export class Store {
       folderId: input.folderId === undefined ? (prev?.folderId ?? null) : input.folderId,
       topics: [...new Set(topicIds)].map((topicId) => ({
         topicId,
-        source: prevSource.get(topicId) ?? 'manual',
+        source: prevSource.get(topicId) ?? (aiIds.has(topicId) ? 'ai' : 'manual'),
       })),
       talkedOn: input.talkedOn,
       createdAt: prev?.createdAt ?? now,
