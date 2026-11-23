@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ID } from '../core/types';
 import {
   ENTRY_SORTS, NAME_SORTS, lastSeen, nameMatches, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
@@ -6,7 +6,8 @@ import {
 } from '../core/search';
 import { back, formatDate, go, useData, usePref, useStore } from './hooks';
 import { folderDescendants, folderPath, foldersOf } from '../core/store';
-import { Crumbs, FolderEdit, FolderRows, FolderSelect, folderHref, makeDeepCount, rootHref } from './folders';
+import { Crumbs, FolderEdit, FolderRows, FolderSelect, UpButton, makeDeepCount, rootHref } from './folders';
+import { SelectButton, SelectionBar, toast, useInteract, usePress, SelectMark, type ItemRef } from './interact';
 import type { Folder } from '../core/types';
 import { EntryList, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 export { folderChoices } from './folders';
@@ -21,6 +22,8 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
   const [editing, setEditing] = useState(false);
   const folders = useMemo(() => foldersOf(data.folders, 'entry'), [data.folders]);
   const folder = folderId ? folders.find((f) => f.id === folderId) : undefined;
+  const selecting = useInteract().sel.active;
+  const trash = useTrash();
 
   useEffect(() => { if (folderId) store.markViewed('folder', folderId); }, [store, folderId]);
   // フォルダも同じ並べ替えで並べる(話した日は中の記録から)
@@ -70,8 +73,8 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
     <div className="screen">
       <Header
         title={folder ? folder.name : '記録'}
-        left={folder && <button className="link" onClick={() => location.replace('#' + folderHref('entry', parent?.id ?? null))}>‹ {parent ? parent.name : '記録'}</button>}
-        right={folder && <button className="link" onClick={() => setEditing(!editing)}>{editing ? '閉じる' : '編集'}</button>}
+        left={folder && <UpButton scope="entry" parent={parent} />}
+        right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? '閉じる' : '編集'}</button>}</span>}
       />
       <Crumbs scope="entry" path={path} />
       {editing && folder ? (
@@ -91,17 +94,27 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
             <>
               <div className="toolbar">
                 <span className="count">
-                  {children.length > 0 && `フォルダ ${children.length} ・ `}記録 {memos.length}件
+                  {children.length > 0 && `${children.length}フォルダ・`}{memos.length}件
                 </span>
                 <span className="toolbar-right">
-                  {!adding && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
+                  {!adding && !selecting && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
                   <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
                 </span>
               </div>
               <FolderRows scope="entry" folderId={folderId} children={children} count={deepCount} total={data.entries.length} adding={adding} setAdding={setAdding} />
+              {!folderId && trash.length > 0 && !selecting && (
+                <ul className="rows folder-rows">
+                  <li className="row-item" onClick={() => go('/trash')}>
+                    <span className="name"><span className="folder-icon">🗑</span>最近削除した項目</span>
+                    <span className="sub">{trash.length}</span>
+                    <span className="chev">›</span>
+                  </li>
+                </ul>
+              )}
               <EntryList
                 entries={memos}
                 data={data}
+                pinSplit
                 hideFolder
                 empty={
                   folder
@@ -109,8 +122,60 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                     : children.length ? 'フォルダに入っていない記録はありません' : <>まだ記録がありません。<br />右下の＋から、話したことを書いてみましょう。</>
                 }
               />
+              <SelectionBar all={[
+                ...children.map((f) => ({ kind: 'folder' as const, id: f.id, label: f.name, scope: 'entry' as const })),
+                ...memos.map((e) => ({ kind: 'entry' as const, id: e.id, label: e.text.slice(0, 24), scope: 'entry' as const })),
+              ]} />
             </>
           )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---- 最近削除した項目 ----
+export function useTrash() {
+  const store = useStore();
+  return useSyncExternalStore(store.subscribe, () => store.trash);
+}
+
+export function TrashScreen() {
+  const store = useStore();
+  const trash = useTrash();
+  const [picked, setPicked] = useState<Set<ID>>(new Set());
+  const daysLeft = (t: number) => Math.max(0, 30 - Math.floor((Date.now() - t) / 86400000));
+  const toggle = (id: ID) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const targets = picked.size ? [...picked] : trash.map((e) => e.id);
+  return (
+    <div className="screen">
+      <Header title="最近削除した項目" left={<button className="link" onClick={() => location.replace('#/')}>‹ 記録</button>} />
+      <p className="muted small pad">削除した記録は30日間ここに残り、その後完全に消えます。タップで選んで、復元か完全に削除ができます。</p>
+      {trash.length === 0 ? (
+        <div className="empty">最近削除した項目はありません</div>
+      ) : (
+        <>
+          <div className="list">
+            {trash.map((e) => (
+              <article key={e.id} className={`card selecting ${picked.has(e.id) ? 'picked' : ''}`} onClick={() => toggle(e.id)}>
+                <span className={`select-mark ${picked.has(e.id) ? 'on' : ''}`}>{picked.has(e.id) ? '✓' : ''}</span>
+                <div className="card-text">{e.text || '（本文なし）'}</div>
+                <div className="card-meta"><span className="date">あと{daysLeft(e.deletedAt!)}日</span></div>
+              </article>
+            ))}
+          </div>
+          <div className="select-bar">
+            <button className="link" onClick={async () => {
+              await store.restoreEntries(targets);
+              toast(`${targets.length}件を復元しました`);
+              setPicked(new Set());
+            }}>{picked.size ? `${picked.size}件を復元` : 'すべて復元'}</button>
+            <button className="link danger" onClick={async () => {
+              if (!confirm(`${targets.length}件を完全に削除します。元に戻せません。よろしいですか？`)) return;
+              await store.purgeEntries(targets);
+              setPicked(new Set());
+            }}>{picked.size ? `${picked.size}件を完全に削除` : 'すべて完全に削除'}</button>
+          </div>
         </>
       )}
     </div>
@@ -131,7 +196,7 @@ export function AllEntriesScreen() {
         <span className="count">{list.length}件</span>
         <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
       </div>
-      <EntryList entries={list} data={data} empty={q ? '見つかりませんでした' : 'まだ記録がありません'} />
+      <EntryList entries={list} data={data} pinSplit empty={q ? '見つかりませんでした' : 'まだ記録がありません'} />
     </div>
   );
 }
@@ -157,31 +222,65 @@ function NameRows({ kind, items, sort, showFolder }: {
   sort: NameSort;
   showFolder?: boolean;
 }) {
-  const data = useData();
   const [limit, more] = useIncremental(items.length);
   if (items.length === 0) return null;
-  const base = kind === 'person' ? '/people/' : '/topics/';
   return (
     <>
       <ul className="rows">
-        {items.slice(0, limit).map((x) => (
-          <li key={x.id} className="row-item" onClick={() => go(base + x.id)}>
-            <span className={kind === 'topic' ? 'name topic-name' : 'name'}>
-              {kind === 'topic' ? '#' : ''}{x.name}
-              {x.reading && <span className="reading">{x.reading}</span>}
-              {showFolder && x.folderId && (
-                <span className="reading">▤ {folderPath(data.folders, x.folderId).map((f) => f.name).join(' / ')}</span>
-              )}
-            </span>
-            <span className="sub">
-              {x.stat.count}件
-              {x.stat.count > 0 && (sort === 'first' ? ` ・ 最初 ${formatDate(x.stat.first)}` : ` ・ 最終 ${formatDate(x.stat.last)}`)}
-            </span>
-            <span className="chev">›</span>
-          </li>
-        ))}
+        {items.slice(0, limit).map((x) => <NameRow key={x.id} kind={kind} x={x} sort={sort} showFolder={showFolder} />)}
       </ul>
       {limit < items.length && <LoadMore onVisible={more} rest={items.length - limit} />}
+    </>
+  );
+}
+
+function NameRow({ kind, x, sort, showFolder }: {
+  kind: NameKind;
+  x: ReturnType<typeof useNameItems>[number];
+  sort: NameSort;
+  showFolder?: boolean;
+}) {
+  const data = useData();
+  const base = kind === 'person' ? '/people/' : '/topics/';
+  const item: ItemRef = { kind, id: x.id, label: (kind === 'topic' ? '#' : '') + x.name, scope: kind };
+  const { lifted, handlers } = usePress(item, () => go(base + x.id));
+  return (
+    <li className={`row-item pressable ${lifted ? 'lifted' : ''}`} {...handlers}>
+      <span className={kind === 'topic' ? 'name topic-name' : 'name'}>
+        <SelectMark item={item} />
+        {x.pinned && <span className="pin">📌</span>}
+        {kind === 'topic' ? '#' : ''}{x.name}
+        {x.reading && <span className="reading">{x.reading}</span>}
+        {showFolder && x.folderId && (
+          <span className="reading">▤ {folderPath(data.folders, x.folderId).map((f) => f.name).join(' / ')}</span>
+        )}
+      </span>
+      <span className="sub">
+        {x.stat.count}件
+        {x.stat.count > 0 && (sort === 'first' ? ` ・ 最初 ${formatDate(x.stat.first)}` : ` ・ 最終 ${formatDate(x.stat.last)}`)}
+      </span>
+      <span className="chev">›</span>
+    </li>
+  );
+}
+
+/** ピン留めを上に分けて並べる */
+function PinnedSplit({ kind, items, sort, showFolder, restTitle }: {
+  kind: NameKind;
+  items: ReturnType<typeof useNameItems>;
+  sort: NameSort;
+  showFolder?: boolean;
+  restTitle: string;
+}) {
+  const pinned = items.filter((x) => x.pinned);
+  if (!pinned.length) return <NameRows kind={kind} items={items} sort={sort} showFolder={showFolder} />;
+  const rest = items.filter((x) => !x.pinned);
+  return (
+    <>
+      <div className="section-title">📌 ピン留め</div>
+      <NameRows kind={kind} items={pinned} sort={sort} showFolder={showFolder} />
+      {rest.length > 0 && <div className="section-title">{restTitle}</div>}
+      <NameRows kind={kind} items={rest} sort={sort} showFolder={showFolder} />
     </>
   );
 }
@@ -194,6 +293,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
   const all = useNameItems(kind, sort);
+  const selecting = useInteract().sel.active;
   const folders = useMemo(() => foldersOf(data.folders, kind), [data.folders, kind]);
   const folder = folderId ? folders.find((f) => f.id === folderId) : undefined;
   useEffect(() => { if (folderId) store.markViewed('folder', folderId); }, [store, folderId]);
@@ -240,8 +340,8 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
     <div className="screen">
       <Header
         title={folder ? folder.name : label}
-        left={folder && <button className="link" onClick={() => location.replace('#' + folderHref(kind, parent?.id ?? null))}>‹ {parent ? parent.name : label}</button>}
-        right={folder && <button className="link" onClick={() => setEditing(!editing)}>{editing ? '閉じる' : '編集'}</button>}
+        left={folder && <UpButton scope={kind} parent={parent} />}
+        right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? '閉じる' : '編集'}</button>}</span>}
       />
       <Crumbs scope={kind} path={path} />
       {editing && folder ? (
@@ -267,15 +367,19 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
             <>
               <div className="toolbar">
                 <span className="count">
-                  {children.length > 0 && `フォルダ ${children.length} ・ `}{label} {here.length}{unit}
+                  {children.length > 0 && `${children.length}フォルダ・`}{here.length}{unit}
                 </span>
                 <span className="toolbar-right">
-                  {!adding && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
+                  {!adding && !selecting && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
                   <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
                 </span>
               </div>
               <FolderRows scope={kind} folderId={folderId} children={children} count={deepCount} total={all.length} adding={adding} setAdding={setAdding} />
-              <NameRows kind={kind} items={here} sort={sort} />
+              <PinnedSplit kind={kind} items={here} sort={sort} restTitle={label} />
+              <SelectionBar all={[
+                ...children.map((f) => ({ kind: 'folder' as const, id: f.id, label: f.name, scope: kind })),
+                ...here.map((x) => ({ kind, id: x.id, label: x.name, scope: kind })),
+              ]} />
               {here.length === 0 && (
                 <div className="empty">
                   {folder
@@ -309,7 +413,7 @@ export function NameAllScreen({ kind }: { kind: NameKind }) {
         <span className="count">{list.length}{kind === 'person' ? '人' : '件'}</span>
         <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
       </div>
-      <NameRows kind={kind} items={list} sort={sort} showFolder />
+      <PinnedSplit kind={kind} items={list} sort={sort} showFolder restTitle={label} />
       {list.length === 0 && <div className="empty">{q ? '見つかりませんでした' : 'まだありません'}</div>}
     </div>
   );

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Folder, FolderScope, ID } from '../core/types';
 import { folderDescendants, foldersOf } from '../core/store';
 import { go, useData, useStore } from './hooks';
+import { dropProps, SelectMark, usePress, type ItemRef } from './interact';
 
 /** 各タブのフォルダのURL。記録は '' 、人は '/people'、話題は '/topics' */
 export const SCOPE_BASE: Record<FolderScope, string> = { entry: '', person: '/people', topic: '/topics' };
@@ -15,11 +16,11 @@ export function Crumbs({ scope, path }: { scope: FolderScope; path: Folder[] }) 
   if (path.length < 2) return null;
   return (
     <nav className="crumbs">
-      <button className="link" onClick={() => location.replace('#' + rootHref(scope))}>⌂ {SCOPE_LABEL[scope]}</button>
+      <button className="link" {...dropProps(scope, null, '一番上')} onClick={() => location.replace('#' + rootHref(scope))}>⌂ {SCOPE_LABEL[scope]}</button>
       {path.slice(0, -1).map((f) => (
         <span key={f.id}>
           <span className="sep">›</span>
-          <button className="link" onClick={() => location.replace('#' + folderHref(scope, f.id))}>{f.name}</button>
+          <button className="link" {...dropProps(scope, f.id, f.name)} onClick={() => location.replace('#' + folderHref(scope, f.id))}>{f.name}</button>
         </span>
       ))}
       <span className="sep">›</span>
@@ -59,11 +60,7 @@ export function FolderRows({ scope, folderId, children, count, total, adding, se
         </li>
       )}
       {children.map((f) => (
-        <li key={f.id} className="row-item" onClick={() => go(folderHref(scope, f.id))}>
-          <span className="name"><span className="folder-icon">▤</span>{f.name}</span>
-          <span className="sub">{count(f.id)}</span>
-          <span className="chev">›</span>
-        </li>
+        <FolderRow key={f.id} scope={scope} folder={f} count={count(f.id)} />
       ))}
       {adding && (
         <li className="row-edit">
@@ -156,5 +153,30 @@ export function FolderSelect({ scope, value, onChange }: { scope: FolderScope; v
       <option value="">一番上（フォルダなし）</option>
       {choices.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
     </select>
+  );
+}
+
+function FolderRow({ scope, folder, count }: { scope: FolderScope; folder: Folder; count: number }) {
+  const item: ItemRef = { kind: 'folder', id: folder.id, label: folder.name, scope };
+  const { lifted, handlers } = usePress(item, () => go(folderHref(scope, folder.id)));
+  return (
+    <li className={`row-item pressable ${lifted ? 'lifted' : ''}`} {...dropProps(scope, folder.id, folder.name)} {...handlers}>
+      <span className="name"><SelectMark item={item} /><span className="folder-icon">▤</span>{folder.name}</span>
+      <span className="sub">{count}</span>
+      <span className="chev">›</span>
+    </li>
+  );
+}
+
+/** 戻るボタン(1つ上へのドロップ先にもなる) */
+export function UpButton({ scope, parent }: { scope: FolderScope; parent: Folder | undefined }) {
+  return (
+    <button
+      className="link"
+      {...dropProps(scope, parent?.id ?? null, parent?.name ?? '一番上')}
+      onClick={() => location.replace('#' + folderHref(scope, parent?.id ?? null))}
+    >
+      ‹ {parent ? parent.name : SCOPE_LABEL[scope]}
+    </button>
   );
 }

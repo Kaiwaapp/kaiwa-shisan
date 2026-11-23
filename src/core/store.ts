@@ -21,19 +21,25 @@ export interface EntryInput {
 
 /** アプリの状態と操作。React非依存なのでネイティブ版でも使い回せる */
 export class Store {
+  /** 削除済み(ゴミ箱)の記録も含む全データ */
   private data: AppData = { people: [], topics: [], entries: [], folders: [] };
+  /** 画面に出すデータ(削除済みの記録を除く) */
+  private snap: AppData = this.data;
+  private trashSnap: Entry[] = [];
   private listeners = new Set<Listener>();
   loaded = false;
 
   constructor(private repo: Repository) {}
 
   async init() {
-    this.data = await this.repo.loadAll();
     this.loaded = true;
-    this.emit();
+    this.set(await this.repo.loadAll());
+    await this.purgeTrash();
   }
 
-  get snapshot(): AppData { return this.data; }
+  get snapshot(): AppData { return this.snap; }
+  /** 最近削除した項目(新しく消した順) */
+  get trash(): Entry[] { return this.trashSnap; }
 
   subscribe = (l: Listener) => {
     this.listeners.add(l);
@@ -42,7 +48,21 @@ export class Store {
 
   private emit() { for (const l of this.listeners) l(); }
 
-  private set(next: AppData) { this.data = next; this.emit(); }
+  private set(next: AppData) {
+    this.data = next;
+    const live: Entry[] = [];
+    const dead: Entry[] = [];
+    for (const e of next.entries) (e.deletedAt ? dead : live).push(e);
+    this.snap = { ...next, entries: live };
+    this.trashSnap = dead.sort((a, b) => b.deletedAt! - a.deletedAt!);
+    this.emit();
+  }
+
+  private async putEntries(list: Entry[]) {
+    for (const e of list) await this.repo.putEntry(e);
+    const m = new Map(list.map((e) => [e.id, e]));
+    this.set({ ...this.data, entries: this.data.entries.map((e) => m.get(e.id) ?? e) });
+  }
 
   // ---- 記録 ----
   async saveEntry(input: EntryInput, id?: ID): Promise<Entry> {
@@ -85,9 +105,79 @@ export class Store {
     return entry;
   }
 
-  async deleteEntry(id: ID) {
-    await this.repo.deleteEntry(id);
-    this.set({ ...this.data, entries: this.data.entries.filter((e) => e.id !== id) });
+  /** 記録を「最近削除した項目」へ移す(30日間は復元できる) */
+  async deleteEntry(id: ID) { await this.trashEntries([id]); }
+
+  async trashEntries(ids: ID[]) {
+    const now = Date.now();
+    const set = new Set(ids);
+    await this.putEntries(this.data.entries.filter((e) => set.has(e.id)).map((e) => ({ ...e, deletedAt: now, pinned: false })));
+  }
+
+  async restoreEntries(ids: ID[]) {
+    const set = new Set(ids);
+    // 元のフォルダが消えていたら一番上へ
+    const alive = new Set(this.data.folders.map((f) => f.id));
+    await this.putEntries(
+      this.data.entries
+        .filter((e) => set.has(e.id))
+        .map((e) => ({ ...e, deletedAt: undefined, folderId: e.folderId && alive.has(e.folderId) ? e.folderId : null })),
+    );
+  }
+
+  /** 完全に削除 */
+  async purgeEntries(ids: ID[]) {
+    const set = new Set(ids);
+    for (const id of ids) await this.repo.deleteEntry(id);
+    this.set({ ...this.data, entries: this.data.entries.filter((e) => !set.has(e.id)) });
+  }
+
+  /** 削除から30日たった記録を完全に消す */
+  async purgeTrash(days = 30) {
+    const limit = Date.now() - days * 24 * 3600 * 1000;
+    const old = this.data.entries.filter((e) => e.deletedAt && e.deletedAt < limit).map((e) => e.id);
+    if (old.length) await this.purgeEntries(old);
+  }
+
+  // ---- ピン留め・まとめて移動 ----
+  async setPinned(kind: 'entry' | 'person' | 'topic', ids: ID[], pinned: boolean) {
+    const set = new Set(ids);
+    if (kind === 'entry') {
+      await this.putEntries(this.data.entries.filter((e) => set.has(e.id)).map((e) => ({ ...e, pinned })));
+    } else if (kind === 'person') {
+      const list = this.data.people.filter((p) => set.has(p.id)).map((p) => ({ ...p, pinned }));
+      for (const x of list) await this.repo.putPerson(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, people: this.data.people.map((x) => m.get(x.id) ?? x) });
+    } else {
+      const list = this.data.topics.filter((t) => set.has(t.id)).map((t) => ({ ...t, pinned }));
+      for (const x of list) await this.repo.putTopic(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, topics: this.data.topics.map((x) => m.get(x.id) ?? x) });
+    }
+  }
+
+  /** 記録・人・話題・フォルダをまとめて別のフォルダへ移す(null は一番上) */
+  async moveItems(kind: 'entry' | 'person' | 'topic' | 'folder', ids: ID[], folderId: ID | null) {
+    const set = new Set(ids);
+    const now = Date.now();
+    if (kind === 'folder') {
+      for (const id of ids) await this.moveFolder(id, folderId);
+      return;
+    }
+    if (kind === 'entry') {
+      await this.putEntries(this.data.entries.filter((e) => set.has(e.id)).map((e) => ({ ...e, folderId, updatedAt: now })));
+    } else if (kind === 'person') {
+      const list = this.data.people.filter((p) => set.has(p.id)).map((p) => ({ ...p, folderId, updatedAt: now }));
+      for (const x of list) await this.repo.putPerson(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, people: this.data.people.map((x) => m.get(x.id) ?? x) });
+    } else {
+      const list = this.data.topics.filter((t) => set.has(t.id)).map((t) => ({ ...t, folderId, updatedAt: now }));
+      for (const x of list) await this.repo.putTopic(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, topics: this.data.topics.map((x) => m.get(x.id) ?? x) });
+    }
   }
 
   // ---- 人 ----

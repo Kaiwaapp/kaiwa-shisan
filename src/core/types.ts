@@ -16,6 +16,8 @@ export interface Person {
   reading?: string;
   /** 入っているフォルダ(人用・話題用)。null/未設定は一番上 */
   folderId?: ID | null;
+  /** ピン留め(一覧の上に固定) */
+  pinned?: boolean;
 }
 
 export interface Topic {
@@ -31,6 +33,8 @@ export interface Topic {
   reading?: string;
   /** 入っているフォルダ(人用・話題用)。null/未設定は一番上 */
   folderId?: ID | null;
+  /** ピン留め(一覧の上に固定) */
+  pinned?: boolean;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -55,6 +59,10 @@ export interface Entry {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
+  /** ピン留め(一覧の上に固定) */
+  pinned?: boolean;
+  /** 削除した日時。あるものは「最近削除した項目」にあり、30日で完全に消える */
+  deletedAt?: number;
 }
 
 export type FolderScope = 'entry' | 'person' | 'topic';

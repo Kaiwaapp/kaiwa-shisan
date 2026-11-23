@@ -3,6 +3,7 @@ import type { AppData, Entry, ID } from '../core/types';
 import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
 import { formatDate, go } from './hooks';
+import { copyText, SelectMark, useInteract, usePress, type ItemRef } from './interact';
 
 export function Header({ title, left, right }: { title: ReactNode; left?: ReactNode; right?: ReactNode }) {
   return (
@@ -49,9 +50,26 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
     .map((t) => data.topics.find((x) => x.id === t.topicId))
     .filter(Boolean);
   const folder = !hideFolder && entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
+  const item: ItemRef = { kind: 'entry', id: entry.id, label: entry.text.split('\n')[0].slice(0, 24) || '（本文なし）', scope: 'entry' };
+  const { lifted, handlers } = usePress(item, () => go(`/edit/${entry.id}`));
+  const { sel } = useInteract();
   return (
-    <article className="card" onClick={() => go(`/edit/${entry.id}`)}>
-      <div className="card-text">{entry.text || <span className="muted">（本文なし）</span>}</div>
+    <article className={`card ${lifted ? 'lifted' : ''} ${sel.active ? 'selecting' : ''}`} {...handlers}>
+      <SelectMark item={item} />
+      <div className="card-text">
+        {entry.pinned && <span className="pin" aria-label="ピン留め">📌</span>}
+        {entry.text || <span className="muted">（本文なし）</span>}
+      </div>
+      {!sel.active && (
+        <button
+          className="copy-btn"
+          aria-label="本文をコピー"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); copyText(entry.text); }}
+        >
+          ⧉
+        </button>
+      )}
       <div className="card-meta">
         <span className="date">{formatDate(entry.talkedOn)}</span>
         {folder && <span className="chip folder small">▤ {folderPath(data.folders, folder.id).map((f) => f.name).join(' / ')}</span>}
@@ -66,15 +84,30 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
   );
 }
 
-export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hideFolder }: {
+export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hideFolder, pinSplit }: {
   entries: Entry[];
   data: AppData;
   empty: ReactNode;
   hidePersonId?: ID;
   hideTopicId?: ID;
   hideFolder?: boolean;
+  /** ピン留めを上に分けて表示する */
+  pinSplit?: boolean;
 }) {
   const [limit, more] = useIncremental(entries.length);
+  if (pinSplit && entries.some((e) => e.pinned)) {
+    const pinned = entries.filter((e) => e.pinned);
+    const rest = entries.filter((e) => !e.pinned);
+    const props = { data, hidePersonId, hideTopicId, hideFolder };
+    return (
+      <>
+        <div className="section-title">📌 ピン留め</div>
+        <EntryList entries={pinned} empty="" {...props} />
+        {rest.length > 0 && <div className="section-title">記録</div>}
+        {rest.length > 0 && <EntryList entries={rest} empty="" {...props} />}
+      </>
+    );
+  }
   if (entries.length === 0) return <div className="empty">{empty}</div>;
   return (
     <div className="list">
