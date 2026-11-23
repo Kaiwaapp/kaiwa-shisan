@@ -122,4 +122,20 @@ describe('Store', () => {
     expect(sortNames(items, 'first').map((p) => p.name)).toEqual(['A', 'B']);
     expect(sortNames(items, 'count').map((p) => p.name)).toEqual(['B', 'A']);
   });
+
+  it('最後に見た順', async () => {
+    const s = await fresh();
+    const a = await s.addPerson('A');
+    const b = await s.addPerson('B');
+    await new Promise((r) => setTimeout(r, 5));
+    await s.markViewed('person', a.id);
+    const st = statsBy(s.snapshot, 'person');
+    const items = s.snapshot.people.map((p) => ({ ...p, stat: st.get(p.id) ?? { count: 0, first: '', last: '' } }));
+    expect(sortNames(items, 'viewed').map((p) => p.name)).toEqual(['A', 'B']);
+    const e1 = await s.saveEntry({ text: '1', personIds: [b.id], topicIds: [], talkedOn: '2026-01-01' });
+    await s.saveEntry({ text: '2', personIds: [], topicIds: [], talkedOn: '2026-01-02' });
+    await new Promise((r) => setTimeout(r, 5));
+    await s.markViewed('entry', e1.id);
+    expect(sortEntriesBy(s.snapshot.entries, 'viewed').map((e) => e.text)).toEqual(['1', '2']);
+  });
 });

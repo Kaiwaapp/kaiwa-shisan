@@ -63,6 +63,7 @@ export class Store {
       talkedOn: input.talkedOn,
       createdAt: prev?.createdAt ?? now,
       updatedAt: now,
+      viewedAt: now,
     };
     await this.repo.putEntry(entry);
     this.set({
@@ -242,6 +243,30 @@ export class Store {
       folders: this.data.folders.filter((f) => f.id !== id),
       entries: this.data.entries.map((e) => map.get(e.id) ?? e),
     });
+  }
+
+  /** 開いた日時を残す(「最後に見た順」用)。更新日時は変えない */
+  async markViewed(kind: 'entry' | 'person' | 'topic', id: ID) {
+    const now = Date.now();
+    if (kind === 'entry') {
+      const e = this.data.entries.find((x) => x.id === id);
+      if (!e) return;
+      const next = { ...e, viewedAt: now };
+      await this.repo.putEntry(next);
+      this.set({ ...this.data, entries: this.data.entries.map((x) => (x.id === id ? next : x)) });
+    } else if (kind === 'person') {
+      const p = this.data.people.find((x) => x.id === id);
+      if (!p) return;
+      const next = { ...p, viewedAt: now };
+      await this.repo.putPerson(next);
+      this.set({ ...this.data, people: this.data.people.map((x) => (x.id === id ? next : x)) });
+    } else {
+      const t = this.data.topics.find((x) => x.id === id);
+      if (!t) return;
+      const next = { ...t, viewedAt: now };
+      await this.repo.putTopic(next);
+      this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
+    }
   }
 
   // ---- バックアップ ----

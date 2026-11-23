@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ID } from '../core/types';
 import {
   ENTRY_SORTS, NAME_SORTS, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
@@ -252,6 +252,7 @@ export function PersonScreen({ id }: { id: ID }) {
   const data = useData();
   const store = useStore();
   const person = data.people.find((p) => p.id === id);
+  useEffect(() => { store.markViewed('person', id); }, [store, id]);
   const [q, setQ] = useState('');
   const [sort, setSort] = usePref<EntrySort>('detailSort', 'newest');
   const [topicFilter, setTopicFilter] = useState<ID | null>(null);
@@ -342,6 +343,7 @@ export function TopicScreen({ id }: { id: ID }) {
   const data = useData();
   const store = useStore();
   const topic = data.topics.find((t) => t.id === id);
+  useEffect(() => { store.markViewed('topic', id); }, [store, id]);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [sort, setSort] = usePref<EntrySort>('detailSort', 'newest');

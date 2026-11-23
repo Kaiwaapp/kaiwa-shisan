@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
 import { ComboPicker, Header } from './components';
@@ -14,6 +14,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   const store = useStore();
   const data = useData();
   const existing = id ? data.entries.find((e) => e.id === id) : undefined;
+  useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
   const [text, setText] = useState(existing?.text ?? '');
   const [personIds, setPersonIds] = useState<ID[]>(existing?.personIds ?? (initialPerson ? [initialPerson] : []));
   const [newPeople, setNewPeople] = useState<string[]>([]);

@@ -33,8 +33,12 @@ export const sortEntries = (entries: Entry[]): Entry[] =>
   );
 
 // ---- 並べ替え ----
-export type EntrySort = 'newest' | 'oldest' | 'updated';
+/** 開いた日時。まだ開いていなければ作成・編集した日時 */
+export const lastSeen = (x: { viewedAt?: number; updatedAt: number }) => Math.max(x.viewedAt ?? 0, x.updatedAt);
+
+export type EntrySort = 'viewed' | 'newest' | 'oldest' | 'updated';
 export const ENTRY_SORTS: { key: EntrySort; label: string }[] = [
+  { key: 'viewed', label: '最後に見た順' },
   { key: 'newest', label: '話した日が新しい順' },
   { key: 'oldest', label: '話した日が古い順' },
   { key: 'updated', label: '最近編集した順' },
@@ -44,11 +48,13 @@ export function sortEntriesBy(entries: Entry[], mode: EntrySort): Entry[] {
   const l = [...entries];
   if (mode === 'oldest') return l.sort((a, b) => a.talkedOn.localeCompare(b.talkedOn) || a.createdAt - b.createdAt);
   if (mode === 'updated') return l.sort((a, b) => b.updatedAt - a.updatedAt);
+  if (mode === 'viewed') return l.sort((a, b) => lastSeen(b) - lastSeen(a));
   return sortEntries(l);
 }
 
-export type NameSort = 'last' | 'first' | 'count' | 'name';
+export type NameSort = 'viewed' | 'last' | 'first' | 'count' | 'name';
 export const NAME_SORTS: { key: NameSort; label: string }[] = [
+  { key: 'viewed', label: '最後に見た順' },
   { key: 'last', label: '最後に話した順' },
   { key: 'first', label: '最初に話した順' },
   { key: 'count', label: '話した回数順' },
@@ -73,10 +79,12 @@ export function statsBy(data: AppData, key: 'person' | 'topic'): Map<string, Nam
   return m;
 }
 
-export function sortNames<T extends { name: string; createdAt: number; stat: NameStat }>(items: T[], mode: NameSort): T[] {
+export function sortNames<T extends { name: string; createdAt: number; updatedAt: number; viewedAt?: number; stat: NameStat }>(items: T[], mode: NameSort): T[] {
   const byName = (a: T, b: T) => a.name.localeCompare(b.name, 'ja');
   const l = [...items];
   switch (mode) {
+    case 'viewed':
+      return l.sort((a, b) => lastSeen(b) - lastSeen(a));
     case 'name':
       return l.sort(byName);
     case 'count':

@@ -8,6 +8,8 @@ export interface Person {
   memo: string;
   createdAt: number;
   updatedAt: number;
+  /** 最後に開いた日時(並べ替え用) */
+  viewedAt?: number;
 }
 
 export interface Topic {
@@ -15,6 +17,8 @@ export interface Topic {
   name: string;
   createdAt: number;
   updatedAt: number;
+  /** 最後に開いた日時(並べ替え用) */
+  viewedAt?: number;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -37,6 +41,8 @@ export interface Entry {
   folderId: ID | null;
   createdAt: number;
   updatedAt: number;
+  /** 最後に開いた日時(並べ替え用) */
+  viewedAt?: number;
 }
 
 export interface Folder {
@@ -44,6 +50,8 @@ export interface Folder {
   name: string;
   createdAt: number;
   updatedAt: number;
+  /** 最後に開いた日時(並べ替え用) */
+  viewedAt?: number;
 }
 
 export interface AppData {
