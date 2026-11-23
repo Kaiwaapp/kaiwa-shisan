@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
 import { ComboPicker, Header } from './components';
+import { copyText } from './interact';
 import { folderChoices } from './folders';
 import { foldersOf } from '../core/store';
 
@@ -62,7 +63,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
     back();
   };
   const remove = async () => {
-    if (!id || !confirm('この記録を削除しますか？')) return;
+    if (!id || !confirm('この記録を削除しますか？\n30日間は「最近削除した項目」から戻せます。')) return;
     await store.deleteEntry(id);
     back();
   };
@@ -83,6 +84,9 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           autoFocus={!existing}
           rows={6}
         />
+        {text.trim() && (
+          <button type="button" className="link small-link copy-line" onClick={() => copyText(text)}>⧉ 本文をコピー</button>
+        )}
         <section className="field">
           <label>話した相手</label>
           <ComboPicker

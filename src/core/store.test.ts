@@ -177,4 +177,25 @@ describe('Store', () => {
     await s.deleteFolder(sub.id);
     expect(s.snapshot.people[0].folderId).toBe(pf.id);
   });
+
+  it('ゴミ箱・ピン留め・まとめて移動', async () => {
+    const s = await fresh();
+    const f = await s.addFolder('F');
+    const a = await s.saveEntry({ text: 'a', personIds: [], topicIds: [], talkedOn: '2026-01-01', folderId: f.id });
+    const b = await s.saveEntry({ text: 'b', personIds: [], topicIds: [], talkedOn: '2026-01-01' });
+    await s.setPinned('entry', [b.id], true);
+    expect(s.snapshot.entries.find((e) => e.id === b.id)!.pinned).toBe(true);
+    await s.moveItems('entry', [b.id], f.id);
+    expect(s.snapshot.entries.every((e) => e.folderId === f.id)).toBe(true);
+    await s.trashEntries([a.id]);
+    expect(s.snapshot.entries.map((e) => e.text)).toEqual(['b']);
+    expect(s.trash.map((e) => e.text)).toEqual(['a']);
+    await s.deleteFolder(f.id);
+    await s.restoreEntries([a.id]);
+    expect(s.snapshot.entries.find((e) => e.id === a.id)!.folderId).toBeNull();
+    await s.trashEntries([a.id]);
+    await s.purgeEntries([a.id]);
+    expect(s.trash).toHaveLength(0);
+    expect(s.snapshot.entries).toHaveLength(1);
+  });
 });
