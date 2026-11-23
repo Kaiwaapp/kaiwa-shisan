@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { Store, folderPath } from './store';
 import { IdbRepository } from './idbRepository';
-import { searchEntries, sortEntriesBy, sortNames, statsBy } from './search';
+import { nameMatches, searchEntries, sortEntriesBy, sortNames, statsBy } from './search';
 import { parseBackup, toBackup } from './backup';
 
 let n = 0;
@@ -151,5 +151,17 @@ describe('Store', () => {
     await s.deleteFolder(mtg.id);
     expect(s.snapshot.entries[0].folderId).toBe(work.id);
     expect(s.snapshot.folders.find((f) => f.id === deep.id)!.parentId).toBe(work.id);
+  });
+
+  it('読み仮名で検索できる', async () => {
+    const s = await fresh();
+    const p = await s.addPerson('江口');
+    await s.updatePerson(p.id, { reading: 'えぐち' });
+    await s.saveEntry({ text: '映画の話', personIds: [p.id], topicIds: [], talkedOn: '2026-01-01' });
+    const pp = s.snapshot.people[0];
+    expect(nameMatches(pp, 'エグ')).toBe(true);
+    expect(nameMatches(pp, '江')).toBe(true);
+    expect(nameMatches(pp, 'たなか')).toBe(false);
+    expect(searchEntries(s.snapshot, 'えぐち')).toHaveLength(1);
   });
 });

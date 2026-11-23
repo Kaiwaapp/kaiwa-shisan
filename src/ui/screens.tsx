@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ID } from '../core/types';
 import {
-  ENTRY_SORTS, NAME_SORTS, lastSeen, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
+  ENTRY_SORTS, NAME_SORTS, lastSeen, nameMatches, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
   type EntrySort, type NameSort,
 } from '../core/search';
 import { back, formatDate, go, useData, usePref, useStore } from './hooks';
 import { folderDescendants, folderPath } from '../core/store';
 import type { Folder } from '../core/types';
-import { EntryList, Header, SearchBox, SortSelect } from './components';
+import { EntryList, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
 export function FolderScreen({ folderId }: { folderId: ID | null }) {
@@ -121,8 +121,15 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                   <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
                 </span>
               </div>
-              {(children.length > 0 || adding) && (
+              {(children.length > 0 || adding || !folderId) && (
                 <ul className="rows folder-rows">
+                  {!folderId && data.folders.length > 0 && (
+                    <li className="row-item" onClick={() => go('/all')}>
+                      <span className="name"><span className="folder-icon">▦</span>すべての記録</span>
+                      <span className="sub">{data.entries.length}</span>
+                      <span className="chev">›</span>
+                    </li>
+                  )}
                   {children.map((f) => (
                     <li key={f.id} className="row-item" onClick={() => go(`/f/${f.id}`)}>
                       <span className="name"><span className="folder-icon">▤</span>{f.name}</span>
@@ -220,6 +227,25 @@ export function folderChoices(folders: { id: ID; name: string; parentId: ID | nu
   return out;
 }
 
+// ---- すべての記録: フォルダに関係なく全部 ----
+export function AllEntriesScreen() {
+  const data = useData();
+  const [q, setQ] = useState('');
+  const [sort, setSort] = usePref<EntrySort>('entrySort', 'newest');
+  const list = useMemo(() => sortEntriesBy(searchEntries(data, q), sort), [data, q, sort]);
+  return (
+    <div className="screen">
+      <Header title="すべての記録" left={<button className="link" onClick={() => location.replace('#/')}>‹ 記録</button>} />
+      <SearchBox value={q} onChange={setQ} placeholder="本文・人・話題で検索（読み仮名も可）" />
+      <div className="toolbar">
+        <span className="count">{list.length}件</span>
+        <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
+      </div>
+      <EntryList entries={list} data={data} empty={q ? '見つかりませんでした' : 'まだ記録がありません'} />
+    </div>
+  );
+}
+
 // ---- 人・話題の一覧 ----
 function NameList({ kind }: { kind: 'person' | 'topic' }) {
   const data = useData();
@@ -229,10 +255,11 @@ function NameList({ kind }: { kind: 'person' | 'topic' }) {
   const stats = useMemo(() => statsBy(data, kind), [data, kind]);
   const items = sortNames(
     (kind === 'person' ? data.people : data.topics)
-      .filter((x) => !q || normalize(x.name).includes(normalize(q.replace(/^#/, ''))))
+      .filter((x) => nameMatches(x, q))
       .map((x) => ({ ...x, stat: stats.get(x.id) ?? { count: 0, first: '', last: '' } })),
     sort,
   );
+  const [limit, more] = useIncremental(items.length);
   const label = kind === 'person' ? '人' : '話題';
   const base = kind === 'person' ? '/people/' : '/topics/';
   const add = async () => {
@@ -246,7 +273,7 @@ function NameList({ kind }: { kind: 'person' | 'topic' }) {
   return (
     <div className="screen">
       <Header title={label} />
-      <SearchBox value={q} onChange={setQ} placeholder={`${label}を探す・追加する`} />
+      <SearchBox value={q} onChange={setQ} placeholder={`${label}を探す（読み仮名も可）・追加する`} />
       {q.trim() && !exact && (
         <button className="btn block ghost" onClick={add}>
           「{q.trim().replace(/^#/, '')}」を{label}に追加
@@ -265,10 +292,11 @@ function NameList({ kind }: { kind: 'person' | 'topic' }) {
             <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
           </div>
           <ul className="rows">
-            {items.map((x) => (
+            {items.slice(0, limit).map((x) => (
               <li key={x.id} className="row-item" onClick={() => go(base + x.id)}>
                 <span className={kind === 'topic' ? 'name topic-name' : 'name'}>
                   {kind === 'topic' ? '#' : ''}{x.name}
+                  {x.reading && <span className="reading">{x.reading}</span>}
                 </span>
                 <span className="sub">
                   {x.stat.count}件
@@ -278,6 +306,7 @@ function NameList({ kind }: { kind: 'person' | 'topic' }) {
               </li>
             ))}
           </ul>
+          {limit < items.length && <LoadMore onVisible={more} rest={items.length - limit} />}
         </>
       )}
     </div>
@@ -336,6 +365,7 @@ export function PersonScreen({ id }: { id: ID }) {
   const [topicFilter, setTopicFilter] = useState<ID | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
+  const [reading, setReading] = useState('');
   const [memo, setMemo] = useState('');
 
   const mine = useMemo(() => data.entries.filter((e) => e.personIds.includes(id)), [data, id]);
@@ -356,7 +386,7 @@ export function PersonScreen({ id }: { id: ID }) {
       <Header
         title={person.name}
         left={<button className="link" onClick={() => back('/people')}>‹ 人</button>}
-        right={<button className="link" onClick={() => { setName(person.name); setMemo(person.memo); setEditing(!editing); }}>{editing ? '閉じる' : '編集'}</button>}
+        right={<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setEditing(!editing); }}>{editing ? '閉じる' : '編集'}</button>}
       />
       {editing ? (
         <div className="form">
@@ -365,10 +395,14 @@ export function PersonScreen({ id }: { id: ID }) {
             <input value={name} onChange={(e) => setName(e.target.value)} />
           </section>
           <section className="field">
+            <label>読み仮名（検索用）</label>
+            <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder="例：たなか" />
+          </section>
+          <section className="field">
             <label>メモ（関係・好きなものなど）</label>
             <textarea className="textarea" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
           </section>
-          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), memo }); setEditing(false); }}>
+          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo }); setEditing(false); }}>
             保存
           </button>
           <MergeBox kind="person" id={id} name={person.name} />
@@ -424,6 +458,7 @@ export function TopicScreen({ id }: { id: ID }) {
   useEffect(() => { store.markViewed('topic', id); }, [store, id]);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
+  const [reading, setReading] = useState('');
   const [sort, setSort] = usePref<EntrySort>('detailSort', 'newest');
   const [personFilter, setPersonFilter] = useState<ID | null>(null);
 
@@ -441,7 +476,7 @@ export function TopicScreen({ id }: { id: ID }) {
       <Header
         title={`#${topic.name}`}
         left={<button className="link" onClick={() => back('/topics')}>‹ 話題</button>}
-        right={<button className="link" onClick={() => { setName(topic.name); setEditing(!editing); }}>{editing ? '閉じる' : '編集'}</button>}
+        right={<button className="link" onClick={() => { setName(topic.name); setReading(topic.reading ?? ''); setEditing(!editing); }}>{editing ? '閉じる' : '編集'}</button>}
       />
       {editing ? (
         <div className="form">
@@ -449,7 +484,11 @@ export function TopicScreen({ id }: { id: ID }) {
             <label>話題の名前</label>
             <input value={name} onChange={(e) => setName(e.target.value)} />
           </section>
-          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.renameTopic(id, name); setEditing(false); }}>
+          <section className="field">
+            <label>読み仮名（検索用）</label>
+            <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder="例：りょこう" />
+          </section>
+          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.renameTopic(id, name, reading.trim()); setEditing(false); }}>
             保存
           </button>
           <MergeBox kind="topic" id={id} name={topic.name} />

@@ -1,6 +1,6 @@
-import React, { useMemo, useState, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AppData, Entry, ID } from '../core/types';
-import { normalize } from '../core/search';
+import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
 import { formatDate, go } from './hooks';
 
@@ -74,12 +74,44 @@ export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hid
   hideTopicId?: ID;
   hideFolder?: boolean;
 }) {
+  const [limit, more] = useIncremental(entries.length);
   if (entries.length === 0) return <div className="empty">{empty}</div>;
   return (
     <div className="list">
-      {entries.map((e) => (
+      {entries.slice(0, limit).map((e) => (
         <EntryCard key={e.id} entry={e} data={data} hidePersonId={hidePersonId} hideTopicId={hideTopicId} hideFolder={hideFolder} />
       ))}
+      {limit < entries.length && <LoadMore onVisible={more} rest={entries.length - limit} />}
+    </div>
+  );
+}
+
+export const PAGE_SIZE = 30;
+
+/** 最初は PAGE_SIZE 件だけ表示し、下までスクロールしたら追加で表示する */
+export function useIncremental(total: number): [number, () => void] {
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  // 一覧が大きく縮んだ(検索など)ときは最初に戻す
+  useEffect(() => {
+    if (total <= PAGE_SIZE) setLimit(PAGE_SIZE);
+  }, [total]);
+  return [limit, () => setLimit((l) => Math.min(l + PAGE_SIZE, Math.max(total, PAGE_SIZE)))];
+}
+
+export function LoadMore({ onVisible, rest }: { onVisible: () => void; rest: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cb = useRef(onVisible);
+  cb.current = onVisible;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) cb.current(); }, { rootMargin: '400px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [rest]);
+  return (
+    <div ref={ref} className="load-more">
+      <button className="link" onClick={onVisible}>さらに表示（残り{rest}件）</button>
     </div>
   );
 }
@@ -108,7 +140,7 @@ export function SortSelect<K extends string>({ value, options, onChange }: {
  */
 export function ComboPicker({ kind, options, selected, newNames, onChange }: {
   kind: 'person' | 'topic';
-  options: { id: ID; name: string; rank: number }[];
+  options: { id: ID; name: string; reading?: string; rank: number }[];
   selected: ID[];
   newNames: string[];
   onChange: (selected: ID[], newNames: string[]) => void;
@@ -125,7 +157,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
     setOpen(true);
   };
   const list = useMemo(() => {
-    const hit = nq ? options.filter((o) => normalize(o.name).includes(nq)) : options;
+    const hit = nq ? options.filter((o) => nameMatches(o, clean)) : options;
     const r = (o: { id: ID; rank: number }) => frozen?.get(o.id) ?? o.rank;
     return [...hit].sort((a, b) => r(b) - r(a));
   }, [options, nq, frozen]);
@@ -197,6 +229,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
                 <li key={o.id} className={`dd-item ${on ? 'on' : ''}`} onClick={() => { toggle(o.id); setQ(''); }}>
                   <span className="check">{on ? '✓' : ''}</span>
                   {prefix}{o.name}
+                  {o.reading && <span className="reading">{o.reading}</span>}
                 </li>
               );
             })}

@@ -96,7 +96,7 @@ export class Store {
     return p;
   }
 
-  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo'>>) {
+  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading'>>) {
     const p = this.data.people.find((x) => x.id === id);
     if (!p) return;
     const next = { ...p, ...patch, updatedAt: Date.now() };
@@ -136,10 +136,10 @@ export class Store {
     return t;
   }
 
-  async renameTopic(id: ID, name: string) {
+  async renameTopic(id: ID, name: string, reading?: string) {
     const t = this.data.topics.find((x) => x.id === id);
     if (!t) return;
-    const next = { ...t, name: name.trim(), updatedAt: Date.now() };
+    const next = { ...t, name: name.trim(), reading: reading ?? t.reading, updatedAt: Date.now() };
     await this.repo.putTopic(next);
     this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
   }

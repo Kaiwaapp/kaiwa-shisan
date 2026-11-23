@@ -7,13 +7,20 @@ export const normalize = (s: string): string =>
     .toLowerCase()
     .replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
 
+/** 名前か読み仮名に検索語を含むか */
+export const nameMatches = (x: { name: string; reading?: string }, q: string): boolean => {
+  const n = normalize(q.trim().replace(/^#/, ''));
+  if (!n) return true;
+  return normalize(x.name).includes(n) || normalize(x.reading ?? '').includes(n);
+};
+
 /** スペース区切りの全語を、本文・人の名前・話題名のどこかに含む記録を返す */
 export function searchEntries(data: AppData, query: string): Entry[] {
   const words = normalize(query).split(/\s+/).filter(Boolean);
   const sorted = sortEntries(data.entries);
   if (words.length === 0) return sorted;
-  const pName = new Map(data.people.map((p) => [p.id, p.name]));
-  const tName = new Map(data.topics.map((t) => [t.id, t.name]));
+  const pName = new Map(data.people.map((p) => [p.id, `${p.name} ${p.reading ?? ''}`]));
+  const tName = new Map(data.topics.map((t) => [t.id, `${t.name} ${t.reading ?? ''}`]));
   return sorted.filter((e) => {
     const hay = normalize(
       [

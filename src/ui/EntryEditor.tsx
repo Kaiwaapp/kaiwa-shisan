@@ -36,8 +36,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
     return r;
   }, [data.entries]);
   const rankOf = (x: { id: ID; createdAt: number; selectedAt?: number }) => x.selectedAt ?? used.get(x.id) ?? x.createdAt;
-  const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, rank: rankOf(p) }));
-  const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, rank: rankOf(t) }));
+  const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: rankOf(p) }));
+  const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, reading: t.reading, rank: rankOf(t) }));
   const pick = (kind: 'person' | 'topic', prev: ID[], next: ID[]) => {
     for (const x of next) if (!prev.includes(x)) store.markSelected(kind, x);
   };
