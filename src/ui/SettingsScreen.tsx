@@ -4,6 +4,7 @@ import type { AppData } from '../core/types';
 import { useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup } from './backupUi';
+import { AiSettingsPanel } from './AiTools';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
 export function SettingsScreen() {
@@ -91,6 +92,8 @@ export function SettingsScreen() {
           )}
           {msg && <p className="notice">{msg}</p>}
         </section>
+
+        <AiSettingsPanel />
 
         <section className="panel">
           <h2>{t('保存の状態')}</h2>

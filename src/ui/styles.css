@@ -354,3 +354,20 @@ body.dragging { cursor: grabbing; }
   .sheet { max-width: 420px; }
   .stats { grid-template-columns: repeat(4, 1fr); }
 }
+/* AI機能(試作) */
+.ai-tools { display: flex; flex-direction: column; gap: 8px; }
+.ai-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-msg { margin: 0; font-size: 13px; color: var(--muted); }
+.ai-msg.error { color: var(--danger); }
+.ai-sug { border: 1px dashed var(--line); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ai-sug-head { display: flex; align-items: center; gap: 12px; }
+.ai-sug-head > span { flex: 1; }
+.toggle { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+.row-input { display: flex; gap: 8px; }
+.row-input input { flex: 1; min-width: 0; }
+.toggle.main { font-weight: 700; }
+.sub-toggles { display: flex; flex-direction: column; gap: 10px; padding-left: 30px; }
+.organize-group h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.badge-new { font-size: 11px; font-weight: 700; color: var(--topic); background: var(--topic-soft); border-radius: 999px; padding: 2px 8px; }
+.organize-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
