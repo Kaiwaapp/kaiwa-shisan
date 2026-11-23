@@ -14,6 +14,8 @@ export interface Person {
   selectedAt?: number;
   /** 読み仮名(検索用) */
   reading?: string;
+  /** 入っているフォルダ(人用・話題用)。null/未設定は一番上 */
+  folderId?: ID | null;
 }
 
 export interface Topic {
@@ -27,6 +29,8 @@ export interface Topic {
   selectedAt?: number;
   /** 読み仮名(検索用) */
   reading?: string;
+  /** 入っているフォルダ(人用・話題用)。null/未設定は一番上 */
+  folderId?: ID | null;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -53,11 +57,15 @@ export interface Entry {
   viewedAt?: number;
 }
 
+export type FolderScope = 'entry' | 'person' | 'topic';
+
 export interface Folder {
   id: ID;
   name: string;
   /** 親フォルダ。null は一番上 */
   parentId: ID | null;
+  /** 何を入れるフォルダか。未設定は記録用 */
+  scope?: FolderScope;
   createdAt: number;
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */

@@ -1,6 +1,6 @@
 import type { Repository } from './repository';
 import { mergeData } from './backup';
-import { newId, type AppData, type Entry, type Folder, type ID, type Person, type Topic } from './types';
+import { newId, type AppData, type Entry, type Folder, type FolderScope, type ID, type Person, type Topic } from './types';
 import { normalize } from './search';
 
 type Listener = () => void;
@@ -86,17 +86,17 @@ export class Store {
     return this.data.people.find((p) => normalize(p.name) === n);
   }
 
-  async addPerson(name: string): Promise<Person> {
+  async addPerson(name: string, folderId: ID | null = null): Promise<Person> {
     const existing = this.findPersonByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const p: Person = { id: newId(), name: name.trim(), memo: '', createdAt: now, updatedAt: now, selectedAt: now };
+    const p: Person = { id: newId(), name: name.trim(), memo: '', folderId, createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putPerson(p);
     this.set({ ...this.data, people: [...this.data.people, p] });
     return p;
   }
 
-  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading'>>) {
+  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId'>>) {
     const p = this.data.people.find((x) => x.id === id);
     if (!p) return;
     const next = { ...p, ...patch, updatedAt: Date.now() };
@@ -126,14 +126,22 @@ export class Store {
     return this.data.topics.find((t) => normalize(t.name) === n);
   }
 
-  async addTopic(name: string): Promise<Topic> {
+  async addTopic(name: string, folderId: ID | null = null): Promise<Topic> {
     const existing = this.findTopicByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), createdAt: now, updatedAt: now, selectedAt: now };
+    const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), folderId, createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putTopic(t);
     this.set({ ...this.data, topics: [...this.data.topics, t] });
     return t;
+  }
+
+  async updateTopic(id: ID, patch: Partial<Pick<Topic, 'name' | 'reading' | 'folderId'>>) {
+    const t = this.data.topics.find((x) => x.id === id);
+    if (!t) return;
+    const next = { ...t, ...patch, updatedAt: Date.now() };
+    await this.repo.putTopic(next);
+    this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
   }
 
   async renameTopic(id: ID, name: string, reading?: string) {
@@ -212,12 +220,14 @@ export class Store {
   }
 
   // ---- フォルダ(入れ子可) ----
-  async addFolder(name: string, parentId: ID | null = null): Promise<Folder> {
+  async addFolder(name: string, parentId: ID | null = null, scope: FolderScope = 'entry'): Promise<Folder> {
     const n = normalize(name.trim());
-    const existing = this.data.folders.find((f) => f.parentId === parentId && normalize(f.name) === n);
+    const existing = this.data.folders.find(
+      (f) => folderScope(f) === scope && f.parentId === parentId && normalize(f.name) === n,
+    );
     if (existing) return existing;
     const now = Date.now();
-    const f: Folder = { id: newId(), name: name.trim(), parentId, createdAt: now, updatedAt: now };
+    const f: Folder = { id: newId(), name: name.trim(), parentId, scope, createdAt: now, updatedAt: now };
     await this.repo.putFolder(f);
     this.set({ ...this.data, folders: [...this.data.folders, f] });
     return f;
@@ -251,6 +261,10 @@ export class Store {
     const now = Date.now();
     const entries = this.data.entries.filter((e) => e.folderId === id).map((e) => ({ ...e, folderId: up, updatedAt: now }));
     const kids = this.data.folders.filter((x) => x.parentId === id).map((x) => ({ ...x, parentId: up, updatedAt: now }));
+    const people = this.data.people.filter((x) => x.folderId === id).map((x) => ({ ...x, folderId: up, updatedAt: now }));
+    const topics = this.data.topics.filter((x) => x.folderId === id).map((x) => ({ ...x, folderId: up, updatedAt: now }));
+    for (const x of people) await this.repo.putPerson(x);
+    for (const x of topics) await this.repo.putTopic(x);
     for (const e of entries) await this.repo.putEntry(e);
     for (const k of kids) await this.repo.putFolder(k);
     await this.repo.deleteFolder(id);
@@ -260,6 +274,8 @@ export class Store {
       ...this.data,
       folders: this.data.folders.filter((x) => x.id !== id).map((x) => fm.get(x.id) ?? x),
       entries: this.data.entries.map((e) => em.get(e.id) ?? e),
+      people: this.data.people.map((x) => people.find((y) => y.id === x.id) ?? x),
+      topics: this.data.topics.map((x) => topics.find((y) => y.id === x.id) ?? x),
     });
   }
 
@@ -344,3 +360,6 @@ export function folderPath(folders: Folder[], id: ID | null): Folder[] {
   }
   return path;
 }
+
+export const folderScope = (f: Folder): FolderScope => f.scope ?? 'entry';
+export const foldersOf = (folders: Folder[], scope: FolderScope) => folders.filter((f) => folderScope(f) === scope);

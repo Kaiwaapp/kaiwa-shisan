@@ -164,4 +164,17 @@ describe('Store', () => {
     expect(nameMatches(pp, 'たなか')).toBe(false);
     expect(searchEntries(s.snapshot, 'えぐち')).toHaveLength(1);
   });
+
+  it('人用・話題用のフォルダ', async () => {
+    const s = await fresh();
+    const pf = await s.addFolder('友人', null, 'person');
+    const ef = await s.addFolder('友人');
+    expect(pf.id).not.toBe(ef.id);
+    const a = await s.addPerson('A', pf.id);
+    expect(a.folderId).toBe(pf.id);
+    const sub = await s.addFolder('大学', pf.id, 'person');
+    await s.updatePerson(a.id, { folderId: sub.id });
+    await s.deleteFolder(sub.id);
+    expect(s.snapshot.people[0].folderId).toBe(pf.id);
+  });
 });

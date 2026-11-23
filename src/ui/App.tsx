@@ -1,6 +1,6 @@
 import type { Store } from '../core/store';
 import { StoreContext, go, switchTab, useData, useLoaded, useRoute } from './hooks';
-import { AllEntriesScreen, FolderScreen, PeopleScreen, PersonScreen, TopicScreen, TopicsScreen } from './screens';
+import { AllEntriesScreen, FolderScreen, NameAllScreen, NameFolderScreen, PersonScreen, TopicScreen } from './screens';
 import { EntryEditor } from './EntryEditor';
 import { SettingsScreen } from './SettingsScreen';
 import { needsBackupReminder } from './backupUi';
@@ -41,15 +41,21 @@ function Shell() {
   }
 
   let screen;
-  if (head === 'people') screen = sub ? <PersonScreen key={sub} id={sub} /> : <PeopleScreen />;
-  else if (head === 'topics') screen = sub ? <TopicScreen key={sub} id={sub} /> : <TopicsScreen />;
+  const third = path[2];
+  if (head === 'people' || head === 'topics') {
+    const kind = head === 'people' ? 'person' : 'topic';
+    if (sub === 'all') screen = <NameAllScreen key={kind + 'all'} kind={kind} />;
+    else if (sub === 'f' && third) screen = <NameFolderScreen key={kind + third} kind={kind} folderId={third} />;
+    else if (sub) screen = kind === 'person' ? <PersonScreen key={sub} id={sub} /> : <TopicScreen key={sub} id={sub} />;
+    else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;
+  }
   else if (head === 'settings') screen = <SettingsScreen />;
   else if (head === 'all') screen = <AllEntriesScreen />;
   else if (head === 'f' && sub) screen = <FolderScreen key={sub} folderId={sub} />;
   else screen = <FolderScreen key="root" folderId={null} />;
 
   const tab = head === 'f' || head === 'all' ? '' : (head ?? '');
-  const showFab = head !== 'settings' && (!sub || head === 'f');
+  const showFab = head !== 'settings' && (!sub || head === 'f' || sub === 'f' || sub === 'all');
   const remind = head !== 'settings' && needsBackupReminder(data);
 
   return (

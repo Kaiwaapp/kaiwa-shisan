@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
 import { ComboPicker, Header } from './components';
-import { folderChoices } from './screens';
+import { folderChoices } from './folders';
+import { foldersOf } from '../core/store';
 
 const NEW_FOLDER = '__new__';
 
@@ -106,7 +107,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           <label htmlFor="folder">フォルダ</label>
           <select id="folder" className="select" value={folder} onChange={(e) => setFolder(e.target.value)}>
             <option value="">一番上（フォルダなし）</option>
-            {folderChoices(data.folders).map((f) => (
+            {folderChoices(foldersOf(data.folders, 'entry')).map((f) => (
               <option key={f.id} value={f.id}>{f.label}</option>
             ))}
             <option value={NEW_FOLDER}>＋ 新しいフォルダ…</option>
