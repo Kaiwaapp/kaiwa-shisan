@@ -3,10 +3,7 @@ import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
 import { ComboPicker, Header } from './components';
 import { copyText } from './interact';
-import { folderChoices } from './folders';
-import { foldersOf } from '../core/store';
 
-const NEW_FOLDER = '__new__';
 
 export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: {
   id?: ID;
@@ -24,8 +21,6 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   const [topicIds, setTopicIds] = useState<ID[]>(existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : []));
   const [newTopics, setNewTopics] = useState<string[]>([]);
   const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? today());
-  const [folder, setFolder] = useState<string>(existing ? (existing.folderId ?? '') : (initialFolder ?? ''));
-  const [newFolder, setNewFolder] = useState('');
   const [saving, setSaving] = useState(false);
 
   // 候補は「最後に選択した順」。まだ選んだことがなければ、最後に記録で使った日時
@@ -53,12 +48,12 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
     );
   }
 
-  const canSave = text.trim().length > 0 && !saving && !(folder === NEW_FOLDER && !newFolder.trim());
+  const canSave = text.trim().length > 0 && !saving;
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
-    let folderId: ID | null = folder || null;
-    if (folder === NEW_FOLDER) folderId = (await store.addFolder(newFolder)).id;
+    // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
+    const folderId = existing ? undefined : (initialFolder ?? null);
     await store.saveEntry({ text, personIds, newPeople, topicIds, newTopics, talkedOn, folderId }, id);
     back();
   };
@@ -108,22 +103,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           />
         </section>
         <section className="field row">
-          <label htmlFor="folder">フォルダ</label>
-          <select id="folder" className="select" value={folder} onChange={(e) => setFolder(e.target.value)}>
-            <option value="">一番上（フォルダなし）</option>
-            {folderChoices(foldersOf(data.folders, 'entry')).map((f) => (
-              <option key={f.id} value={f.id}>{f.label}</option>
-            ))}
-            <option value={NEW_FOLDER}>＋ 新しいフォルダ…</option>
-          </select>
-        </section>
-        {folder === NEW_FOLDER && (
-          <section className="field">
-            <input value={newFolder} onChange={(e) => setNewFolder(e.target.value)} placeholder="新しいフォルダの名前" autoFocus />
-          </section>
-        )}
-        <section className="field row">
-          <label htmlFor="talkedOn">話した日</label>
+          <label htmlFor="talkedOn">最初に話した日</label>
           <input id="talkedOn" type="date" value={talkedOn} onChange={(e) => setTalkedOn(e.target.value || today())} />
         </section>
         {existing && (
