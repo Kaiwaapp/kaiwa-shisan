@@ -118,10 +118,17 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
   const prefix = kind === 'topic' ? '#' : '';
   const clean = q.trim().replace(/^#/, '');
   const nq = normalize(clean);
+  // 開いている間は並び順を固定(選んだ瞬間に項目が飛ばないように)
+  const [frozen, setFrozen] = useState<Map<ID, number> | null>(null);
+  const openList = () => {
+    if (!open) setFrozen(new Map(options.map((o) => [o.id, o.rank])));
+    setOpen(true);
+  };
   const list = useMemo(() => {
     const hit = nq ? options.filter((o) => normalize(o.name).includes(nq)) : options;
-    return [...hit].sort((a, b) => b.rank - a.rank);
-  }, [options, nq]);
+    const r = (o: { id: ID; rank: number }) => frozen?.get(o.id) ?? o.rank;
+    return [...hit].sort((a, b) => r(b) - r(a));
+  }, [options, nq, frozen]);
   const exact =
     options.some((o) => normalize(o.name) === nq) || newNames.some((n) => normalize(n) === nq);
 
@@ -162,10 +169,11 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
       <div className="combo">
         <input
           value={q}
-          onChange={(e) => { setQ(e.target.value); setOpen(true); }}
-          onFocus={() => setOpen(true)}
+          onChange={(e) => { setQ(e.target.value); openList(); }}
+          onFocus={openList}
+          onClick={openList}
           onBlur={() => setTimeout(() => setOpen(false), 200)}
-          placeholder={kind === 'person' ? 'タップして選ぶ／新しい名前を入力' : 'タップして選ぶ／新しい話題を入力'}
+          placeholder={kind === 'person' ? '🔍 名前で検索して選ぶ／新規入力' : '🔍 話題で検索して選ぶ／新規入力'}
           enterKeyHint="done"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
@@ -177,6 +185,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange }: {
         <span className="combo-caret" aria-hidden>▾</span>
         {open && (
           <ul className="dropdown" onMouseDown={keep}>
+            {!clean && list.length > 0 && <li className="dd-head">最後に選んだ順</li>}
             {clean && !exact && (
               <li className="dd-item add" onClick={addNew}>
                 ＋「{prefix}{clean}」を新しく追加

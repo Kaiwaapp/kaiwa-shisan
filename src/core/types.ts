@@ -10,6 +10,8 @@ export interface Person {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
+  /** 記録の相手・話題として最後に選んだ日時(候補の並び順用) */
+  selectedAt?: number;
 }
 
 export interface Topic {
@@ -19,6 +21,8 @@ export interface Topic {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
+  /** 記録の相手・話題として最後に選んだ日時(候補の並び順用) */
+  selectedAt?: number;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */

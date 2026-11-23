@@ -90,7 +90,7 @@ export class Store {
     const existing = this.findPersonByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const p: Person = { id: newId(), name: name.trim(), memo: '', createdAt: now, updatedAt: now };
+    const p: Person = { id: newId(), name: name.trim(), memo: '', createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putPerson(p);
     this.set({ ...this.data, people: [...this.data.people, p] });
     return p;
@@ -130,7 +130,7 @@ export class Store {
     const existing = this.findTopicByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), createdAt: now, updatedAt: now };
+    const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putTopic(t);
     this.set({ ...this.data, topics: [...this.data.topics, t] });
     return t;
@@ -290,6 +290,24 @@ export class Store {
       const t = this.data.topics.find((x) => x.id === id);
       if (!t) return;
       const next = { ...t, viewedAt: now };
+      await this.repo.putTopic(next);
+      this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
+    }
+  }
+
+  /** 記録の編集で人・話題を選んだ日時を残す(ドロップダウンの並び順用) */
+  async markSelected(kind: 'person' | 'topic', id: ID) {
+    const now = Date.now();
+    if (kind === 'person') {
+      const p = this.data.people.find((x) => x.id === id);
+      if (!p) return;
+      const next = { ...p, selectedAt: now };
+      await this.repo.putPerson(next);
+      this.set({ ...this.data, people: this.data.people.map((x) => (x.id === id ? next : x)) });
+    } else {
+      const t = this.data.topics.find((x) => x.id === id);
+      if (!t) return;
+      const next = { ...t, selectedAt: now };
       await this.repo.putTopic(next);
       this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
     }

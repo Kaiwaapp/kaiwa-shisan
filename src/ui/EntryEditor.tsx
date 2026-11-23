@@ -26,18 +26,21 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   const [newFolder, setNewFolder] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // よく使う順(最近の記録に出てくるほど上)
-  const rank = useMemo(() => {
+  // 候補は「最後に選択した順」。まだ選んだことがなければ、最後に記録で使った日時
+  const used = useMemo(() => {
     const r = new Map<ID, number>();
     for (const e of data.entries) {
-      const w = e.updatedAt;
-      for (const p of e.personIds) r.set(p, Math.max(r.get(p) ?? 0, w));
-      for (const t of e.topics) r.set(t.topicId, Math.max(r.get(t.topicId) ?? 0, w));
+      for (const p of e.personIds) r.set(p, Math.max(r.get(p) ?? 0, e.updatedAt));
+      for (const t of e.topics) r.set(t.topicId, Math.max(r.get(t.topicId) ?? 0, e.updatedAt));
     }
     return r;
   }, [data.entries]);
-  const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, rank: rank.get(p.id) ?? p.createdAt / 1e3 }));
-  const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, rank: rank.get(t.id) ?? t.createdAt / 1e3 }));
+  const rankOf = (x: { id: ID; createdAt: number; selectedAt?: number }) => x.selectedAt ?? used.get(x.id) ?? x.createdAt;
+  const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, rank: rankOf(p) }));
+  const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, rank: rankOf(t) }));
+  const pick = (kind: 'person' | 'topic', prev: ID[], next: ID[]) => {
+    for (const x of next) if (!prev.includes(x)) store.markSelected(kind, x);
+  };
 
   if (id && !existing) {
     return (
@@ -86,7 +89,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
             options={personOpts}
             selected={personIds}
             newNames={newPeople}
-            onChange={(s, n) => { setPersonIds(s); setNewPeople(n); }}
+            onChange={(s, n) => { pick('person', personIds, s); setPersonIds(s); setNewPeople(n); }}
           />
         </section>
         <section className="field">
@@ -96,7 +99,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
             options={topicOpts}
             selected={topicIds}
             newNames={newTopics}
-            onChange={(s, n) => { setTopicIds(s); setNewTopics(n); }}
+            onChange={(s, n) => { pick('topic', topicIds, s); setTopicIds(s); setNewTopics(n); }}
           />
         </section>
         <section className="field row">
