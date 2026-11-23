@@ -8,3 +8,10 @@ describe('お試し表示の提案', () => {
     expect(r.topics).toEqual(['旅行', 'キャンプ']);
   });
 });
+
+describe('お試し表示の提案(括弧)', () => {
+  it('括弧で始まる行は話者にしない', async () => {
+    const r = await demoSuggest('(お試し表示: サンプル)\n田中: こんにちは', { people: [], topics: [] });
+    expect(r.people).toEqual(['田中']);
+  });
+});

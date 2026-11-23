@@ -70,7 +70,7 @@ export async function demoSuggest(text: string, known: { people: string[]; topic
   const n = (x: string) => x.normalize('NFKC').toLowerCase();
   const body = n(text);
   const people = known.people.filter((p) => p.trim() && body.includes(n(p)));
-  for (const m of text.matchAll(/^\s*([^\s:：]{1,10})[:：]/gm)) {
+  for (const m of text.matchAll(/^\s*([^\s:：()（）]{1,10})[:：]/gm)) {
     if (!/^(自分|私|わたし|僕|俺)$/.test(m[1]) && !people.includes(m[1])) people.push(m[1]);
   }
   const topics = known.topics.filter((t) => t.trim() && body.includes(n(t)));
