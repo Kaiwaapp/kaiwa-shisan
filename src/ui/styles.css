@@ -312,3 +312,45 @@ body.dragging { cursor: grabbing; }
 .header-actions .small-link { font-size: 16px; font-weight: 400; }
 .toolbar-right { white-space: nowrap; }
 .toolbar .count { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- v0.10 入力欄の左寄せ・PC表示 ---- */
+.field.row { display: block; }
+.field.row label { margin: 0 2px 6px; }
+.field.row input, .field.row .select { width: auto; min-width: 200px; max-width: 100%; display: block; }
+.editor-app { max-width: 720px; }
+
+@media (min-width: 900px) {
+  :root { --rail: 200px; }
+  body { padding-left: var(--rail); }
+  .app { max-width: 760px; padding: 0 24px; }
+  .app.editor-app { max-width: 760px; }
+  .screen { padding: 0; }
+  .header { margin: 0 0 12px; padding-left: 0; padding-right: 0; padding-top: 18px; }
+  .header-title { font-size: 20px; max-width: 420px; }
+  .main { padding-bottom: 120px; }
+
+  /* 下のタブを左のサイドバーに */
+  .tabbar {
+    top: 0; bottom: 0; left: 0; right: auto; width: var(--rail); height: auto; padding: 24px 12px;
+    display: flex; flex-direction: column; gap: 4px; border-top: none; border-right: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .tabbar::before { content: '会話資産'; font-weight: 800; font-size: 18px; padding: 0 12px 18px; color: var(--ink); }
+  .tab { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 10px 12px; border-radius: 10px; }
+  .tab:hover { background: var(--bg); }
+  .tab.on { background: var(--accent-soft); }
+  .tab-icon { font-size: 18px; width: 22px; text-align: center; }
+  .tab-label { font-size: 15px; }
+
+  .fab { right: max(32px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); bottom: 32px; }
+  .select-bar { left: var(--rail); bottom: 0; padding-left: max(24px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); padding-right: max(24px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); }
+  .toast { bottom: 110px; margin-left: calc(var(--rail) / 2); }
+  .reminder { width: auto; margin: 16px 0 0; }
+
+  .card:hover, .row-item:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .row-item:hover { background: color-mix(in srgb, var(--bg) 60%, var(--surface)); }
+  .textarea { min-height: 220px; }
+  .sheet-backdrop { align-items: center; padding-left: var(--rail); }
+  .sheet { max-width: 420px; }
+  .stats { grid-template-columns: repeat(4, 1fr); }
+}

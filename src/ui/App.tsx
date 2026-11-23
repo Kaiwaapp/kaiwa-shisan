@@ -34,13 +34,15 @@ function Shell() {
 
   if (head === 'new' || head === 'edit') {
     return (
-      <EntryEditor
-        key={path.join('/') + query.toString()}
-        id={head === 'edit' ? sub : undefined}
-        initialPerson={query.get('person') ?? undefined}
-        initialTopic={query.get('topic') ?? undefined}
-        initialFolder={query.get('folder') ?? undefined}
-      />
+      <div className="app editor-app">
+        <EntryEditor
+          key={path.join('/') + query.toString()}
+          id={head === 'edit' ? sub : undefined}
+          initialPerson={query.get('person') ?? undefined}
+          initialTopic={query.get('topic') ?? undefined}
+          initialFolder={query.get('folder') ?? undefined}
+        />
+      </div>
     );
   }
 
