@@ -2,6 +2,9 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from 'react';
 import {
   aiErrorMessage,
+  demoSuggest,
+  demoTranscribe,
+  isDemo,
   loadAiSettings,
   ocrReady,
   onAiSettings,
@@ -48,10 +51,10 @@ export function useEntryAi(opts: {
   const ocr = async (img: Blob) => {
     setBusy('ocr'); setErr(''); setInfo('');
     try {
-      const r = await transcribeImage(s.apiKey, img);
+      const r = isDemo(s) ? await demoTranscribe() : await transcribeImage(s.apiKey, img);
       if (!r.text) throw new Error('文字が見つかりませんでした');
       opts.setText((prev) => (prev.trim() ? prev.replace(/\s*$/, '') + '\n\n' : '') + r.text);
-      setInfo(`文字起こししました(${yenText(r.yen)})`);
+      setInfo(isDemo(s) ? 'お試し表示です(APIキー未設定のためサンプルの文章)' : `文字起こししました(${yenText(r.yen)})`);
     } catch (e) {
       setErr(aiErrorMessage(e));
     } finally {
@@ -72,9 +75,10 @@ export function useEntryAi(opts: {
     if (!opts.text.trim()) return;
     setBusy('suggest'); setErr(''); setInfo('');
     try {
-      const r = await suggestTags(s.apiKey, opts.text, { people: opts.knownPeople, topics: opts.knownTopics });
+      const known = { people: opts.knownPeople, topics: opts.knownTopics };
+      const r = isDemo(s) ? await demoSuggest(opts.text, known) : await suggestTags(s.apiKey, opts.text, known);
       setSug({ topics: r.topics, people: r.people });
-      setInfo(`提案しました(${yenText(r.yen)})。タップで追加できます`);
+      setInfo(isDemo(s) ? 'お試し表示です(APIキー未設定のため簡易的な提案)。タップで追加できます' : `提案しました(${yenText(r.yen)})。タップで追加できます`);
     } catch (e) {
       setErr(aiErrorMessage(e));
     } finally {
@@ -194,14 +198,27 @@ export function AiSettingsPanel() {
         Claude（Haiku）を使って、スクショの文字起こしと、話題・相手の提案をします。1回あたりおよそ0.1円以下です。
         試作版では、あなた自身のAPIキーをこの端末の中だけに保存して使います。
       </p>
-      <label className="toggle">
-        <input type="checkbox" checked={s.ocr} onChange={(e) => update({ ocr: e.target.checked })} />
-        <span>スクショから文字起こし</span>
+      <label className="toggle main">
+        <input type="checkbox" checked={s.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
+        <span>AI機能を使う</span>
       </label>
-      <label className="toggle">
-        <input type="checkbox" checked={s.suggest} onChange={(e) => update({ suggest: e.target.checked })} />
-        <span>話題と相手を自動で提案</span>
-      </label>
+      {s.enabled && (
+        <div className="sub-toggles">
+          <label className="toggle">
+            <input type="checkbox" checked={s.ocr} onChange={(e) => update({ ocr: e.target.checked })} />
+            <span>スクショから文字起こし</span>
+          </label>
+          <label className="toggle">
+            <input type="checkbox" checked={s.suggest} onChange={(e) => update({ suggest: e.target.checked })} />
+            <span>話題と相手を自動で提案</span>
+          </label>
+        </div>
+      )}
+      {s.enabled && isDemo(s) && (
+        <p className="ai-msg">
+          APIキーが未設定なので「お試し表示」です。ボタンや提案の画面は使えますが、AIは呼ばずにサンプルの結果を出します（料金はかかりません）。
+        </p>
+      )}
       <div className="row-input">
         <input
           type={show ? 'text' : 'password'}
@@ -218,7 +235,6 @@ export function AiSettingsPanel() {
       <button className="btn block" disabled={!key.trim() || testing} onClick={test}>
         {testing ? '確認中…' : 'つながるか確認'}
       </button>
-      {(s.ocr || s.suggest) && !s.apiKey && <p className="ai-msg error">APIキーを入れるとAI機能が使えるようになります</p>}
       {msg && <p className="notice">{msg}</p>}
       <p className="muted small">
         これまでに使った金額の目安: {yenText(s.spentYen)}{' '}

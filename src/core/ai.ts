@@ -10,6 +10,8 @@ const PRICE_OUT = 0.5;
 const YEN_PER_USD = 150;
 
 export interface AiSettings {
+  /** AI機能全体のON/OFF。ONならキーがなくてもボタン等が出る(キーなしはお試し表示) */
+  enabled: boolean;
   apiKey: string;
   /** スクショ文字起こし */
   ocr: boolean;
@@ -20,7 +22,7 @@ export interface AiSettings {
 }
 
 const KEY = 'kaiwa.ai.v1';
-const DEFAULTS: AiSettings = { apiKey: '', ocr: false, suggest: false, spentYen: 0 };
+const DEFAULTS: AiSettings = { enabled: false, apiKey: '', ocr: true, suggest: true, spentYen: 0 };
 
 export function loadAiSettings(): AiSettings {
   try {
@@ -46,8 +48,36 @@ export function onAiSettings(f: (s: AiSettings) => void) {
   return () => listeners.delete(f);
 }
 
-export const ocrReady = (s: AiSettings) => s.ocr && !!s.apiKey.trim();
-export const suggestReady = (s: AiSettings) => s.suggest && !!s.apiKey.trim();
+export const ocrReady = (s: AiSettings) => s.enabled && s.ocr;
+export const suggestReady = (s: AiSettings) => s.enabled && s.suggest;
+/** APIキーがないときは、APIを呼ばずにお試しの結果を返す */
+export const isDemo = (s: AiSettings) => !s.apiKey.trim();
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** お試し表示: スクショ文字起こしのサンプル */
+export async function demoTranscribe(): Promise<{ text: string; yen: number }> {
+  await wait(700);
+  return {
+    text: '(お試し表示: APIキーを入れると、ここに画像の文字起こしが入ります)\n田中: 来月、京都に紅葉を見に行くんだ\n自分: いいね、おすすめのお寺を教えるよ',
+    yen: 0,
+  };
+}
+
+/** お試し表示: APIを使わず、本文から既存の名前・カタカナ語・「名前: 」の話者を拾うだけの簡易提案 */
+export async function demoSuggest(text: string, known: { people: string[]; topics: string[] }): Promise<Suggestion & { yen: number }> {
+  await wait(500);
+  const n = (x: string) => x.normalize('NFKC').toLowerCase();
+  const body = n(text);
+  const people = known.people.filter((p) => p.trim() && body.includes(n(p)));
+  for (const m of text.matchAll(/^\s*([^\s:：]{1,10})[:：]/gm)) {
+    if (!/^(自分|私|わたし|僕|俺)$/.test(m[1]) && !people.includes(m[1])) people.push(m[1]);
+  }
+  const topics = known.topics.filter((t) => t.trim() && body.includes(n(t)));
+  for (const m of text.matchAll(/[ァ-ヴー]{3,}/g)) if (topics.length < 4 && !topics.includes(m[0])) topics.push(m[0]);
+  if (!topics.length) topics.push('雑談');
+  return { topics: topics.slice(0, 4), people: people.slice(0, 4), yen: 0 };
+}
 
 function client(apiKey: string) {
   // ブラウザから直接呼ぶ(キーはこの端末の中だけ)。公開サービスにする時はサーバー経由にする

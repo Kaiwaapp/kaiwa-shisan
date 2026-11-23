@@ -366,3 +366,5 @@ body.dragging { cursor: grabbing; }
 .toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
 .row-input { display: flex; gap: 8px; }
 .row-input input { flex: 1; min-width: 0; }
+.toggle.main { font-weight: 700; }
+.sub-toggles { display: flex; flex-direction: column; gap: 10px; padding-left: 30px; }
