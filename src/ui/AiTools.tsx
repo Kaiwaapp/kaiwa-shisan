@@ -17,6 +17,7 @@ import {
   type Suggestion,
 } from '../core/ai';
 import { normalize } from '../core/search';
+import { go } from './hooks';
 
 export function useAiSettings(): [AiSettings, (patch: Partial<AiSettings>) => void] {
   const [s, setS] = useState(loadAiSettings);
@@ -212,6 +213,17 @@ export function AiSettingsPanel() {
             <input type="checkbox" checked={s.suggest} onChange={(e) => update({ suggest: e.target.checked })} />
             <span>話題と相手を自動で提案</span>
           </label>
+          <label className="toggle">
+            <input type="checkbox" checked={s.organize} onChange={(e) => update({ organize: e.target.checked })} />
+            <span>フォルダの自動整理</span>
+          </label>
+          {s.organize && (
+            <div className="ai-bar">
+              <button className="btn small" onClick={() => go('/organize/entry')}>📁 記録を整理</button>
+              <button className="btn small" onClick={() => go('/organize/person')}>📁 人を整理</button>
+              <button className="btn small" onClick={() => go('/organize/topic')}>📁 話題を整理</button>
+            </div>
+          )}
         </div>
       )}
       {s.enabled && isDemo(s) && (

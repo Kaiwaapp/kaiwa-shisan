@@ -15,3 +15,14 @@ describe('お試し表示の提案(括弧)', () => {
     expect(r.people).toEqual(['田中']);
   });
 });
+
+describe('お試し表示のフォルダ振り分け', () => {
+  it('フォルダ名が含まれればそこへ、なければ最初の話題へ', async () => {
+    const { demoFolders } = await import('./ai');
+    const r = await demoFolders(
+      [{ text: '仕事の締め切りの話', hints: [] }, { text: 'キャンプ', hints: ['趣味'] }, { text: 'x', hints: [] }],
+      ['仕事', '家族 / 子ども'],
+    );
+    expect(r.assignments).toEqual([{ index: 0, folder: '仕事' }, { index: 1, folder: '趣味' }]);
+  });
+});

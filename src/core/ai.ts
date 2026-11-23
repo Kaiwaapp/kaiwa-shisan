@@ -17,12 +17,14 @@ export interface AiSettings {
   ocr: boolean;
   /** 話題・相手の自動提案 */
   suggest: boolean;
+  /** フォルダの自動整理 */
+  organize: boolean;
   /** これまでに使った金額の概算(円) */
   spentYen: number;
 }
 
 const KEY = 'kaiwa.ai.v1';
-const DEFAULTS: AiSettings = { enabled: false, apiKey: '', ocr: true, suggest: true, spentYen: 0 };
+const DEFAULTS: AiSettings = { enabled: false, apiKey: '', ocr: true, suggest: true, organize: true, spentYen: 0 };
 
 export function loadAiSettings(): AiSettings {
   try {
@@ -50,6 +52,7 @@ export function onAiSettings(f: (s: AiSettings) => void) {
 
 export const ocrReady = (s: AiSettings) => s.enabled && s.ocr;
 export const suggestReady = (s: AiSettings) => s.enabled && s.suggest;
+export const organizeReady = (s: AiSettings) => s.enabled && s.organize;
 /** APIキーがないときは、APIを呼ばずにお試しの結果を返す */
 export const isDemo = (s: AiSettings) => !s.apiKey.trim();
 
@@ -214,6 +217,101 @@ export async function suggestTags(
   }
   const clean = (xs: string[]) => [...new Set(xs.map((x) => x.trim().replace(/^#/, '')).filter(Boolean))];
   return { topics: clean(parsed.topics), people: clean(parsed.people), yen: record(msg.usage) };
+}
+
+export interface OrganizeItem {
+  /** AIに見せる説明(本文の冒頭・名前など) */
+  text: string;
+  /** 補足(話題名など)。お試し表示の振り分けにも使う */
+  hints: string[];
+}
+
+/** 振り分け先。folder は「親 / 子」の形のフォルダの道のり。既存になければ新しく作る */
+export interface FolderAssignment {
+  index: number;
+  folder: string;
+}
+
+const KIND_LABEL = { entry: '会話の記録', person: '人', topic: '話題' } as const;
+
+/** 記録・人・話題を、どのフォルダに入れるとよいかを提案する */
+export async function suggestFolders(
+  apiKey: string,
+  kind: 'entry' | 'person' | 'topic',
+  items: OrganizeItem[],
+  folders: string[],
+): Promise<{ assignments: FolderAssignment[]; yen: number }> {
+  const lines = items.map((it, i) => {
+    const hint = it.hints.length ? ` [${it.hints.join('、')}]` : '';
+    return `${i}: ${it.text.replace(/\s+/g, ' ').slice(0, 200)}${hint}`;
+  });
+  const msg = await client(apiKey).messages.create({
+    model: AI_MODEL,
+    max_tokens: 8000,
+    output_config: {
+      effort: 'low',
+      format: {
+        type: 'json_schema',
+        schema: {
+          type: 'object',
+          properties: {
+            assignments: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { index: { type: 'integer' }, folder: { type: 'string' } },
+                required: ['index', 'folder'],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ['assignments'],
+          additionalProperties: false,
+        },
+      },
+    },
+    system:
+      `あなたはメモアプリのフォルダ整理係です。ユーザーの「${KIND_LABEL[kind]}」の一覧を、探しやすいようにフォルダに振り分けます。\n` +
+      '- 既存のフォルダに合うものは、そのフォルダの道のり(「親 / 子」の形)をそのまま使う。\n' +
+      '- 合うものがなければ、新しいフォルダ名を短い名詞で作る(例: 仕事、家族、趣味、旅行)。似たものは同じフォルダにまとめ、1件だけのフォルダはなるべく作らない。フォルダの数は多くても10個程度。\n' +
+      '- どこにも入れないほうがよいものは一覧に含めない。\n' +
+      (kind === 'person' ? '- 人は、関係(家族、職場、学生時代の友人など)で分ける。[]内はその人とよく話す話題。\n' : '') +
+      (kind === 'entry' ? '- []内は記録に付いている話題と相手。\n' : ''),
+    messages: [
+      {
+        role: 'user',
+        content:
+          `既存のフォルダ:\n${folders.length ? folders.join('\n') : '(まだありません)'}\n\n` +
+          `振り分ける${KIND_LABEL[kind]}(番号: 内容):\n${lines.join('\n')}`,
+      },
+    ],
+  });
+  const raw = textOf(msg);
+  let list: FolderAssignment[] = [];
+  try {
+    const j = JSON.parse(raw);
+    list = (Array.isArray(j.assignments) ? j.assignments : []).filter(
+      (a: FolderAssignment) => Number.isInteger(a?.index) && a.index >= 0 && a.index < items.length && typeof a.folder === 'string' && a.folder.trim(),
+    );
+  } catch {
+    throw new Error('AIの返事を読み取れませんでした。もう一度お試しください');
+  }
+  return { assignments: list.map((a) => ({ index: a.index, folder: a.folder.trim() })), yen: record(msg.usage) };
+}
+
+/** お試し表示: APIを使わず、フォルダ名が本文や話題に含まれていればそこへ、なければ最初の話題名のフォルダへ */
+export async function demoFolders(items: OrganizeItem[], folders: string[]): Promise<{ assignments: FolderAssignment[]; yen: number }> {
+  await wait(600);
+  const n = (x: string) => x.normalize('NFKC').toLowerCase();
+  const leaf = (p: string) => p.split(' / ').pop() ?? p;
+  const out: FolderAssignment[] = [];
+  items.forEach((it, index) => {
+    const hay = n(it.text + ' ' + it.hints.join(' '));
+    const hit = folders.find((f) => hay.includes(n(leaf(f))));
+    const folder = hit ?? it.hints[0];
+    if (folder) out.push({ index, folder });
+  });
+  return { assignments: out, yen: 0 };
 }
 
 /** キーが使えるかを確かめる(ごく短い呼び出し) */

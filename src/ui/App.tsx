@@ -1,3 +1,4 @@
+import { OrganizeScreen } from './OrganizeScreen';
 import type { Store } from '../core/store';
 import { StoreContext, go, switchTab, useData, useLoaded, useRoute } from './hooks';
 import { InteractProvider, useInteract } from './interact';
@@ -56,13 +57,14 @@ function Shell() {
     else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;
   }
   else if (head === 'settings') screen = <SettingsScreen />;
+  else if (head === 'organize') screen = <OrganizeScreen key={sub} scope={sub === 'person' || sub === 'topic' ? sub : 'entry'} />;
   else if (head === 'all') screen = <AllEntriesScreen />;
   else if (head === 'trash') screen = <TrashScreen />;
   else if (head === 'f' && sub) screen = <FolderScreen key={sub} folderId={sub} />;
   else screen = <FolderScreen key="root" folderId={null} />;
 
   const tab = head === 'f' || head === 'all' || head === 'trash' ? '' : (head ?? '');
-  const showFab = !selecting && head !== 'settings' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all');
+  const showFab = !selecting && head !== 'settings' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all');
   const remind = head !== 'settings' && needsBackupReminder(data);
 
   return (
