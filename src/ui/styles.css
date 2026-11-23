@@ -235,3 +235,9 @@ button:disabled { opacity: .4; cursor: default; }
 .toolbar-right { display: inline-flex; align-items: center; gap: 14px; }
 .small-link { font-size: 13px; font-weight: 600; padding: 4px 0; }
 .field .select { max-width: 100%; }
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: -4px 2px 10px; font-size: 13px; }
+.crumbs .link { font-size: 13px; padding: 2px 0; }
+.crumbs .sep { color: var(--muted); margin: 0 6px; }
+.crumbs .here { color: var(--muted); font-weight: 600; }
+.sort { flex-direction: row-reverse; }
+.sort select { text-align-last: right; }

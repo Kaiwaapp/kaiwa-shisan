@@ -264,8 +264,16 @@ export class Store {
   }
 
   /** 開いた日時を残す(「最後に見た順」用)。更新日時は変えない */
-  async markViewed(kind: 'entry' | 'person' | 'topic', id: ID) {
+  async markViewed(kind: 'entry' | 'person' | 'topic' | 'folder', id: ID) {
     const now = Date.now();
+    if (kind === 'folder') {
+      const f = this.data.folders.find((x) => x.id === id);
+      if (!f) return;
+      const next = { ...f, viewedAt: now };
+      await this.repo.putFolder(next);
+      this.set({ ...this.data, folders: this.data.folders.map((x) => (x.id === id ? next : x)) });
+      return;
+    }
     if (kind === 'entry') {
       const e = this.data.entries.find((x) => x.id === id);
       if (!e) return;

@@ -97,7 +97,7 @@ export function SettingsScreen() {
           )}
         </section>
 
-        <p className="muted small center">会話資産 試作版 v0.4</p>
+        <p className="muted small center">会話資産 試作版 v0.5</p>
       </div>
     </div>
   );

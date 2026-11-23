@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ID } from '../core/types';
 import {
-  ENTRY_SORTS, NAME_SORTS, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
+  ENTRY_SORTS, NAME_SORTS, lastSeen, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
   type EntrySort, type NameSort,
 } from '../core/search';
 import { back, formatDate, go, useData, usePref, useStore } from './hooks';
-import { folderDescendants } from '../core/store';
+import { folderDescendants, folderPath } from '../core/store';
+import type { Folder } from '../core/types';
 import { EntryList, Header, SearchBox, SortSelect } from './components';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
@@ -19,10 +20,34 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
   const [editing, setEditing] = useState(false);
   const folder = folderId ? data.folders.find((f) => f.id === folderId) : undefined;
 
-  const children = useMemo(
-    () => data.folders.filter((f) => f.parentId === folderId).sort((a, b) => a.name.localeCompare(b.name, 'ja')),
-    [data.folders, folderId],
-  );
+  useEffect(() => { if (folderId) store.markViewed('folder', folderId); }, [store, folderId]);
+  // フォルダも同じ並べ替えで並べる(話した日は中の記録から)
+  const children = useMemo(() => {
+    const kids = data.folders.filter((f) => f.parentId === folderId);
+    const span = new Map<ID, { first: string; last: string; edited: number }>();
+    for (const k of kids) {
+      const scope = new Set([k.id, ...folderDescendants(data.folders, k.id)]);
+      const s = { first: '', last: '', edited: k.updatedAt };
+      for (const e of data.entries) {
+        if (!e.folderId || !scope.has(e.folderId)) continue;
+        if (!s.first || e.talkedOn < s.first) s.first = e.talkedOn;
+        if (e.talkedOn > s.last) s.last = e.talkedOn;
+        s.edited = Math.max(s.edited, e.updatedAt);
+      }
+      span.set(k.id, s);
+    }
+    const byName = (a: Folder, b: Folder) => a.name.localeCompare(b.name, 'ja');
+    return kids.sort((a, b) => {
+      const sa = span.get(a.id)!, sb = span.get(b.id)!;
+      switch (sort) {
+        case 'viewed': return lastSeen(b) - lastSeen(a) || byName(a, b);
+        case 'updated': return sb.edited - sa.edited || byName(a, b);
+        case 'oldest': return (sa.first || '9999').localeCompare(sb.first || '9999') || byName(a, b);
+        default: return sb.last.localeCompare(sa.last) || byName(a, b);
+      }
+    });
+  }, [data, folderId, sort]);
+  const path = useMemo(() => folderPath(data.folders, folderId), [data.folders, folderId]);
   /** フォルダごとの記録数(中のフォルダの分も含む) */
   const deepCount = useMemo(() => {
     const direct = new Map<string, number>();
@@ -59,6 +84,19 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
         left={folder && <button className="link" onClick={() => location.replace('#' + upPath)}>‹ {parent ? parent.name : '記録'}</button>}
         right={folder && <button className="link" onClick={() => setEditing(!editing)}>{editing ? '閉じる' : '編集'}</button>}
       />
+      {path.length >= 2 && (
+        <nav className="crumbs">
+          <button className="link" onClick={() => location.replace('#/')}>⌂ 記録</button>
+          {path.slice(0, -1).map((f) => (
+            <span key={f.id}>
+              <span className="sep">›</span>
+              <button className="link" onClick={() => location.replace(`#/f/${f.id}`)}>{f.name}</button>
+            </span>
+          ))}
+          <span className="sep">›</span>
+          <span className="here">{path[path.length - 1].name}</span>
+        </nav>
+      )}
       {editing && folder ? (
         <FolderEdit id={folder.id} onDone={() => setEditing(false)} />
       ) : (
@@ -74,6 +112,15 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
             </>
           ) : (
             <>
+              <div className="toolbar">
+                <span className="count">
+                  {children.length > 0 && `フォルダ ${children.length} ・ `}記録 {memos.length}件
+                </span>
+                <span className="toolbar-right">
+                  {!adding && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
+                  <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
+                </span>
+              </div>
               {(children.length > 0 || adding) && (
                 <ul className="rows folder-rows">
                   {children.map((f) => (
@@ -100,13 +147,6 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                   )}
                 </ul>
               )}
-              <div className="toolbar">
-                <span className="count">{memos.length}件</span>
-                <span className="toolbar-right">
-                  {!adding && <button className="link small-link" onClick={() => setAdding(true)}>＋ フォルダ</button>}
-                  {memos.length > 1 && <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />}
-                </span>
-              </div>
               <EntryList
                 entries={memos}
                 data={data}
