@@ -3,10 +3,13 @@ import type { Folder, FolderScope, ID } from '../core/types';
 import { folderDescendants, foldersOf } from '../core/store';
 import { go, useData, useStore } from './hooks';
 import { dropProps, SelectMark, usePress, type ItemRef } from './interact';
+import { t } from '../i18n';
 
 /** 各タブのフォルダのURL。記録は '' 、人は '/people'、話題は '/topics' */
 export const SCOPE_BASE: Record<FolderScope, string> = { entry: '', person: '/people', topic: '/topics' };
+/** 表示時に t() を通す */
 export const SCOPE_LABEL: Record<FolderScope, string> = { entry: '記録', person: '人', topic: '話題' };
+const ALL_LABEL: Record<FolderScope, string> = { entry: 'すべての記録', person: 'すべての人', topic: 'すべての話題' };
 export const rootHref = (scope: FolderScope) => SCOPE_BASE[scope] || '/';
 export const folderHref = (scope: FolderScope, id: ID | null) => (id ? `${SCOPE_BASE[scope]}/f/${id}` : rootHref(scope));
 export const allHref = (scope: FolderScope) => `${SCOPE_BASE[scope]}/all`;
@@ -16,7 +19,7 @@ export function Crumbs({ scope, path }: { scope: FolderScope; path: Folder[] }) 
   if (path.length < 2) return null;
   return (
     <nav className="crumbs">
-      <button className="link" {...dropProps(scope, null, '一番上')} onClick={() => location.replace('#' + rootHref(scope))}>⌂ {SCOPE_LABEL[scope]}</button>
+      <button className="link" {...dropProps(scope, null, t('一番上'))} onClick={() => location.replace('#' + rootHref(scope))}>⌂ {t(SCOPE_LABEL[scope])}</button>
       {path.slice(0, -1).map((f) => (
         <span key={f.id}>
           <span className="sep">›</span>
@@ -54,7 +57,7 @@ export function FolderRows({ scope, folderId, children, count, total, adding, se
     <ul className="rows folder-rows">
       {showAll && (
         <li className="row-item" onClick={() => go(allHref(scope))}>
-          <span className="name"><span className="folder-icon">▦</span>すべての{SCOPE_LABEL[scope]}</span>
+          <span className="name"><span className="folder-icon">▦</span>{t(ALL_LABEL[scope])}</span>
           <span className="sub">{total}</span>
           <span className="chev">›</span>
         </li>
@@ -67,13 +70,13 @@ export function FolderRows({ scope, folderId, children, count, total, adding, se
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="新しいフォルダの名前"
+            placeholder={t('新しいフォルダの名前')}
             autoFocus
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) create(); }}
           />
           <div className="row-actions">
-            <button className="btn small primary" disabled={!name.trim()} onClick={create}>作成</button>
-            <button className="btn small" onClick={() => { setAdding(false); setName(''); }}>やめる</button>
+            <button className="btn small primary" disabled={!name.trim()} onClick={create}>{t('作成')}</button>
+            <button className="btn small" onClick={() => { setAdding(false); setName(''); }}>{t('やめる')}</button>
           </div>
         </li>
       )}
@@ -106,24 +109,24 @@ export function FolderEdit({ id, onDone }: { id: ID; onDone: () => void }) {
   return (
     <div className="form">
       <section className="field">
-        <label>フォルダの名前</label>
+        <label>{t('フォルダの名前')}</label>
         <input value={name} onChange={(e) => setName(e.target.value)} />
       </section>
       <section className="field">
-        <label>入れる場所</label>
+        <label>{t('入れる場所')}</label>
         <select className="select block" value={parent} onChange={(e) => setParent(e.target.value)}>
-          <option value="">一番上</option>
+          <option value="">{t('一番上')}</option>
           {choices.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
       </section>
-      <button className="btn primary block" disabled={!name.trim()} onClick={save}>保存</button>
+      <button className="btn primary block" disabled={!name.trim()} onClick={save}>{t('保存')}</button>
       <button className="btn danger block" onClick={async () => {
-        if (!confirm(`フォルダ「${folder.name}」を削除しますか？\n中身は消えず、1つ上の階層に移ります。`)) return;
+        if (!confirm(t('フォルダ「{name}」を削除しますか？\n中身は消えず、1つ上の階層に移ります。', { name: folder.name }))) return;
         const up = folder.parentId;
         await store.deleteFolder(id);
         location.replace('#' + folderHref(scope, up));
       }}>
-        このフォルダを削除
+        {t('このフォルダを削除')}
       </button>
     </div>
   );
@@ -150,7 +153,7 @@ export function FolderSelect({ scope, value, onChange }: { scope: FolderScope; v
   const choices = folderChoices(foldersOf(data.folders, scope));
   return (
     <select className="select block" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
-      <option value="">一番上（フォルダなし）</option>
+      <option value="">{t('一番上（フォルダなし）')}</option>
       {choices.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
     </select>
   );
@@ -173,10 +176,10 @@ export function UpButton({ scope, parent }: { scope: FolderScope; parent: Folder
   return (
     <button
       className="link"
-      {...dropProps(scope, parent?.id ?? null, parent?.name ?? '一番上')}
+      {...dropProps(scope, parent?.id ?? null, parent?.name ?? t('一番上'))}
       onClick={() => location.replace('#' + folderHref(scope, parent?.id ?? null))}
     >
-      ‹ {parent ? parent.name : SCOPE_LABEL[scope]}
+      ‹ {parent ? parent.name : t(SCOPE_LABEL[scope])}
     </button>
   );
 }
