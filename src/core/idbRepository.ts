@@ -11,39 +11,74 @@ interface Schema extends DBSchema {
 
 const STORES = ['people', 'topics', 'entries', 'folders'] as const;
 
-/** 開くのにこれ以上かかったら固まったとみなして開き直す */
-const OPEN_TIMEOUT_MS = 4000;
+/**
+ * 開く処理が返ってこないときに、並行して開き直すまでの待ち時間(ミリ秒)。
+ * iOSでは最初の1回目だけ返ってこないことがあり、2回目以降はすぐ開けるので、短い間隔で重ねて開く
+ */
+const HEDGE_DELAYS_MS = [250, 600, 1200, 2500];
+/** これだけ待っても開けなければ失敗とする(呼び出し側で再試行) */
+const OPEN_TIMEOUT_MS = 6000;
 
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
   new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('IndexedDB open timeout')), ms);
+    const timer = setTimeout(() => reject(new Error('IndexedDB timeout')), ms);
     p.then((v) => { clearTimeout(timer); resolve(v); }, (e) => { clearTimeout(timer); reject(e); });
   });
 
 /**
  * iOS(Safari・ホーム画面のPWA)では、起動直後に IndexedDB が
  * 「開くのが終わらない」「接続が切れている(Connection to Indexed Database server lost)」
- * ことがある。そのため接続は使う時に開き、失敗・切断したら捨てて開き直す。
+ * ことがある。そのため接続は使う時に開き、返ってこなければ少しずつ間をあけて並行で開き直し、
+ * 最初に開けたものを使う。失敗・切断したら捨てて開き直す。
  */
 export class IdbRepository implements Repository {
   private conn: Promise<IDBPDatabase<Schema>> | null = null;
 
   constructor(private name = 'kaiwa-shisan') {}
 
+  private openOnce(onLost: () => void): Promise<IDBPDatabase<Schema>> {
+    return openDB<Schema>(this.name, 2, {
+      upgrade(db) {
+        for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
+      },
+      terminated: onLost,
+    });
+  }
+
   private open(): Promise<IDBPDatabase<Schema>> {
     if (this.conn) return this.conn;
     const reset = () => { if (this.conn === p) this.conn = null; };
-    const p = withTimeout(
-      openDB<Schema>(this.name, 2, {
-        upgrade(db) {
-          for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
-        },
-        // ほかのタブが古い版を開いたままのときなど。こちらは待つ(timeoutで開き直す)
-        blocking() { p.then((db) => db.close()).catch(() => {}); reset(); },
-        terminated: reset,
-      }),
-      OPEN_TIMEOUT_MS,
-    );
+    const p = withTimeout(new Promise<IDBPDatabase<Schema>>((resolve, reject) => {
+      let won: IDBPDatabase<Schema> | null = null;
+      let pending = 0;
+      let lastErr: unknown;
+      const timers: ReturnType<typeof setTimeout>[] = [];
+      let done = false;
+      const attempt = () => {
+        pending++;
+        // iOSの固まりは indexedDB.databases() を呼ぶと抜けることがある(WebKitの既知の不具合への対処)
+        try { void indexedDB.databases?.().catch(() => {}); } catch { /* noop */ }
+        this.openOnce(reset).then((db) => {
+          pending--;
+          if (won) { db.close(); return; } // 遅れて開けた分は閉じる
+          won = db;
+          for (const t of timers) clearTimeout(t);
+          db.addEventListener('close', reset);
+          db.addEventListener('versionchange', () => { db.close(); reset(); });
+          resolve(db);
+        }, (e) => {
+          pending--;
+          lastErr = e;
+          if (!won && pending === 0 && timers.length === HEDGE_DELAYS_MS.length && done) reject(lastErr);
+        });
+      };
+      attempt();
+      HEDGE_DELAYS_MS.forEach((ms, i) => timers.push(setTimeout(() => {
+        if (won) return;
+        if (i === HEDGE_DELAYS_MS.length - 1) done = true;
+        attempt();
+      }, ms)));
+    }), OPEN_TIMEOUT_MS);
     p.catch(reset);
     this.conn = p;
     return p;
@@ -62,7 +97,8 @@ export class IdbRepository implements Repository {
   }
 
   loadAll(): Promise<AppData> {
-    return this.run((db) => this.readAll(db));
+    // 開けても読み出しが返ってこないことがあるので、時間切れなら接続を作り直して読み直す
+    return this.run((db) => withTimeout(this.readAll(db), 3000));
   }
 
   private async readAll(db: IDBPDatabase<Schema>): Promise<AppData> {
