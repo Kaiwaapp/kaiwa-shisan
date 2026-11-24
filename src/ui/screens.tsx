@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import type { ID } from '../core/types';
+import { entryLabel, type ID } from '../core/types';
 import {
   ENTRY_SORTS, NAME_SORTS, lastSeen, nameMatches, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
   type EntrySort, type NameSort,
@@ -125,7 +125,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
               />
               <SelectionBar all={[
                 ...children.map((f) => ({ kind: 'folder' as const, id: f.id, label: f.name, scope: 'entry' as const })),
-                ...memos.map((e) => ({ kind: 'entry' as const, id: e.id, label: e.text.slice(0, 24), scope: 'entry' as const })),
+                ...memos.map((e) => ({ kind: 'entry' as const, id: e.id, label: entryLabel(e, 24), scope: 'entry' as const })),
               ]} />
             </>
           )}
@@ -160,7 +160,8 @@ export function TrashScreen() {
             {trash.map((e) => (
               <article key={e.id} className={`card selecting ${picked.has(e.id) ? 'picked' : ''}`} onClick={() => toggle(e.id)}>
                 <span className={`select-mark ${picked.has(e.id) ? 'on' : ''}`}>{picked.has(e.id) ? '✓' : ''}</span>
-                <div className="card-text">{e.text || t('（本文なし）')}</div>
+                {e.title && <div className="card-title">{e.title}</div>}
+                {(e.text || !e.title) && <div className={`card-text ${e.title ? 'sub' : ''}`}>{e.text || t('（本文なし）')}</div>}
                 <div className="card-meta"><span className="date">{t('あと{n}日', { n: daysLeft(e.deletedAt!) })}</span></div>
               </article>
             ))}

@@ -4,6 +4,7 @@ import { Store, folderPath } from './store';
 import { IdbRepository } from './idbRepository';
 import { nameMatches, searchEntries, sortEntriesBy, sortNames, statsBy } from './search';
 import { parseBackup, toBackup } from './backup';
+import { entryLabel } from './types';
 
 let n = 0;
 const fresh = async () => {
@@ -25,6 +26,22 @@ describe('Store', () => {
     expect(s2.snapshot.entries).toHaveLength(1);
     expect(s2.snapshot.topics[0].name).toBe('キャンプ');
     expect(s2.snapshot.entries[0].topics[0].source).toBe('manual');
+  });
+
+  it('タイトルを付けて保存・検索・バックアップでき、空なら本文1行目が見出しになる', async () => {
+    const s = await fresh();
+    const e1 = await s.saveEntry({ title: '  夏の旅行  ', text: '沖縄の話\n2行目', personIds: [], topicIds: [], talkedOn: '2026-11-20' });
+    const e2 = await s.saveEntry({ title: '   ', text: '1行目\n2行目', personIds: [], topicIds: [], talkedOn: '2026-11-21' });
+    expect(e1.title).toBe('夏の旅行');
+    expect(e2.title).toBeUndefined();
+    expect(entryLabel(e1)).toBe('夏の旅行');
+    expect(entryLabel(e2)).toBe('1行目');
+    expect(searchEntries(s.snapshot, '旅行').map((e) => e.id)).toEqual([e1.id]);
+    const back = parseBackup(JSON.stringify(toBackup(s.snapshot)));
+    expect(back.entries.find((e) => e.id === e1.id)?.title).toBe('夏の旅行');
+    // タイトルだけの記録も保存できる
+    const e3 = await s.saveEntry({ title: 'タイトルだけ', text: '', personIds: [], topicIds: [], talkedOn: '2026-11-22' });
+    expect(entryLabel(e3)).toBe('タイトルだけ');
   });
 
   it('AIの提案から付けた話題は source が ai になる', async () => {

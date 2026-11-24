@@ -26,6 +26,8 @@ const en: Record<string, string> = {
   'キャンセル': 'Cancel',
   '保存': 'Save',
   '話した内容を自由に書く': 'Write what you talked about',
+  'タイトル（なくてもOK）': 'Title (optional)',
+  'タイトル': 'Title',
   '⧉ 本文をコピー': '⧉ Copy text',
   '本文をコピー': 'Copy text',
   'コピーしました': 'Copied',

@@ -18,6 +18,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   const data = useData();
   const existing = id ? data.entries.find((e) => e.id === id) : undefined;
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
+  const [title, setTitle] = useState(existing?.title ?? '');
   const [text, setText] = useState(existing?.text ?? '');
   const [personIds, setPersonIds] = useState<ID[]>(existing?.personIds ?? (initialPerson ? [initialPerson] : []));
   const [newPeople, setNewPeople] = useState<string[]>([]);
@@ -81,13 +82,13 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
     );
   }
 
-  const canSave = text.trim().length > 0 && !saving;
+  const canSave = (text.trim().length > 0 || title.trim().length > 0) && !saving;
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
     // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
-    await store.saveEntry({ text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId }, id);
+    await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId }, id);
     back();
   };
   const remove = async () => {
@@ -104,6 +105,21 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
         right={<button className="link strong" disabled={!canSave} onClick={save}>{t('保存')}</button>}
       />
       <div className="form">
+        <input
+          className="title-input"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => {
+            // 変換確定のEnterでは移動しない
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              (e.currentTarget.nextElementSibling as HTMLElement | null)?.focus();
+            }
+          }}
+          placeholder={t('タイトル（なくてもOK）')}
+          aria-label={t('タイトル')}
+          enterKeyHint="next"
+        />
         <textarea
           className="textarea"
           value={text}

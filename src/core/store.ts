@@ -6,6 +6,8 @@ import { normalize } from './search';
 type Listener = () => void;
 
 export interface EntryInput {
+  /** タイトル(任意)。空なら付けない */
+  title?: string;
   text: string;
   personIds: ID[];
   topicIds: ID[];
@@ -83,6 +85,7 @@ export class Store {
     }
     const entry: Entry = {
       id: prev?.id ?? newId(),
+      ...(input.title?.trim() ? { title: input.title.trim() } : {}),
       text: input.text.trim(),
       personIds: [...new Set(personIds)],
       folderId: input.folderId === undefined ? (prev?.folderId ?? null) : input.folderId,
