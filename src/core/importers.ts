@@ -160,3 +160,93 @@ export function lineToDrafts(chat: LineChat, self: string, opts: { onlyMine: boo
     return { key: `l${i}`, include: true, title: '', text, talkedOn: date, people: people.length ? people : fallback, topics: [] };
   });
 }
+
+// ---- AIチャット(ChatGPT・Claude) ----
+
+export type AiService = 'chatgpt' | 'claude';
+
+export interface AiConversation {
+  title: string;
+  /** YYYY-MM-DD */
+  date: string;
+  messages: { mine: boolean; text: string }[];
+}
+
+const ymd = (d: Date) => (isNaN(d.getTime()) ? today() : today(d));
+
+interface GptNode {
+  parent?: string | null;
+  message?: {
+    author?: { role?: string };
+    content?: { content_type?: string; parts?: unknown[]; text?: string };
+    metadata?: { is_visually_hidden_from_conversation?: boolean };
+  } | null;
+}
+
+/** ChatGPTの「データをエクスポート」の conversations.json。表示中の枝だけを、古い順にたどる */
+function parseChatGpt(list: unknown[]): AiConversation[] {
+  return list.map((c) => {
+    const conv = c as { title?: string; create_time?: number; mapping?: Record<string, GptNode>; current_node?: string };
+    const mapping = conv.mapping ?? {};
+    const chain: GptNode[] = [];
+    const seen = new Set<string>();
+    let id = conv.current_node ?? Object.keys(mapping).pop();
+    while (id && mapping[id] && !seen.has(id)) {
+      seen.add(id);
+      chain.unshift(mapping[id]);
+      id = mapping[id].parent ?? undefined;
+    }
+    const messages = chain.flatMap((n) => {
+      const m = n.message;
+      const role = m?.author?.role;
+      if (!m || (role !== 'user' && role !== 'assistant') || m.metadata?.is_visually_hidden_from_conversation) return [];
+      const ct = m.content?.content_type;
+      if (ct && ct !== 'text' && ct !== 'multimodal_text') return [];
+      const text = (m.content?.parts ?? []).filter((p): p is string => typeof p === 'string').join('\n').trim();
+      return text ? [{ mine: role === 'user', text }] : [];
+    });
+    return { title: conv.title?.trim() ?? '', date: ymd(new Date((conv.create_time ?? 0) * 1000 || Date.now())), messages };
+  });
+}
+
+/** claude.ai の「データをエクスポート」の conversations.json */
+function parseClaude(list: unknown[]): AiConversation[] {
+  return list.map((c) => {
+    const conv = c as {
+      name?: string; created_at?: string;
+      chat_messages?: { sender?: string; text?: string; content?: { type?: string; text?: string }[] }[];
+    };
+    const messages = (conv.chat_messages ?? []).flatMap((m) => {
+      const fromContent = (m.content ?? []).filter((b) => b.type === 'text' && b.text).map((b) => b.text!).join('\n');
+      const text = (fromContent || m.text || '').trim();
+      return text && (m.sender === 'human' || m.sender === 'assistant') ? [{ mine: m.sender === 'human', text }] : [];
+    });
+    return { title: conv.name?.trim() ?? '', date: ymd(new Date(conv.created_at ?? Date.now())), messages };
+  });
+}
+
+/** conversations.json を読む。ChatGPTかClaudeかは中身で見分ける */
+export function parseAiExport(json: string): { service: AiService; conversations: AiConversation[] } {
+  let raw: unknown;
+  try { raw = JSON.parse(json); } catch { throw new Error('JSONとして読み込めませんでした'); }
+  if (!Array.isArray(raw)) throw new Error('会話の一覧（conversations.json）ではないようです');
+  const first = raw[0] as Record<string, unknown> | undefined;
+  const service: AiService = first && 'chat_messages' in first ? 'claude' : 'chatgpt';
+  if (first && !('mapping' in first) && !('chat_messages' in first)) throw new Error('会話の一覧（conversations.json）ではないようです');
+  const conversations = (service === 'claude' ? parseClaude(raw) : parseChatGpt(raw)).filter((c) => c.messages.length);
+  return { service, conversations };
+}
+
+/** AIとの会話を1件ずつの記録に。タイトルは会話のタイトルを使う */
+export function aiToDrafts(
+  convs: AiConversation[],
+  opts: { onlyMine: boolean; aiName: string; maxReply: number },
+): ImportDraft[] {
+  return convs.flatMap((c, i) => {
+    const msgs = opts.onlyMine ? c.messages.filter((m) => m.mine) : c.messages;
+    if (!msgs.length) return [];
+    const cut = (s: string) => (opts.maxReply > 0 && s.length > opts.maxReply ? s.slice(0, opts.maxReply) + '…' : s);
+    const text = msgs.map((m) => (m.mine ? `自分: ${m.text}` : `${opts.aiName}: ${cut(m.text)}`)).join('\n\n');
+    return [{ key: `a${i}`, include: true, title: c.title, text, talkedOn: c.date, people: [], topics: [] }];
+  });
+}

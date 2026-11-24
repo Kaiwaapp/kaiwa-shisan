@@ -1,9 +1,10 @@
 // 他のアプリから取り込む画面(試作)。App.tsx から遅延読み込みされるので、普段の起動には影響しない。
 import { useMemo, useRef, useState } from 'react';
 import {
-  guessSelf, guessSplit, lineToDrafts, parseLine, textToDrafts,
-  type ImportDraft, type LineChat, type TextSplit,
+  aiToDrafts, guessSelf, guessSplit, lineToDrafts, parseAiExport, parseLine, textToDrafts,
+  type AiConversation, type ImportDraft, type LineChat, type TextSplit,
 } from '../core/importers';
+import { isZip, readZipText } from '../core/unzip';
 import { demoSuggest, isDemo, suggestReady, suggestTags, aiErrorMessage } from '../core/ai';
 import { foldersOf, type ImportResult } from '../core/store';
 import { normalize } from '../core/search';
@@ -17,7 +18,11 @@ import { addDict, t } from '../i18n';
 import enImport from '../i18n/en-import';
 import './import.css';
 
-type Source = 'text' | 'line';
+type Source = 'text' | 'line' | 'chatgpt' | 'claude';
+const AI_NAME: Record<'chatgpt' | 'claude', string> = { chatgpt: 'ChatGPT', claude: 'Claude' };
+const isAi = (s: Source): s is 'chatgpt' | 'claude' => s === 'chatgpt' || s === 'claude';
+/** AIの返事は長いので、既定では先頭だけ残す */
+const REPLY_MAX = 200;
 type Step = 'source' | 'input' | 'preview' | 'done';
 
 const AI_MAX = 30;
@@ -30,9 +35,10 @@ export default function ImportScreen() {
   const [raw, setRaw] = useState('');
   const [fileName, setFileName] = useState('');
   const [err, setErr] = useState('');
+  const [convs, setConvs] = useState<AiConversation[] | null>(null);
   const [result, setResult] = useState<{ r: ImportResult; folderId: string | null; n: number } | null>(null);
 
-  const pick = (s: Source) => { setSource(s); setRaw(''); setFileName(''); setErr(''); setStep('input'); };
+  const pick = (s: Source) => { setSource(s); setRaw(''); setConvs(null); setFileName(''); setErr(''); setStep('input'); };
 
   const onBack = () => {
     if (step === 'input') setStep('source');
@@ -40,13 +46,22 @@ export default function ImportScreen() {
     else back('/settings');
   };
 
-  const title = step === 'source' || step === 'done' ? t('取り込み') : source === 'line' ? 'LINE' : t('メモ・テキスト');
+  const title = step === 'source' || step === 'done' ? t('取り込み') : source === 'line' ? 'LINE' : isAi(source) ? AI_NAME[source] : t('メモ・テキスト');
 
   return (
     <div className="screen import">
       <Header title={title} left={<button className="link" onClick={onBack}>‹ {step === 'source' || step === 'done' ? t('設定') : t('戻る')}</button>} />
       {step === 'source' && <SourceStep onPick={pick} />}
-      {step === 'input' && (
+      {step === 'input' && isAi(source) && (
+        <AiInputStep
+          service={source}
+          fileName={fileName}
+          count={convs?.length ?? null}
+          onLoaded={(c, name) => { setConvs(c); setFileName(name); }}
+          onNext={() => setStep('preview')}
+        />
+      )}
+      {step === 'input' && !isAi(source) && (
         <InputStep
           source={source}
           raw={raw}
@@ -66,6 +81,7 @@ export default function ImportScreen() {
         <PreviewStep
           source={source}
           raw={raw}
+          convs={convs ?? []}
           fileName={fileName}
           onDone={(r, folderId, n) => { setResult({ r, folderId, n }); setStep('done'); }}
         />
@@ -90,10 +106,15 @@ function SourceStep({ onPick }: { onPick: (s: Source) => void }) {
           <span />
           <span className="chev">›</span>
         </li>
-        <li className="row-item disabled" aria-disabled>
-          <span className="name"><span className="src-icon">◎</span>ChatGPT<span className="src-sub">{t('データのエクスポート（conversations.json）')}</span></span>
-          <span className="soon">{t('準備中')}</span>
+        <li className="row-item" onClick={() => onPick('chatgpt')}>
+          <span className="name"><span className="src-icon gpt">◎</span>ChatGPT<span className="src-sub">{t('データのエクスポート（.zip）から、会話ごとに')}</span></span>
           <span />
+          <span className="chev">›</span>
+        </li>
+        <li className="row-item" onClick={() => onPick('claude')}>
+          <span className="name"><span className="src-icon claude">✳</span>Claude<span className="src-sub">{t('データのエクスポート（.zip）から、会話ごとに')}</span></span>
+          <span />
+          <span className="chev">›</span>
         </li>
       </ul>
       <p className="muted small pad">{t('バックアップ（会話資産の.json）の読み込みは、設定の「バックアップから読み込む」からできます。')}</p>
@@ -157,8 +178,70 @@ function InputStep({ source, raw, fileName, err, onRaw, onNext }: {
   );
 }
 
-function PreviewStep({ source, raw, fileName, onDone }: {
-  source: Source; raw: string; fileName: string;
+function AiInputStep({ service, fileName, count, onLoaded, onNext }: {
+  service: 'chatgpt' | 'claude'; fileName: string; count: number | null;
+  onLoaded: (c: AiConversation[], name: string) => void; onNext: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [other, setOther] = useState(false);
+  const onFile = async (f: File | undefined) => {
+    if (!f) return;
+    setBusy(true); setErr('');
+    try {
+      const buf = await f.arrayBuffer();
+      let json: string | null;
+      if (isZip(new Uint8Array(buf, 0, Math.min(8, buf.byteLength)))) {
+        json = await readZipText(buf, 'conversations.json');
+        if (json === null) throw new Error('zipの中に conversations.json が見つかりませんでした');
+      } else json = new TextDecoder().decode(buf);
+      const r = parseAiExport(json);
+      setOther(r.service !== service);
+      onLoaded(r.conversations, f.name);
+    } catch (e) {
+      setErr(t((e as Error).message));
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+  return (
+    <div className="form">
+      {service === 'chatgpt' ? (
+        <details className="howto" open={count === null}>
+          <summary>{t('ChatGPTのデータを書き出す方法')}</summary>
+          <ol>
+            <li>{t('ChatGPTの「設定」→「データコントロール」→「データをエクスポートする」')}</li>
+            <li>{t('届いたメールのリンクから.zipをダウンロードする')}</li>
+            <li>{t('下の「ファイルを選ぶ」から、その.zipをそのまま選ぶ')}</li>
+          </ol>
+        </details>
+      ) : (
+        <details className="howto" open={count === null}>
+          <summary>{t('Claudeのデータを書き出す方法')}</summary>
+          <ol>
+            <li>{t('claude.aiの「設定」→「プライバシー」→「データをエクスポート」')}</li>
+            <li>{t('届いたメールのリンクから.zipをダウンロードする')}</li>
+            <li>{t('下の「ファイルを選ぶ」から、その.zipをそのまま選ぶ')}</li>
+          </ol>
+        </details>
+      )}
+      <p className="muted small pad">{t('解凍した中の conversations.json を選んでも大丈夫です。ファイルはこの端末の中だけで読み、どこにも送りません。')}</p>
+      <button className="btn block" disabled={busy} onClick={() => fileRef.current?.click()}>
+        {busy ? t('読み込み中…') : t('ファイルを選ぶ（.zip / .json）')}
+      </button>
+      <input ref={fileRef} type="file" accept=".zip,.json,application/zip,application/json" hidden onChange={(e) => onFile(e.target.files?.[0])} />
+      {fileName && count !== null && <p className="muted small pad">{t('選んだファイル: {f}', { f: fileName })} · {t('会話{n}件', { n: count })}</p>}
+      {other && <p className="ai-msg">{t('{s}のデータのようです。このまま取り込めます。', { s: AI_NAME[service === 'chatgpt' ? 'claude' : 'chatgpt'] })}</p>}
+      {err && <p className="ai-msg error">{err}</p>}
+      <button className="btn primary block" disabled={!count} onClick={onNext}>{t('読み込んで確認する')}</button>
+    </div>
+  );
+}
+
+function PreviewStep({ source, raw, convs, fileName, onDone }: {
+  source: Source; raw: string; convs: AiConversation[]; fileName: string;
   onDone: (r: ImportResult, folderId: string | null, n: number) => void;
 }) {
   const store = useStore();
@@ -173,18 +256,22 @@ function PreviewStep({ source, raw, fileName, onDone }: {
   const [peopleText, setPeopleText] = useState('');
   const people = peopleText.split(/[,、，]/).map((s) => s.trim()).filter(Boolean);
 
+  const [shortReply, setShortReply] = useState(true);
+  const ai_ = isAi(source);
   const base = useMemo(
-    () => (chat ? lineToDrafts(chat, self, { onlyMine }) : textToDrafts(raw, split, [])),
-    [chat, self, onlyMine, raw, split],
+    () => (ai_
+      ? aiToDrafts(convs, { onlyMine, aiName: AI_NAME[source as 'chatgpt' | 'claude'], maxReply: shortReply ? REPLY_MAX : 0 })
+      : chat ? lineToDrafts(chat, self, { onlyMine }) : textToDrafts(raw, split, [])),
+    [ai_, convs, source, shortReply, chat, self, onlyMine, raw, split],
   );
   // 1件ずつの修正(読み方を変えると作り直す)
   const [edits, setEdits] = useState<Record<string, Partial<ImportDraft>>>({});
-  const baseKey = `${self}|${onlyMine}|${split}`;
+  const baseKey = `${self}|${onlyMine}|${split}|${shortReply}`;
   const [editsFor, setEditsFor] = useState(baseKey);
   if (editsFor !== baseKey) { setEditsFor(baseKey); setEdits({}); }
   const drafts = base.map((d) => {
     const e = { ...d, ...edits[d.key] };
-    return chat ? e : { ...e, people: [...new Set([...e.people, ...people])] };
+    return chat || ai_ ? e : { ...e, people: [...new Set([...e.people, ...people])] };
   });
   const edit = (key: string, patch: Partial<ImportDraft>) => setEdits((x) => ({ ...x, [key]: { ...x[key], ...patch } }));
 
@@ -194,7 +281,7 @@ function PreviewStep({ source, raw, fileName, onDone }: {
   const dates = chosen.map((d) => d.talkedOn).sort();
 
   // 取り込み先
-  const defaultName = chat ? `LINE ${chat.title || allPeople[0] || ''}`.trim() : `${t('取り込み')} ${formatDate(today())}`;
+  const defaultName = ai_ ? AI_NAME[source as 'chatgpt' | 'claude'] : chat ? `LINE ${chat.title || allPeople[0] || ''}`.trim() : `${t('取り込み')} ${formatDate(today())}`;
   const [folderMode, setFolderMode] = useState<'new' | 'existing'>('new');
   const [folderName, setFolderName] = useState(defaultName);
   const [folderId, setFolderId] = useState<string>('');
@@ -260,7 +347,21 @@ function PreviewStep({ source, raw, fileName, onDone }: {
 
       <section className="panel">
         <h2>{t('読み方')}</h2>
-        {chat ? (
+        {ai_ ? (
+          <>
+            <label className="toggle">
+              <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} />
+              <span>{t('自分が話したことだけ残す')}</span>
+            </label>
+            {!onlyMine && (
+              <label className="toggle">
+                <input type="checkbox" checked={shortReply} onChange={(e) => setShortReply(e.target.checked)} />
+                <span>{t('AIの返事は先頭{n}文字だけ残す', { n: REPLY_MAX })}</span>
+              </label>
+            )}
+            <p className="muted small">{t('会話ごとに1件にし、会話のタイトルをそのまま使います。日付は会話を始めた日です。')}</p>
+          </>
+        ) : chat ? (
           <>
             <section className="field">
               <label>{t('自分の名前（LINEでの表示名）')}</label>

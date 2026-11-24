@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
-import { guessSelf, guessSplit, lineToDrafts, parseLine, splitText, textToDrafts } from './importers';
+import { deflateRawSync } from 'node:zlib';
+import { readZipText, isZip } from './unzip';
+import { aiToDrafts, parseAiExport, guessSelf, guessSplit, lineToDrafts, parseLine, splitText, textToDrafts } from './importers';
 import { Store } from './store';
 import { IdbRepository } from './idbRepository';
 
@@ -86,3 +88,82 @@ describe('取り込みの保存と取り消し', () => {
     expect(s.snapshot.folders).toHaveLength(0);
   });
 });
+
+const GPT = [{
+  title: '京都旅行の計画', create_time: 1763600000, current_node: 'c',
+  mapping: {
+    root: { parent: null, message: null },
+    sys: { parent: 'root', message: { author: { role: 'system' }, content: { content_type: 'text', parts: [''] } } },
+    a: { parent: 'sys', message: { author: { role: 'user' }, content: { content_type: 'text', parts: ['紅葉の名所を教えて'] } } },
+    old: { parent: 'a', message: { author: { role: 'assistant' }, content: { content_type: 'text', parts: ['(作り直す前の返事)'] } } },
+    b: { parent: 'a', message: { author: { role: 'assistant' }, content: { content_type: 'text', parts: ['東福寺がおすすめです。'.repeat(30)] } } },
+    c: { parent: 'b', message: { author: { role: 'user' }, content: { content_type: 'text', parts: ['ありがとう'] } } },
+  },
+}];
+
+const CLAUDE = [{
+  uuid: 'x', name: '転職の相談', created_at: '2026-10-01T09:00:00Z',
+  chat_messages: [
+    { sender: 'human', text: '4年目で転職ってどう？', content: [{ type: 'text', text: '4年目で転職ってどう？' }] },
+    { sender: 'assistant', text: '', content: [{ type: 'text', text: '良いタイミングです。' }] },
+  ],
+}];
+
+describe('ChatGPT・Claudeの取り込み', () => {
+  it('ChatGPTは表示中の枝だけ、タイトルと日付を使う', () => {
+    const { service, conversations } = parseAiExport(JSON.stringify(GPT));
+    expect(service).toBe('chatgpt');
+    expect(conversations[0].title).toBe('京都旅行の計画');
+    expect(conversations[0].messages.map((m) => m.mine)).toEqual([true, false, true]);
+    const [d] = aiToDrafts(conversations, { onlyMine: false, aiName: 'ChatGPT', maxReply: 50 });
+    expect(d.title).toBe('京都旅行の計画');
+    expect(d.text).not.toContain('作り直す前');
+    expect(d.text).toContain('ChatGPT: 東福寺');
+    expect(d.text).toContain('…');
+    const [mine] = aiToDrafts(conversations, { onlyMine: true, aiName: 'ChatGPT', maxReply: 0 });
+    expect(mine.text).toBe('自分: 紅葉の名所を教えて\n\n自分: ありがとう');
+  });
+
+  it('Claudeの形式を見分けて読む', () => {
+    const { service, conversations } = parseAiExport(JSON.stringify(CLAUDE));
+    expect(service).toBe('claude');
+    expect(conversations[0]).toMatchObject({ title: '転職の相談', date: '2026-10-01' });
+    expect(conversations[0].messages[1].text).toBe('良いタイミングです。');
+  });
+
+  it('関係ないJSONはエラー', () => {
+    expect(() => parseAiExport('{"a":1}')).toThrow();
+    expect(() => parseAiExport('[{"a":1}]')).toThrow();
+  });
+
+  it('zipのままでも conversations.json を取り出せる', async () => {
+    const zip = makeZip([['README.txt', 'hi', false], ['data/conversations.json', JSON.stringify(CLAUDE), true]]);
+    expect(isZip(zip)).toBe(true);
+    const text = await readZipText(zip.buffer as ArrayBuffer, 'conversations.json');
+    expect(parseAiExport(text!).service).toBe('claude');
+    expect(await readZipText(zip.buffer as ArrayBuffer, 'none.json')).toBeNull();
+  });
+});
+
+/** テスト用の小さなzipを作る */
+function makeZip(files: [string, string, boolean][]): Uint8Array {
+  const enc = new TextEncoder();
+  const parts: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let offset = 0;
+  const le = (n: number, len: number) => { const a = new Uint8Array(len); for (let i = 0; i < len; i++) a[i] = (n >>> (8 * i)) & 255; return a; };
+  const cat = (xs: Uint8Array[]) => { const out = new Uint8Array(xs.reduce((s, x) => s + x.length, 0)); let p = 0; for (const x of xs) { out.set(x, p); p += x.length; } return out; };
+  for (const [name, body, deflate] of files) {
+    const nb = enc.encode(name);
+    const raw = enc.encode(body);
+    const data = deflate ? new Uint8Array(deflateRawSync(raw)) : raw;
+    const method = deflate ? 8 : 0;
+    const local = cat([le(0x04034b50, 4), le(20, 2), le(0, 2), le(method, 2), le(0, 8), le(data.length, 4), le(raw.length, 4), le(nb.length, 2), le(0, 2), nb]);
+    central.push(cat([le(0x02014b50, 4), le(20, 2), le(20, 2), le(0, 2), le(method, 2), le(0, 8), le(data.length, 4), le(raw.length, 4), le(nb.length, 2), le(0, 2), le(0, 2), le(0, 4), le(0, 4), le(offset, 4), nb]));
+    parts.push(local, data);
+    offset += local.length + data.length;
+  }
+  const cd = cat(central);
+  const end = cat([le(0x06054b50, 4), le(0, 4), le(files.length, 2), le(files.length, 2), le(cd.length, 4), le(offset, 4), le(0, 2)]);
+  return cat([...parts, cd, end]);
+}
