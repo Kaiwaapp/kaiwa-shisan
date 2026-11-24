@@ -102,3 +102,18 @@ export const today = (d = new Date()): string => {
 /** 一覧などに出す見出し。タイトルがなければ本文の1行目(iPhoneのメモと同じ) */
 export const entryLabel = (e: { title?: string; text: string }, max = 40): string =>
   (e.title?.trim() || e.text.trim().split('\n')[0]).slice(0, max);
+
+/**
+ * 一覧で2行に収めるための見出しと続き。
+ * タイトルあり: 見出し=タイトル、続き=本文。タイトルなし: 見出し=本文の1行目、続き=2行目以降。
+ * 続きは改行を空白にまとめて1行にする(はみ出しは画面側で「…」)。
+ */
+export const entryPreview = (e: { title?: string; text: string }): { head: string; rest: string } => {
+  const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const title = e.title?.trim();
+  if (title) return { head: title, rest: oneLine(e.text) };
+  const lines = e.text.trim().split('\n');
+  const i = lines.findIndex((l) => l.trim());
+  if (i < 0) return { head: '', rest: '' };
+  return { head: lines[i].trim(), rest: oneLine(lines.slice(i + 1).join('\n')) };
+};
