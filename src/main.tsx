@@ -13,6 +13,10 @@ navigator.storage?.persist?.().catch(() => {});
 
 const store = new Store(new IdbRepository());
 store.init();
+// 読み込みに失敗したままアプリを閉じて開き直した(復帰した)ときは、もう一度読む
+const retry = () => { if (!store.loaded && document.visibilityState === 'visible') store.init(); };
+document.addEventListener('visibilitychange', retry);
+addEventListener('pageshow', retry);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

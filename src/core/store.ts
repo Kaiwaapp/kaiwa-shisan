@@ -29,14 +29,43 @@ export class Store {
   private snap: AppData = this.data;
   private trashSnap: Entry[] = [];
   private listeners = new Set<Listener>();
+  /** 端末のデータを読み終えたか。読み終えるまで画面は「読み込み中」にする */
   loaded = false;
+  /** 読み込みに失敗したとき true(画面から再試行できる) */
+  loadFailed = false;
+  private loading: Promise<void> | null = null;
 
   constructor(private repo: Repository) {}
 
-  async init() {
-    this.loaded = true;
-    this.set(await this.repo.loadAll());
-    await this.purgeTrash();
+  /**
+   * 端末のデータを読み込む。iOSでは起動直後の読み込みが失敗することがあるので数回やり直す。
+   * 読み終えるまで loaded を true にしない(空の一覧が出たり、空の内容で編集画面が始まったりしないように)
+   */
+  init(): Promise<void> {
+    if (this.loaded) return Promise.resolve();
+    this.loading ??= this.load().finally(() => { this.loading = null; });
+    return this.loading;
+  }
+
+  private async load(retries = 3) {
+    if (this.loadFailed) { this.loadFailed = false; this.emit(); }
+    for (let i = 0; ; i++) {
+      try {
+        const data = await this.repo.loadAll();
+        this.loaded = true;
+        this.set(data);
+        break;
+      } catch (e) {
+        if (i >= retries) {
+          console.error('データの読み込みに失敗しました', e);
+          this.loadFailed = true;
+          this.emit();
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+      }
+    }
+    await this.purgeTrash().catch(() => {});
   }
 
   get snapshot(): AppData { return this.snap; }

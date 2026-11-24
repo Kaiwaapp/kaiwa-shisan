@@ -14,6 +14,11 @@ export function useLoaded() {
   return useSyncExternalStore(store.subscribe, () => store.loaded);
 }
 
+export function useLoadFailed() {
+  const store = useStore();
+  return useSyncExternalStore(store.subscribe, () => store.loadFailed);
+}
+
 /** 端末に覚えておく表示設定(並べ替えなど) */
 export function usePref<T extends string>(key: string, initial: T): [T, (v: T) => void] {
   const k = 'kaiwa-shisan:pref:' + key;
