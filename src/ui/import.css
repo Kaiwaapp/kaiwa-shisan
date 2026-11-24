@@ -1,0 +1,33 @@
+/* 取り込み画面だけで使う見た目(画面を開いたときだけ読み込まれる) */
+.import .row-item .name { display: grid; grid-template-columns: 34px 1fr; column-gap: 10px; align-items: center; }
+.src-icon { grid-row: span 2; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.src-icon.line { background: #06c755; color: #fff; }
+.src-icon.gpt { background: #10a37f; color: #fff; }
+.src-icon.claude { background: #d97757; color: #fff; }
+.src-sub { font-size: 12.5px; color: var(--muted); }
+.row-item.disabled { cursor: default; opacity: .55; }
+.soon { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+
+.howto { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.howto summary { font-weight: 700; font-size: 15px; cursor: pointer; color: var(--accent); }
+.howto ol { margin: 10px 0 8px; padding-left: 22px; font-size: 14px; line-height: 1.7; }
+
+.import-summary { display: flex; align-items: baseline; gap: 10px; padding: 0 2px; }
+.import-summary b { font-size: 22px; }
+.import-summary span { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+
+.import-list { list-style: none; margin: -6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.import-item { display: grid; grid-template-columns: 28px 1fr; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px 10px 8px; }
+.import-item.off { opacity: .45; }
+.import-check { display: flex; justify-content: center; padding-top: 4px; }
+.import-check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.import-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.import-title { width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent; padding: 2px 0 6px; font-size: 16px; font-weight: 700; outline: none; color: var(--ink); }
+.import-title:focus { border-bottom-color: var(--accent); }
+.import-text { margin: 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.import-date { font-size: 13px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.chips .import-date { flex: none; }
+
+.import-footer { position: sticky; bottom: calc(var(--tabbar-h) + var(--safe-b) + 8px); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.import-footer .toggle { font-size: 13.5px; color: var(--muted); }
+.import-footer .toggle input { width: 18px; height: 18px; }

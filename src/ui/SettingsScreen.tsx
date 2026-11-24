@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { parseBackup } from '../core/backup';
 import type { AppData } from '../core/types';
-import { useData, useStore } from './hooks';
+import { go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup } from './backupUi';
 import { AiSettingsPanel } from './AiTools';
@@ -67,6 +67,12 @@ export function SettingsScreen() {
             <option value="auto">{t('自動（端末の言語）')}</option>
             {LANGS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
           </select>
+        </section>
+
+        <section className="panel">
+          <h2>{t('他のアプリから取り込む')}</h2>
+          <p className="muted small">{t('iPhoneのメモ・テキストやLINEのトーク履歴を、記録としてまとめて取り込めます。')}</p>
+          <button className="btn block" onClick={() => go('/import')}>{t('取り込みを始める')}</button>
         </section>
 
         <section className="panel">

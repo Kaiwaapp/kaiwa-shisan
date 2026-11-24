@@ -286,6 +286,10 @@ const en: Record<string, string> = {
   'このフォルダの記録だけ削除（{n}件）': 'Only notes in this folder ({n})',
   '中のフォルダの記録も削除（{n}件）': 'Include notes in subfolders ({n})',
   '{n}件を「最近削除した項目」に移しました': 'Moved {n} notes to Recently Deleted',
+  // 取り込み(画面の文言は en-import.ts。取り込み画面を開いたときだけ読み込む)
+  '他のアプリから取り込む': "Import from other apps",
+  'iPhoneのメモ・テキストやLINEのトーク履歴を、記録としてまとめて取り込めます。': "Bring in iPhone Notes, text, or LINE chat histories as notes, all at once.",
+  '取り込みを始める': "Start import",
 };
 
 export default en;
