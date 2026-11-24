@@ -244,3 +244,39 @@ describe('Store', () => {
     expect(s.snapshot.folders).toHaveLength(2);
   });
 });
+
+describe('起動時の読み込み', () => {
+  const empty = { people: [], topics: [], entries: [], folders: [] };
+  const repoOf = (loadAll: () => Promise<any>) => ({ loadAll, putEntry: async () => {}, deleteEntry: async () => {} }) as any;
+
+  it('読み終わるまで loaded にならない', async () => {
+    let done!: (v: any) => void;
+    const s = new Store(repoOf(() => new Promise((r) => { done = r; })));
+    const p = s.init();
+    expect(s.loaded).toBe(false);
+    done({ ...empty, entries: [{ id: 'a', text: 'x', personIds: [], topics: [], folderId: null, talkedOn: '2026-11-24', createdAt: 1, updatedAt: 1 }] });
+    await p;
+    expect(s.loaded).toBe(true);
+    expect(s.snapshot.entries).toHaveLength(1);
+  });
+
+  it('失敗してもやり直して読み込む', async () => {
+    let n = 0;
+    const s = new Store(repoOf(async () => { if (n++ < 2) throw new Error('Connection to Indexed Database server lost'); return empty; }));
+    await s.init();
+    expect(s.loaded).toBe(true);
+    expect(s.loadFailed).toBe(false);
+  });
+
+  it('ずっと失敗したら loadFailed になり、後から再試行できる', async () => {
+    let ok = false;
+    const s = new Store(repoOf(async () => { if (!ok) throw new Error('x'); return empty; }));
+    await s.init();
+    expect(s.loaded).toBe(false);
+    expect(s.loadFailed).toBe(true);
+    ok = true;
+    await s.init();
+    expect(s.loaded).toBe(true);
+    expect(s.loadFailed).toBe(false);
+  });
+});

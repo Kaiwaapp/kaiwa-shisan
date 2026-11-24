@@ -1,6 +1,6 @@
 import { OrganizeScreen } from './OrganizeScreen';
 import type { Store } from '../core/store';
-import { StoreContext, go, switchTab, useData, useLoaded, useRoute } from './hooks';
+import { StoreContext, go, switchTab, useData, useLoadFailed, useLoaded, useRoute, useStore } from './hooks';
 import { InteractProvider, useInteract } from './interact';
 import { TrashScreen, AllEntriesScreen, FolderScreen, NameAllScreen, NameFolderScreen, PersonScreen, TopicScreen } from './screens';
 import { EntryEditor } from './EntryEditor';
@@ -34,7 +34,7 @@ function Shell() {
   const selecting = useInteract().sel.active;
   const [head, sub] = path;
 
-  if (!loaded) return <div className="loading">{t('読み込み中…')}</div>;
+  if (!loaded) return <Loading />;
 
   if (head === 'new' || head === 'edit') {
     return (
@@ -97,6 +97,23 @@ function Shell() {
           </button>
         ))}
       </nav>
+    </div>
+  );
+}
+
+function Loading() {
+  const store = useStore();
+  const failed = useLoadFailed();
+  if (!failed) return <div className="loading">{t('読み込み中…')}</div>;
+  return (
+    <div className="loading">
+      <p>{t('データを読み込めませんでした')}</p>
+      <p>
+        <button className="btn primary" onClick={() => store.init()}>{t('もう一度読み込む')}</button>
+      </p>
+      <p>
+        <button className="link" onClick={() => location.reload()}>{t('アプリを再読み込み')}</button>
+      </p>
     </div>
   );
 }
