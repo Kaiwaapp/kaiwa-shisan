@@ -21,6 +21,8 @@ export interface EntryInput {
   folderId?: ID | null;
 }
 
+export interface ImportResult { entryIds: ID[]; personIds: ID[]; topicIds: ID[]; folderIds: ID[] }
+
 /** アプリの状態と操作。React非依存なのでネイティブ版でも使い回せる */
 export class Store {
   /** 削除済み(ゴミ箱)の記録も含む全データ */
@@ -443,6 +445,80 @@ export class Store {
       await this.repo.putTopic(next);
       this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
     }
+  }
+
+  // ---- 他アプリからの取り込み ----
+  /**
+   * 下書きをまとめて記録にする。人・話題は名前で既存のものに合わせ、なければ作る。
+   * 取り消し用に、新しく作ったもののIDを返す。
+   */
+  async importDrafts(
+    drafts: { title: string; text: string; talkedOn: string; people: string[]; topics: string[]; aiTopics?: boolean }[],
+    folder: { id: ID | null } | { newName: string; parentId: ID | null },
+  ): Promise<ImportResult> {
+    const now = Date.now();
+    const people = new Map(this.data.people.map((p) => [normalize(p.name), p]));
+    const topics = new Map(this.data.topics.map((t) => [normalize(t.name), t]));
+    const created: ImportResult = { entryIds: [], personIds: [], topicIds: [], folderIds: [] };
+    const incoming: AppData = { people: [], topics: [], entries: [], folders: [] };
+    let folderId: ID | null;
+    if ('newName' in folder) {
+      const f: Folder = { id: newId(), name: folder.newName.trim() || '取り込み', parentId: folder.parentId, scope: 'entry', createdAt: now, updatedAt: now };
+      incoming.folders.push(f);
+      created.folderIds.push(f.id);
+      folderId = f.id;
+    } else folderId = folder.id;
+    const person = (name: string) => {
+      const k = normalize(name.trim());
+      let p = people.get(k);
+      if (!p) {
+        p = { id: newId(), name: name.trim(), memo: '', folderId: null, createdAt: now, updatedAt: now };
+        people.set(k, p);
+        incoming.people.push(p);
+        created.personIds.push(p.id);
+      }
+      return p.id;
+    };
+    const topic = (name: string) => {
+      const k = normalize(name.trim());
+      let tp = topics.get(k);
+      if (!tp) {
+        tp = { id: newId(), name: name.trim(), folderId: null, createdAt: now, updatedAt: now };
+        topics.set(k, tp);
+        incoming.topics.push(tp);
+        created.topicIds.push(tp.id);
+      }
+      return tp.id;
+    };
+    drafts.forEach((d, i) => {
+      const e: Entry = {
+        id: newId(),
+        ...(d.title.trim() ? { title: d.title.trim() } : {}),
+        text: d.text.trim(),
+        personIds: [...new Set(d.people.filter((n) => n.trim()).map(person))],
+        topics: [...new Set(d.topics.filter((n) => n.trim()).map(topic))].map((topicId) => ({ topicId, source: d.aiTopics ? 'ai' : 'manual' })),
+        talkedOn: d.talkedOn,
+        folderId,
+        // 並び順が取り込み順になるよう1msずつずらす
+        createdAt: now + i,
+        updatedAt: now + i,
+      };
+      incoming.entries.push(e);
+      created.entryIds.push(e.id);
+    });
+    await this.importData(incoming, 'merge');
+    return created;
+  }
+
+  /** 取り込みの取り消し。そのあと編集されたものも含めて、取り込みで作ったものを消す */
+  async undoImport(r: ImportResult) {
+    const drop = <T extends { id: ID }>(xs: T[], ids: ID[]) => { const s = new Set(ids); return xs.filter((x) => !s.has(x.id)); };
+    await this.importData({
+      people: drop(this.data.people, r.personIds),
+      topics: drop(this.data.topics, r.topicIds),
+      entries: drop(this.data.entries, r.entryIds),
+      folders: drop(this.data.folders, r.folderIds),
+    }, 'replace');
   }
 
   // ---- バックアップ ----

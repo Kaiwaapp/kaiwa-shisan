@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { OrganizeScreen } from './OrganizeScreen';
 import type { Store } from '../core/store';
 import { StoreContext, go, switchTab, useData, useLoaded, useRoute } from './hooks';
@@ -7,6 +8,9 @@ import { EntryEditor } from './EntryEditor';
 import { SettingsScreen } from './SettingsScreen';
 import { needsBackupReminder } from './backupUi';
 import { t, useLang } from '../i18n';
+
+// 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
+const ImportScreen = lazy(() => import('./ImportScreen'));
 
 const TABS = [
   { key: '', label: '記録', icon: '✎' },
@@ -60,15 +64,16 @@ function Shell() {
     else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;
   }
   else if (head === 'settings') screen = <SettingsScreen />;
+  else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen /></Suspense>;
   else if (head === 'organize') screen = <OrganizeScreen key={sub} scope={sub === 'person' || sub === 'topic' ? sub : 'entry'} />;
   else if (head === 'all') screen = <AllEntriesScreen />;
   else if (head === 'trash') screen = <TrashScreen />;
   else if (head === 'f' && sub) screen = <FolderScreen key={sub} folderId={sub} />;
   else screen = <FolderScreen key="root" folderId={null} />;
 
-  const tab = head === 'f' || head === 'all' || head === 'trash' ? '' : (head ?? '');
-  const showFab = !selecting && head !== 'settings' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all');
-  const remind = head !== 'settings' && needsBackupReminder(data);
+  const tab = head === 'f' || head === 'all' || head === 'trash' ? '' : head === 'import' ? 'settings' : (head ?? '');
+  const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all');
+  const remind = head !== 'settings' && head !== 'import' && needsBackupReminder(data);
 
   return (
     <div className="app">

@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { extractKeys } from './keys';
-import en from './en';
+import base from './en';
+import enImport from './en-import';
+
+const en = { ...base, ...enImport };
 
 const files = [
   ...readdirSync('src/ui').filter((f) => /\.tsx?$/.test(f)).map((f) => join('src/ui', f)),

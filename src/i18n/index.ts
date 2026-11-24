@@ -43,6 +43,11 @@ const apply = () => {
 };
 
 export const currentLang = () => lang;
+
+/** 遅延読み込みする画面が、自分の文言の辞書を足す */
+export function addDict(l: Lang, dict: Record<string, string>) {
+  Object.assign(DICTS[l], dict);
+}
 export const langPref = () => pref;
 export function setLangPref(p: LangPref) {
   pref = p;
