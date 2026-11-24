@@ -227,4 +227,20 @@ describe('Store', () => {
     expect(s.trash).toHaveLength(0);
     expect(s.snapshot.entries).toHaveLength(1);
   });
+  it('フォルダ内の記録をまとめて削除(中のフォルダを含むか選べる)', async () => {
+    const s = await fresh();
+    const f = await s.addFolder('F');
+    const sub = await s.addFolder('Sub', f.id);
+    const mk = (text: string, folderId: string | null) => s.saveEntry({ text, personIds: [], topicIds: [], talkedOn: '2026-01-01', folderId });
+    await mk('a', f.id); await mk('b', f.id); await mk('c', sub.id); await mk('d', null);
+    expect(s.folderEntryIds(f.id, false)).toHaveLength(2);
+    expect(s.folderEntryIds(f.id, true)).toHaveLength(3);
+    expect(await s.trashFolderEntries(f.id, false)).toBe(2);
+    expect(s.snapshot.entries.map((e) => e.text).sort()).toEqual(['c', 'd']);
+    expect(await s.trashFolderEntries(f.id, true)).toBe(1);
+    expect(s.snapshot.entries.map((e) => e.text)).toEqual(['d']);
+    expect(s.trash).toHaveLength(3);
+    // フォルダは残る
+    expect(s.snapshot.folders).toHaveLength(2);
+  });
 });

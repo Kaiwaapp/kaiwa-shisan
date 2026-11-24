@@ -128,6 +128,19 @@ export class Store {
     );
   }
 
+  /** フォルダに入っている記録(削除済みは除く)。deep なら中のフォルダの記録も含める */
+  folderEntryIds(folderId: ID, deep: boolean): ID[] {
+    const scope = new Set([folderId, ...(deep ? folderDescendants(this.data.folders, folderId) : [])]);
+    return this.snap.entries.filter((e) => e.folderId && scope.has(e.folderId)).map((e) => e.id);
+  }
+
+  /** フォルダ内の記録をまとめて「最近削除した項目」へ移す。フォルダ自体は残す。移した件数を返す */
+  async trashFolderEntries(folderId: ID, deep: boolean): Promise<number> {
+    const ids = this.folderEntryIds(folderId, deep);
+    if (ids.length) await this.trashEntries(ids);
+    return ids.length;
+  }
+
   /** 完全に削除 */
   async purgeEntries(ids: ID[]) {
     const set = new Set(ids);

@@ -123,7 +123,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                     : children.length ? t('フォルダに入っていない記録はありません') : <>{t('まだ記録がありません。')}<br />{t('右下の＋から、話したことを書いてみましょう。')}</>
                 }
               />
-              <SelectionBar all={[
+              <SelectionBar folderId={folderId} all={[
                 ...children.map((f) => ({ kind: 'folder' as const, id: f.id, label: f.name, scope: 'entry' as const })),
                 ...memos.map((e) => ({ kind: 'entry' as const, id: e.id, label: entryLabel(e, 24), scope: 'entry' as const })),
               ]} />

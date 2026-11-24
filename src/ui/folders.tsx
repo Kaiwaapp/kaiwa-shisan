@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Folder, FolderScope, ID } from '../core/types';
 import { folderDescendants, foldersOf } from '../core/store';
 import { go, useData, useStore } from './hooks';
-import { dropProps, SelectMark, usePress, type ItemRef } from './interact';
+import { dropProps, SelectMark, useInteract, usePress, type ItemRef } from './interact';
 import { t } from '../i18n';
 
 /** 各タブのフォルダのURL。記録は '' 、人は '/people'、話題は '/topics' */
@@ -95,6 +95,7 @@ export function makeDeepCount(folders: Folder[], items: { folderId?: ID | null }
 export function FolderEdit({ id, onDone }: { id: ID; onDone: () => void }) {
   const data = useData();
   const store = useStore();
+  const { openClear } = useInteract();
   const folder = data.folders.find((f) => f.id === id)!;
   const scope = folder.scope ?? 'entry';
   const [name, setName] = useState(folder.name);
@@ -120,6 +121,9 @@ export function FolderEdit({ id, onDone }: { id: ID; onDone: () => void }) {
         </select>
       </section>
       <button className="btn primary block" disabled={!name.trim()} onClick={save}>{t('保存')}</button>
+      {scope === 'entry' && (
+        <button className="btn danger block" onClick={() => openClear(id)}>{t('中の記録をすべて削除')}</button>
+      )}
       <button className="btn danger block" onClick={async () => {
         if (!confirm(t('フォルダ「{name}」を削除しますか？\n中身は消えず、1つ上の階層に移ります。', { name: folder.name }))) return;
         const up = folder.parentId;

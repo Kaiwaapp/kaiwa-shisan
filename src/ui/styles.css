@@ -294,6 +294,7 @@ button:disabled { opacity: .4; cursor: default; }
 .sheet-item:active { background: var(--bg); }
 .sheet-item .ic { width: 22px; text-align: center; }
 .sheet-item.danger { color: var(--danger); }
+.sheet-note { margin: 0; padding: 12px 18px; text-align: center; line-height: 1.5; }
 .sheet-item.cancel { justify-content: center; font-weight: 700; border-radius: 14px; border: none; color: var(--accent); }
 
 .drag-ghost {
