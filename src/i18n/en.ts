@@ -290,6 +290,23 @@ const en: Record<string, string> = {
   '他のアプリから取り込む': "Import from other apps",
   'iPhoneのメモ・テキストやLINEのトーク履歴を、記録としてまとめて取り込めます。': "Bring in iPhone Notes, text, or LINE chat histories as notes, all at once.",
   '取り込みを始める': "Start import",
+  // 人のグループ
+  'グループ': 'Groups',
+  '例：マッチングアプリ、職場、大学の友達': 'e.g. Dating app, Work, College friends',
+  '＋ グループ': '+ Group',
+  'このグループは見つかりませんでした。': "This group couldn't be found.",
+  'グループの名前': 'Group name',
+  'グループ「{name}」を削除しますか？\n人や記録は消えず、グループへの紐づけだけ外れます。': 'Delete the group "{name}"?\nPeople and notes stay; they are just removed from this group.',
+  'このグループを削除': 'Delete this group',
+  'このグループの人': 'People in this group',
+  '＋ 「{name}」の人に話したことを記録': '+ Add a note with people in "{name}"',
+  '上の欄から人を選ぶか、名前を入力して追加できます。': 'Pick people above, or type a name to add someone new.',
+  '新しいグループの名前': 'New group name',
+  '選ぶ': 'Select',
+  'グループから': 'From group',
+  '全員外す': 'Deselect all',
+  '全員選ぶ': 'Select all',
+  'グループ（いくつでも）': 'Groups (any number)',
 };
 
 export default en;

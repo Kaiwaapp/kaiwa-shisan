@@ -5,6 +5,7 @@ import { StoreContext, go, switchTab, useData, useLoadFailed, useLoaded, useRout
 import { InteractProvider, useInteract } from './interact';
 import { TrashScreen, AllEntriesScreen, FolderScreen, NameAllScreen, NameFolderScreen, PersonScreen, TopicScreen } from './screens';
 import { EntryEditor } from './EntryEditor';
+import { GroupScreen } from './groups';
 import { SettingsScreen } from './SettingsScreen';
 import { needsBackupReminder } from './backupUi';
 import { t, useLang } from '../i18n';
@@ -49,6 +50,7 @@ function Shell() {
           initialPerson={query.get('person') ?? undefined}
           initialTopic={query.get('topic') ?? undefined}
           initialFolder={query.get('folder') ?? undefined}
+          initialGroup={query.get('group') ?? undefined}
         />
       </div>
     );
@@ -58,7 +60,8 @@ function Shell() {
   const third = path[2];
   if (head === 'people' || head === 'topics') {
     const kind = head === 'people' ? 'person' : 'topic';
-    if (sub === 'all') screen = <NameAllScreen key={kind + 'all'} kind={kind} />;
+    if (kind === 'person' && sub === 'g' && third) screen = <GroupScreen key={third} id={third} />;
+    else if (sub === 'all') screen = <NameAllScreen key={kind + 'all'} kind={kind} />;
     else if (sub === 'f' && third) screen = <NameFolderScreen key={kind + third} kind={kind} folderId={third} />;
     else if (sub) screen = kind === 'person' ? <PersonScreen key={sub} id={sub} /> : <TopicScreen key={sub} id={sub} />;
     else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;

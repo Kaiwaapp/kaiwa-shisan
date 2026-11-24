@@ -5,14 +5,17 @@ import { ComboPicker, Header } from './components';
 import { copyText } from './interact';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
+import { GroupQuickPick } from './groups';
 import { t } from '../i18n';
 
 
-export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: {
+export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
   id?: ID;
   initialPerson?: ID;
   initialTopic?: ID;
   initialFolder?: ID;
+  /** グループの画面から開いたとき、そのグループの人を最初から相手に入れる */
+  initialGroup?: ID;
 }) {
   const store = useStore();
   const data = useData();
@@ -20,7 +23,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [text, setText] = useState(existing?.text ?? '');
-  const [personIds, setPersonIds] = useState<ID[]>(existing?.personIds ?? (initialPerson ? [initialPerson] : []));
+  const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (
+    initialPerson ? [initialPerson]
+      : initialGroup ? data.people.filter((p) => p.groupIds?.includes(initialGroup)).map((p) => p.id)
+        : []));
   const [newPeople, setNewPeople] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<ID[]>(existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : []));
   const [newTopics, setNewTopics] = useState<string[]>([]);
@@ -142,6 +148,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
             newNames={newPeople}
             onChange={(s, n) => { pick('person', personIds, s); setPersonIds(s); setNewPeople(n); }}
           />
+          <GroupQuickPick selected={personIds} onChange={(s) => { pick('person', personIds, s); setPersonIds(s); }} />
         </section>
         <section className="field">
           <label>{t('話題')}</label>

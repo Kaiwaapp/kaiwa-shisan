@@ -12,6 +12,7 @@ import type { Folder } from '../core/types';
 import { EntryList, EntryPreview, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
+import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
 export function FolderScreen({ folderId }: { folderId: ID | null }) {
@@ -205,7 +206,7 @@ export function AllEntriesScreen() {
 // ---- 人・話題の一覧(フォルダで整理できる) ----
 type NameKind = 'person' | 'topic';
 
-function useNameItems(kind: NameKind, sort: NameSort) {
+export function useNameItems(kind: NameKind, sort: NameSort) {
   const data = useData();
   const stats = useMemo(() => statsBy(data, kind), [data, kind]);
   return useMemo(
@@ -217,7 +218,7 @@ function useNameItems(kind: NameKind, sort: NameSort) {
   );
 }
 
-function NameRows({ kind, items, sort, showFolder }: {
+export function NameRows({ kind, items, sort, showFolder }: {
   kind: NameKind;
   items: ReturnType<typeof useNameItems>;
   sort: NameSort;
@@ -255,6 +256,9 @@ function NameRow({ kind, x, sort, showFolder }: {
         {showFolder && x.folderId && (
           <span className="reading">▤ {folderPath(data.folders, x.folderId).map((f) => f.name).join(' / ')}</span>
         )}
+        {kind === 'person' && (x as { groupIds?: ID[] }).groupIds?.length ? (
+          <span className="reading">{groupsOf(data.groups, x as { groupIds?: ID[] }).map((g) => g.name).join('・')}</span>
+        ) : null}
       </span>
       <span className="sub">
         {t('{n}件', { n: x.stat.count })}
@@ -366,6 +370,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
             </>
           ) : (
             <>
+              {kind === 'person' && !folderId && !selecting && <GroupBar />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t(unit, { n: here.length })}
@@ -472,6 +477,7 @@ export function PersonScreen({ id }: { id: ID }) {
   const [reading, setReading] = useState('');
   const [memo, setMemo] = useState('');
   const [pfolder, setPfolder] = useState<ID | null>(null);
+  const [pgroups, setPgroups] = useState<ID[]>([]);
 
   const mine = useMemo(() => data.entries.filter((e) => e.personIds.includes(id)), [data, id]);
   const topicCounts = useMemo(() => {
@@ -491,7 +497,7 @@ export function PersonScreen({ id }: { id: ID }) {
       <Header
         title={person.name}
         left={<button className="link" onClick={() => back('/people')}>{t('‹ 人')}</button>}
-        right={<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button>}
+        right={<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setPgroups(person.groupIds ?? []); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button>}
       />
       {editing ? (
         <div className="form">
@@ -510,10 +516,14 @@ export function PersonScreen({ id }: { id: ID }) {
             <FolderSelect scope="person" value={pfolder} onChange={setPfolder} />
           </section>
           <section className="field">
+            <label>{t('グループ（いくつでも）')}</label>
+            <GroupToggles value={pgroups} onChange={setPgroups} />
+          </section>
+          <section className="field">
             <label>{t('メモ（関係・好きなものなど）')}</label>
             <textarea className="textarea" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
           </section>
-          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder }); setEditing(false); }}>
+          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder, groupIds: pgroups.filter((g) => data.groups.some((x) => x.id === g)) }); setEditing(false); }}>
             {t('保存')}
           </button>
           <MergeBox kind="person" id={id} name={person.name} />
@@ -527,6 +537,13 @@ export function PersonScreen({ id }: { id: ID }) {
         </div>
       ) : (
         <>
+          {(person.groupIds?.length ?? 0) > 0 && (
+            <div className="chips person-groups">
+              {groupsOf(data.groups, person).map((g) => (
+                <button key={g.id} className="chip group small" onClick={() => go(groupHref(g.id))}>{g.name}</button>
+              ))}
+            </div>
+          )}
           {person.memo && <p className="memo">{person.memo}</p>}
           <div className="section-title">
             {t('{name}に話したこと', { name: person.name })} <span className="muted">{t('{n}件', { n: mine.length })}</span>

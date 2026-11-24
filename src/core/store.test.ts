@@ -252,8 +252,63 @@ describe('Store', () => {
   });
 });
 
+describe('人のグループ', () => {
+  it('1人を複数のグループに入れられ、再読み込みしても残る', async () => {
+    const repo = new IdbRepository('groups-persist');
+    const s = new Store(repo);
+    await s.init();
+    const a = await s.addPerson('田中');
+    const b = await s.addPerson('佐藤');
+    const app = await s.addGroup('マッチングアプリ');
+    const work = await s.addGroup('職場');
+    expect(await s.addGroup(' マッチングアプリ ')).toBe(app);
+    await s.setGroupMembers(app.id, [a.id, b.id], true);
+    await s.setGroupMembers(work.id, [a.id], true);
+    await s.setGroupMembers(work.id, [a.id], true); // 2回入れても重ならない
+    const s2 = new Store(repo);
+    await s2.init();
+    expect(s2.snapshot.groups.map((g) => g.name).sort()).toEqual(['マッチングアプリ', '職場'].sort());
+    expect(s2.snapshot.people.find((p) => p.id === a.id)!.groupIds).toEqual([app.id, work.id]);
+    await s2.setGroupMembers(app.id, [b.id], false);
+    expect(s2.snapshot.people.find((p) => p.id === b.id)!.groupIds).toEqual([]);
+  });
+
+  it('グループを消しても人は残り、紐づけだけ外れる', async () => {
+    const s = await fresh();
+    const g = await s.addGroup('大学');
+    const a = await s.addPerson('鈴木', null, [g.id]);
+    await s.deleteGroup(g.id);
+    expect(s.snapshot.groups).toHaveLength(0);
+    expect(s.snapshot.people.find((p) => p.id === a.id)!.groupIds).toEqual([]);
+  });
+
+  it('人を統合するとグループもまとまる', async () => {
+    const s = await fresh();
+    const g1 = await s.addGroup('職場');
+    const g2 = await s.addGroup('大学');
+    const a = await s.addPerson('田中', null, [g1.id]);
+    const b = await s.addPerson('たなか', null, [g2.id]);
+    await s.mergePeople(b.id, a.id);
+    expect(s.snapshot.people.find((p) => p.id === a.id)!.groupIds).toEqual([g1.id, g2.id]);
+  });
+
+  it('バックアップに含まれ、古いバックアップ(グループなし)も読める', async () => {
+    const s = await fresh();
+    const g = await s.addGroup('職場');
+    await s.addPerson('田中', null, [g.id]);
+    const back = parseBackup(JSON.stringify(toBackup(s.snapshot)));
+    expect(back.groups).toHaveLength(1);
+    expect(back.people[0].groupIds).toEqual([g.id]);
+    const old = parseBackup(JSON.stringify({ format: 'kaiwa-shisan-backup', version: 2, people: [], topics: [], entries: [], folders: [] }));
+    expect(old.groups).toEqual([]);
+    const s2 = await fresh();
+    await s2.importData(back, 'merge');
+    expect(s2.snapshot.groups[0].name).toBe('職場');
+  });
+});
+
 describe('起動時の読み込み', () => {
-  const empty = { people: [], topics: [], entries: [], folders: [] };
+  const empty = { people: [], topics: [], entries: [], folders: [], groups: [] };
   const repoOf = (loadAll: () => Promise<any>) => ({ loadAll, putEntry: async () => {}, deleteEntry: async () => {} }) as any;
 
   it('読み終わるまで loaded にならない', async () => {
