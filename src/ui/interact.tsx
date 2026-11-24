@@ -58,6 +58,8 @@ export async function copyText(text: string) {
 interface UiState {
   menu: ItemRef | null;
   move: ItemRef[] | null;
+  /** 中の記録をまとめて削除するフォルダ */
+  clear: ID | null;
 }
 interface SelectState {
   active: boolean;
@@ -67,6 +69,7 @@ interface Ctx {
   ui: UiState;
   openMenu: (i: ItemRef) => void;
   openMove: (items: ItemRef[]) => void;
+  openClear: (folderId: ID) => void;
   close: () => void;
   sel: SelectState;
   setSelecting: (on: boolean) => void;
@@ -77,7 +80,7 @@ const InteractCtx = createContext<Ctx>(null!);
 export const useInteract = () => useContext(InteractCtx);
 
 export function InteractProvider({ children }: { children: ReactNode }) {
-  const [ui, setUi] = useState<UiState>({ menu: null, move: null });
+  const [ui, setUi] = useState<UiState>({ menu: null, move: null, clear: null });
   const [sel, setSel] = useState<SelectState>({ active: false, selected: new Map() });
   // 画面を移動したら選択モードを終える
   useEffect(() => {
@@ -87,9 +90,10 @@ export function InteractProvider({ children }: { children: ReactNode }) {
   }, []);
   const ctx: Ctx = {
     ui,
-    openMenu: (i) => setUi({ menu: i, move: null }),
-    openMove: (items) => setUi({ menu: null, move: items }),
-    close: () => setUi({ menu: null, move: null }),
+    openMenu: (i) => setUi({ menu: i, move: null, clear: null }),
+    openMove: (items) => setUi({ menu: null, move: items, clear: null }),
+    openClear: (id) => setUi({ menu: null, move: null, clear: id }),
+    close: () => setUi({ menu: null, move: null, clear: null }),
     sel,
     setSelecting: (on) => setSel({ active: on, selected: new Map() }),
     toggle: (i) =>
@@ -107,6 +111,7 @@ export function InteractProvider({ children }: { children: ReactNode }) {
       {children}
       <ItemMenu />
       <MoveSheet />
+      <ClearSheet />
       <DragLayer />
       <ToastHost />
     </InteractCtx.Provider>
@@ -156,7 +161,7 @@ export async function moveTo(store: Store, items: ItemRef[], folderId: ID | null
 }
 
 function ItemMenu() {
-  const { ui, close, openMove } = useInteract();
+  const { ui, close, openMove, openClear } = useInteract();
   const store = useStore();
   const data = useData();
   const item = ui.menu;
@@ -196,7 +201,10 @@ function ItemMenu() {
         </button>
       )}
       <button className="sheet-item" onClick={() => openMove([item])}><span className="ic">▤</span>{t('フォルダへ移動')}</button>
-      <button className="sheet-item danger" onClick={act(() => deleteItems(store, [item]))}><span className="ic">🗑</span>{t('削除')}</button>
+      {item.kind === 'folder' && item.scope === 'entry' && (
+        <button className="sheet-item danger" onClick={() => openClear(item.id)}><span className="ic">🗑</span>{t('中の記録をすべて削除')}</button>
+      )}
+      <button className="sheet-item danger" onClick={act(() => deleteItems(store, [item]))}><span className="ic">🗑</span>{item.kind === 'folder' ? t('フォルダを削除') : t('削除')}</button>
     </Sheet>
   );
 }
@@ -224,6 +232,41 @@ function MoveSheet() {
         <button key={c.id} className="sheet-item" onClick={() => go(c.id, c.label)}><span className="ic">▤</span>{c.label}</button>
       ))}
       {choices.length === 0 && <p className="muted small pad">{t('移せるフォルダがありません。先にフォルダを作ってください。')}</p>}
+    </Sheet>
+  );
+}
+
+/** フォルダ内の記録をまとめて削除する確認シート(件数を出し、中のフォルダを含めるか選ぶ) */
+function ClearSheet() {
+  const { ui, close, clearSel } = useInteract();
+  const store = useStore();
+  const data = useData();
+  const id = ui.clear;
+  const folder = id ? data.folders.find((f) => f.id === id) : undefined;
+  if (!id || !folder) return null;
+  const direct = store.folderEntryIds(id, false).length;
+  const deep = store.folderEntryIds(id, true).length;
+  const run = async (inner: boolean) => {
+    close();
+    clearSel();
+    const n = await store.trashFolderEntries(id, inner);
+    toast(t('{n}件を「最近削除した項目」に移しました', { n }));
+  };
+  return (
+    <Sheet onClose={close} title={t('「{name}」の記録をすべて削除', { name: folder.name })}>
+      <p className="muted small sheet-note">{t('記録は「最近削除した項目」に移り、30日間は戻せます。フォルダは残ります。')}</p>
+      {deep === 0 ? (
+        <p className="muted small sheet-note">{t('削除する記録はありません')}</p>
+      ) : deep === direct ? (
+        <button className="sheet-item danger" onClick={() => run(false)}><span className="ic">🗑</span>{t('{n}件の記録を削除', { n: direct })}</button>
+      ) : (
+        <>
+          {direct > 0 && (
+            <button className="sheet-item danger" onClick={() => run(false)}><span className="ic">🗑</span>{t('このフォルダの記録だけ削除（{n}件）', { n: direct })}</button>
+          )}
+          <button className="sheet-item danger" onClick={() => run(true)}><span className="ic">🗑</span>{t('中のフォルダの記録も削除（{n}件）', { n: deep })}</button>
+        </>
+      )}
     </Sheet>
   );
 }
@@ -386,8 +429,8 @@ export function SelectMark({ item }: { item: ItemRef }) {
 }
 
 /** 選択モード中、画面下に出す操作バー */
-export function SelectionBar({ all }: { all: ItemRef[] }) {
-  const { sel, clearSel, openMove, toggle } = useInteract();
+export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 記録のフォルダ内なら、未選択時に「すべて削除」を出す */ folderId?: ID | null }) {
+  const { sel, clearSel, openMove, toggle, openClear } = useInteract();
   const store = useStore();
   if (!sel.active) return null;
   const items = [...sel.selected.values()];
@@ -409,7 +452,11 @@ export function SelectionBar({ all }: { all: ItemRef[] }) {
           clearSel();
         }}>📌</button>
         <button className="link" disabled={!n} onClick={() => openMove(items)}>{t('移動')}</button>
-        <button className="link danger" disabled={!n} onClick={async () => { if (await deleteItems(store, items)) clearSel(); }}>{t('削除')}</button>
+        {!n && folderId ? (
+          <button className="link danger" onClick={() => openClear(folderId)}>{t('すべて削除')}</button>
+        ) : (
+          <button className="link danger" disabled={!n} onClick={async () => { if (await deleteItems(store, items)) clearSel(); }}>{t('削除')}</button>
+        )}
       </div>
     </div>
   );

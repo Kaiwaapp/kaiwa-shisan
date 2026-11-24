@@ -272,6 +272,17 @@ const en: Record<string, string> = {
   "AIの呼び出しに失敗しました": "AI call failed",
   "(お試し表示: APIキーを入れると、ここに画像の文字起こしが入ります)\n田中: 来月、京都に紅葉を見に行くんだ\n自分: いいね、おすすめのお寺を教えるよ": "(Preview: with an API key, the transcription of your image goes here)\nAlex: I'm going to Kyoto next month to see the autumn leaves\nMe: Nice, I'll tell you my favorite temples",
   "雑談": "Small talk",
+  // フォルダ内の記録をまとめて削除
+  'フォルダを削除': 'Delete Folder',
+  '中の記録をすべて削除': 'Delete All Notes in Folder',
+  'すべて削除': 'Delete All',
+  '「{name}」の記録をすべて削除': 'Delete all notes in "{name}"',
+  '記録は「最近削除した項目」に移り、30日間は戻せます。フォルダは残ります。': 'Notes move to Recently Deleted and can be restored for 30 days. The folder itself stays.',
+  '削除する記録はありません': 'There are no notes to delete',
+  '{n}件の記録を削除': 'Delete {n} notes',
+  'このフォルダの記録だけ削除（{n}件）': 'Only notes in this folder ({n})',
+  '中のフォルダの記録も削除（{n}件）': 'Include notes in subfolders ({n})',
+  '{n}件を「最近削除した項目」に移しました': 'Moved {n} notes to Recently Deleted',
 };
 
 export default en;
