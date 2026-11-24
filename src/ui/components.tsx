@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { entryLabel, type AppData, type Entry, type ID } from '../core/types';
+import { entryLabel, entryPreview, type AppData, type Entry, type ID } from '../core/types';
 import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
 import { formatDate, go } from './hooks';
@@ -35,6 +35,20 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
   );
 }
 
+/** 記録の見出し1行+続き1行(はみ出しは「…」)。続きがなければ見出しを2行まで折り返す */
+export function EntryPreview({ entry, pinned }: { entry: Entry; pinned?: boolean }) {
+  const { head, rest } = entryPreview(entry);
+  return (
+    <>
+      <div className={`card-head ${rest ? '' : 'two'} ${head ? '' : 'muted'}`}>
+        {pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
+        {head || t('（本文なし）')}
+      </div>
+      {rest && <div className="card-rest">{rest}</div>}
+    </>
+  );
+}
+
 export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }: {
   entry: Entry;
   data: AppData;
@@ -57,20 +71,7 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
   return (
     <article className={`card ${lifted ? 'lifted' : ''} ${sel.active ? 'selecting' : ''}`} {...handlers}>
       <SelectMark item={item} />
-      {entry.title ? (
-        <>
-          <div className="card-title">
-            {entry.pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
-            {entry.title}
-          </div>
-          {entry.text && <div className="card-text sub">{entry.text}</div>}
-        </>
-      ) : (
-        <div className="card-text">
-          {entry.pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
-          {entry.text || <span className="muted">{t('（本文なし）')}</span>}
-        </div>
-      )}
+      <EntryPreview entry={entry} pinned={entry.pinned} />
       {!sel.active && (
         <button
           className="copy-btn"

@@ -4,7 +4,7 @@ import { Store, folderPath } from './store';
 import { IdbRepository } from './idbRepository';
 import { nameMatches, searchEntries, sortEntriesBy, sortNames, statsBy } from './search';
 import { parseBackup, toBackup } from './backup';
-import { entryLabel } from './types';
+import { entryLabel, entryPreview } from './types';
 
 let n = 0;
 const fresh = async () => {
@@ -42,6 +42,13 @@ describe('Store', () => {
     // タイトルだけの記録も保存できる
     const e3 = await s.saveEntry({ title: 'タイトルだけ', text: '', personIds: [], topicIds: [], talkedOn: '2026-11-22' });
     expect(entryLabel(e3)).toBe('タイトルだけ');
+  });
+
+  it('一覧用の2行表示: 見出し1行と続き1行(改行は空白にまとめる)', () => {
+    expect(entryPreview({ title: '夏の旅行', text: '沖縄の話\n海がきれい' })).toEqual({ head: '夏の旅行', rest: '沖縄の話 海がきれい' });
+    expect(entryPreview({ text: '\n1行目\n2行目\n\n3行目' })).toEqual({ head: '1行目', rest: '2行目 3行目' });
+    expect(entryPreview({ text: '1行だけ' })).toEqual({ head: '1行だけ', rest: '' });
+    expect(entryPreview({ text: '  ' })).toEqual({ head: '', rest: '' });
   });
 
   it('AIの提案から付けた話題は source が ai になる', async () => {

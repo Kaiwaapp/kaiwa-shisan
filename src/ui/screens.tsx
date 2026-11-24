@@ -9,7 +9,7 @@ import { folderDescendants, folderPath, foldersOf } from '../core/store';
 import { Crumbs, FolderEdit, FolderRows, FolderSelect, UpButton, makeDeepCount, rootHref } from './folders';
 import { SelectButton, SelectionBar, toast, useInteract, usePress, SelectMark, type ItemRef } from './interact';
 import type { Folder } from '../core/types';
-import { EntryList, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
+import { EntryList, EntryPreview, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
 
@@ -160,8 +160,7 @@ export function TrashScreen() {
             {trash.map((e) => (
               <article key={e.id} className={`card selecting ${picked.has(e.id) ? 'picked' : ''}`} onClick={() => toggle(e.id)}>
                 <span className={`select-mark ${picked.has(e.id) ? 'on' : ''}`}>{picked.has(e.id) ? '✓' : ''}</span>
-                {e.title && <div className="card-title">{e.title}</div>}
-                {(e.text || !e.title) && <div className={`card-text ${e.title ? 'sub' : ''}`}>{e.text || t('（本文なし）')}</div>}
+                <EntryPreview entry={e} />
                 <div className="card-meta"><span className="date">{t('あと{n}日', { n: daysLeft(e.deletedAt!) })}</span></div>
               </article>
             ))}
