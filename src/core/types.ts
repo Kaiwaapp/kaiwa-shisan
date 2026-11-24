@@ -45,9 +45,11 @@ export interface TopicTag {
   source: TagSource;
 }
 
-/** 記録1件 = 自由記述テキスト + 話した相手(複数) + 話題タグ */
+/** 記録1件 = タイトル(任意) + 自由記述テキスト + 話した相手(複数) + 話題タグ */
 export interface Entry {
   id: ID;
+  /** タイトル(任意)。未設定なら一覧では本文の1行目を見出しに使う */
+  title?: string;
   text: string;
   personIds: ID[];
   topics: TopicTag[];
@@ -96,3 +98,7 @@ export const today = (d = new Date()): string => {
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
+
+/** 一覧などに出す見出し。タイトルがなければ本文の1行目(iPhoneのメモと同じ) */
+export const entryLabel = (e: { title?: string; text: string }, max = 40): string =>
+  (e.title?.trim() || e.text.trim().split('\n')[0]).slice(0, max);

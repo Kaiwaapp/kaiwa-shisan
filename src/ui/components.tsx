@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { AppData, Entry, ID } from '../core/types';
+import { entryLabel, type AppData, type Entry, type ID } from '../core/types';
 import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
 import { formatDate, go } from './hooks';
@@ -51,16 +51,26 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
     .map((t) => data.topics.find((x) => x.id === t.topicId))
     .filter(Boolean);
   const folder = !hideFolder && entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
-  const item: ItemRef = { kind: 'entry', id: entry.id, label: entry.text.split('\n')[0].slice(0, 24) || t('（本文なし）'), scope: 'entry' };
+  const item: ItemRef = { kind: 'entry', id: entry.id, label: entryLabel(entry, 24) || t('（本文なし）'), scope: 'entry' };
   const { lifted, handlers } = usePress(item, () => go(`/edit/${entry.id}`));
   const { sel } = useInteract();
   return (
     <article className={`card ${lifted ? 'lifted' : ''} ${sel.active ? 'selecting' : ''}`} {...handlers}>
       <SelectMark item={item} />
-      <div className="card-text">
-        {entry.pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
-        {entry.text || <span className="muted">{t('（本文なし）')}</span>}
-      </div>
+      {entry.title ? (
+        <>
+          <div className="card-title">
+            {entry.pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
+            {entry.title}
+          </div>
+          {entry.text && <div className="card-text sub">{entry.text}</div>}
+        </>
+      ) : (
+        <div className="card-text">
+          {entry.pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
+          {entry.text || <span className="muted">{t('（本文なし）')}</span>}
+        </div>
+      )}
       {!sel.active && (
         <button
           className="copy-btn"

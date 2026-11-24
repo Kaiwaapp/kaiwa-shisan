@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { aiErrorMessage, demoFolders, isDemo, organizeReady, suggestFolders, type OrganizeItem } from '../core/ai';
 import { foldersOf } from '../core/store';
 import { normalize } from '../core/search';
-import type { FolderScope, ID } from '../core/types';
+import { entryLabel, type FolderScope, type ID } from '../core/types';
 import { back, go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { folderChoices, rootHref, SCOPE_LABEL } from './folders';
@@ -35,10 +35,10 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
     if (scope === 'entry') {
       return entries.map((e) => ({
         id: e.id,
-        label: e.text.split('\n')[0].slice(0, 40),
+        label: entryLabel(e),
         folderId: e.folderId,
         item: {
-          text: e.text,
+          text: e.title ? `${e.title}\n${e.text}` : e.text,
           hints: [
             ...e.topics.map((t) => topicName.get(t.topicId)).filter((x): x is string => !!x),
             ...e.personIds.map((p) => personName.get(p)).filter((x): x is string => !!x),

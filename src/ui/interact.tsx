@@ -181,7 +181,7 @@ function ItemMenu() {
         <>
           <button className="sheet-item" onClick={act(() => copyText(entry.text))}><span className="ic">⧉</span>{t('本文をコピー')}</button>
           {'share' in navigator && (
-            <button className="sheet-item" onClick={act(() => navigator.share({ text: entry.text }).catch(() => {}))}>
+            <button className="sheet-item" onClick={act(() => navigator.share({ ...(entry.title ? { title: entry.title } : {}), text: entry.title ? `${entry.title}\n${entry.text}` : entry.text }).catch(() => {}))}>
               <span className="ic">↑</span>{t('共有')}
             </button>
           )}
