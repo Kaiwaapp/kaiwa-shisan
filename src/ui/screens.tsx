@@ -589,9 +589,7 @@ export function PersonScreen({ id }: { id: ID }) {
             </div>
           )}
           <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? t('該当なし') : t('まだ記録がありません')} />
-          <button className="btn block ghost" onClick={() => go(`/new?person=${id}`)}>
-            {t('＋ {name}に話したことを記録', { name: person.name })}
-          </button>
+          <AddEntryFab to={`/new?person=${id}`} label={t('＋ {name}に話したことを記録', { name: person.name })} />
         </>
       )}
     </div>
@@ -678,12 +676,21 @@ export function TopicScreen({ id }: { id: ID }) {
             {entries.length > 1 && <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />}
           </div>
           <EntryList entries={shown} data={data} hideTopicId={id} empty={t('まだ記録がありません')} />
-          <button className="btn block ghost" onClick={() => go(`/new?topic=${id}`)}>
-            {t('＋ {name}の記録を追加', { name: '#' + topic.name })}
-          </button>
+          <AddEntryFab to={`/new?topic=${id}`} label={t('＋ {name}の記録を追加', { name: '#' + topic.name })} />
         </>
       )}
     </div>
+  );
+}
+
+// 人・話題の詳細の右下「＋」。押すとその人／話題を紐づけた新しい記録を作る
+function AddEntryFab({ to, label }: { to: string; label: string }) {
+  const selecting = useInteract().sel.active;
+  if (selecting) return null;
+  return (
+    <button className="fab" aria-label={label} title={label} onClick={() => go(to)}>
+      ＋
+    </button>
   );
 }
 
