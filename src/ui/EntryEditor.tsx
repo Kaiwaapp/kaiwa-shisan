@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
 import { ComboPicker, FavButton, FavToggle, Header } from './components';
-import { copyText } from './interact';
+import { copyText, toast } from './interact';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
 import { t } from '../i18n';
@@ -95,13 +95,25 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     );
   }
 
-  const canSave = (text.trim().length > 0 || title.trim().length > 0) && !saving;
+  const hasContent = text.trim().length > 0 || title.trim().length > 0;
   const save = async () => {
-    if (!canSave) return;
+    if (saving) return;
+    // 押せない理由がわかるように、ボタンは無効にせずにお知らせする
+    if (!hasContent) {
+      toast(feat.title ? t('本文かタイトルを入力してください') : t('本文を入力してください'));
+      return;
+    }
     setSaving(true);
     // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
-    await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, ...(existing ? {} : { favorite: newFav }) }, id);
+    try {
+      await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, ...(existing ? {} : { favorite: newFav }) }, id);
+    } catch {
+      // 保存に失敗したら入力はそのまま残して、もう一度押せるようにする
+      setSaving(false);
+      toast(t('保存できませんでした。もう一度押してください'));
+      return;
+    }
     back();
   };
   const remove = async () => {
@@ -120,7 +132,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
             {existing
               ? <FavToggle kind="entry" id={existing.id} on={!!existing.favorite} className="in-header" />
               : <FavButton on={newFav} onToggle={() => setNewFav(!newFav)} className="in-header" />}
-            <button className="link strong" disabled={!canSave} onClick={save}>{t('保存')}</button>
+            <button className={`link strong ${hasContent ? '' : 'dim'}`} aria-disabled={!hasContent || saving} onClick={save}>{saving ? t('保存中…') : t('保存')}</button>
           </span>
         }
       />

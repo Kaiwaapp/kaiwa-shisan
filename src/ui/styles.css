@@ -50,7 +50,7 @@ button:disabled { opacity: .4; cursor: default; }
 .screen.editor { padding-bottom: 40px; }
 
 .header {
-  position: sticky; top: 0; z-index: 5;
+  position: sticky; top: 0; z-index: 30; /* 人・話題の候補のドロップダウン(20)より上に。下に潜ると保存ボタンが押せなくなる */
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
   padding: calc(var(--safe-t) + 10px) 0 10px;
   margin: 0 -16px 8px; padding-left: 16px; padding-right: 16px;
@@ -444,3 +444,7 @@ body.dragging { cursor: grabbing; }
 .fold-chev.open { transform: rotate(90deg); }
 .fold-hint { margin-left: auto; font-weight: 500; font-size: 12px; opacity: .8; }
 .group-bar .fold-header { margin-top: 0; }
+.link.dim { opacity: .4; }
+/* 作ったばかりのフォルダを少しの間目立たせる */
+.row-item.just-added { animation: just-added 2.2s ease-out; }
+@keyframes just-added { 0%, 40% { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); } 100% { background: transparent; } }

@@ -19,6 +19,12 @@ const STORES = ['people', 'topics', 'entries', 'folders', 'groups'] as const;
 const HEDGE_DELAYS_MS = [250, 600, 1200, 2500];
 /** これだけ待っても開けなければ失敗とする(呼び出し側で再試行) */
 const OPEN_TIMEOUT_MS = 6000;
+/**
+ * 1件の書き込みがこれだけ待っても終わらなければ、接続が切れているとみなして開き直す。
+ * iOSではアプリを裏に回して戻ると、接続が切れたまま put が返ってこないことがあり、
+ * そのままだと保存ボタンが押せないままになる
+ */
+const WRITE_TIMEOUT_MS = 3000;
 
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -85,6 +91,11 @@ export class IdbRepository implements Repository {
     return p;
   }
 
+  /** 1件の書き込み。返ってこなければ時間切れにして、接続を作り直して書き直す(同じ内容なので2回書いても問題ない) */
+  private write<T>(fn: (db: IDBPDatabase<Schema>) => Promise<T>): Promise<T> {
+    return this.run((db) => withTimeout(fn(db), WRITE_TIMEOUT_MS));
+  }
+
   /** 1回失敗したら接続を作り直してもう1回だけ試す */
   private async run<T>(fn: (db: IDBPDatabase<Schema>) => Promise<T>): Promise<T> {
     const first = this.open();
@@ -114,16 +125,16 @@ export class IdbRepository implements Repository {
     return { people, topics, entries: entries.map((e) => ({ ...e, folderId: e.folderId ?? null })), folders: folders.map((f) => ({ ...f, parentId: f.parentId ?? null })), groups };
   }
 
-  async putPerson(p: Person) { await this.run((db) => db.put('people', p)); }
-  async deletePerson(id: string) { await this.run((db) => db.delete('people', id)); }
-  async putTopic(t: Topic) { await this.run((db) => db.put('topics', t)); }
-  async deleteTopic(id: string) { await this.run((db) => db.delete('topics', id)); }
-  async putEntry(e: Entry) { await this.run((db) => db.put('entries', e)); }
-  async deleteEntry(id: string) { await this.run((db) => db.delete('entries', id)); }
-  async putFolder(f: Folder) { await this.run((db) => db.put('folders', f)); }
-  async deleteFolder(id: string) { await this.run((db) => db.delete('folders', id)); }
-  async putGroup(g: Group) { await this.run((db) => db.put('groups', g)); }
-  async deleteGroup(id: string) { await this.run((db) => db.delete('groups', id)); }
+  async putPerson(p: Person) { await this.write((db) => db.put('people', p)); }
+  async deletePerson(id: string) { await this.write((db) => db.delete('people', id)); }
+  async putTopic(t: Topic) { await this.write((db) => db.put('topics', t)); }
+  async deleteTopic(id: string) { await this.write((db) => db.delete('topics', id)); }
+  async putEntry(e: Entry) { await this.write((db) => db.put('entries', e)); }
+  async deleteEntry(id: string) { await this.write((db) => db.delete('entries', id)); }
+  async putFolder(f: Folder) { await this.write((db) => db.put('folders', f)); }
+  async deleteFolder(id: string) { await this.write((db) => db.delete('folders', id)); }
+  async putGroup(g: Group) { await this.write((db) => db.put('groups', g)); }
+  async deleteGroup(id: string) { await this.write((db) => db.delete('groups', id)); }
 
   replaceAll(data: AppData) {
     return this.run((db) => this.writeAll(db, data));
