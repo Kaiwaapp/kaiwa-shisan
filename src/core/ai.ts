@@ -1,7 +1,11 @@
 // AI機能(試作)。スクショの文字起こしと、話題・相手の自動提案。
 // 試作では、ユーザー自身のAPIキーを端末内に保存し、ブラウザから直接 Claude API を呼ぶ。
 // 将来の課金版では、この関数の中身をサーバー経由の呼び出しに差し替える想定。
-import Anthropic from '@anthropic-ai/sdk';
+// SDKは大きいので、AIを実際に呼ぶ時だけ読み込む(起動を軽くするため)
+import type Anthropic from '@anthropic-ai/sdk';
+
+type Sdk = typeof import('@anthropic-ai/sdk').default;
+let SDK: Sdk | null = null;
 import { currentLang, t } from '../i18n';
 
 export const AI_MODEL = 'claude-haiku-5-5';
@@ -88,9 +92,10 @@ export async function demoSuggest(text: string, known: { people: string[]; topic
   return { topics: topics.slice(0, 4), people: people.slice(0, 4), yen: 0 };
 }
 
-export function client(apiKey: string) {
+export async function client(apiKey: string) {
+  SDK ??= (await import('@anthropic-ai/sdk')).default;
   // ブラウザから直接呼ぶ(キーはこの端末の中だけ)。公開サービスにする時はサーバー経由にする
-  return new Anthropic({ apiKey: apiKey.trim(), dangerouslyAllowBrowser: true, maxRetries: 1 });
+  return new SDK({ apiKey: apiKey.trim(), dangerouslyAllowBrowser: true, maxRetries: 1 });
 }
 
 /** 1回の呼び出しの料金(円)を足し込み、その回の金額を返す */
@@ -111,6 +116,9 @@ export function textOf(msg: Anthropic.Message): string {
 }
 
 export function aiErrorMessage(e: unknown): string {
+  // SDKのエラーはSDKを読み込んだ後にしか起きないので、未読み込みなら普通のエラーとして扱う
+  const Anthropic = SDK;
+  if (!Anthropic) return (e as Error)?.message || t('AIの呼び出しに失敗しました');
   if (e instanceof Anthropic.AuthenticationError) return t('APIキーが正しくないようです。設定を確認してください');
   if (e instanceof Anthropic.PermissionDeniedError) return t('このAPIキーでは使えません(権限がありません)');
   if (e instanceof Anthropic.RateLimitError) return t('短時間に使いすぎました。少し待ってからもう一度お試しください');
@@ -145,7 +153,7 @@ export async function imageToBase64(file: Blob, maxSide = 1568): Promise<{ data:
 /** スクショの文字起こし。会話の画面なら「話者: 発言」の形にする */
 export async function transcribeImage(apiKey: string, image: Blob): Promise<{ text: string; yen: number }> {
   const img = await imageToBase64(image);
-  const msg = await client(apiKey).messages.create({
+  const msg = await (await client(apiKey)).messages.create({
     model: AI_MODEL,
     max_tokens: 4000,
     output_config: { effort: 'low' },
@@ -179,7 +187,7 @@ export async function suggestTags(
   known: { people: string[]; topics: string[] },
 ): Promise<Suggestion & { yen: number }> {
   const list = (xs: string[]) => (xs.length ? xs.slice(0, 300).join('、') : '(まだありません)');
-  const msg = await client(apiKey).messages.create({
+  const msg = await (await client(apiKey)).messages.create({
     model: AI_MODEL,
     max_tokens: 2000,
     output_config: {
@@ -252,7 +260,7 @@ export async function suggestFolders(
     const hint = it.hints.length ? ` [${it.hints.join('、')}]` : '';
     return `${i}: ${it.text.replace(/\s+/g, ' ').slice(0, 200)}${hint}`;
   });
-  const msg = await client(apiKey).messages.create({
+  const msg = await (await client(apiKey)).messages.create({
     model: AI_MODEL,
     max_tokens: 8000,
     output_config: {
@@ -324,7 +332,7 @@ export async function demoFolders(items: OrganizeItem[], folders: string[]): Pro
 
 /** キーが使えるかを確かめる(ごく短い呼び出し) */
 export async function testApiKey(apiKey: string): Promise<void> {
-  const msg = await client(apiKey).messages.create({
+  const msg = await (await client(apiKey)).messages.create({
     model: AI_MODEL,
     max_tokens: 16,
     output_config: { effort: 'low' },

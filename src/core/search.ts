@@ -15,27 +15,40 @@ export const nameMatches = (x: { name: string; reading?: string; profile?: Perso
   return profileValues(x.profile).some((v) => normalize(v).includes(n));
 };
 
+/**
+ * 記録ごとの検索用文字列(正規化済み)。打つたびに全件を作り直すと件数が多い時に重いので使い回す。
+ * 記録・人・話題・グループが変わると別のオブジェクト(配列)になるので、それを見て作り直す
+ */
+const hayCache = new WeakMap<Entry, { p: unknown; t: unknown; g: unknown; hay: string }>();
+
 /** スペース区切りの全語を、タイトル・本文・メモ・人の名前・話題名のどこかに含む記録を返す */
 export function searchEntries(data: AppData, query: string): Entry[] {
   const words = normalize(query).split(/\s+/).filter(Boolean);
-  const sorted = sortEntries(data.entries);
-  if (words.length === 0) return sorted;
-  const pName = new Map(data.people.map((p) => [p.id, `${p.name} ${p.reading ?? ''}`]));
-  const tName = new Map(data.topics.map((t) => [t.id, `${t.name} ${t.reading ?? ''}`]));
-  const gName = new Map((data.groups ?? []).map((g) => [g.id, g.name]));
-  return sorted.filter((e) => {
+  if (words.length === 0) return sortEntries(data.entries);
+  let names: { p: Map<string, string>; t: Map<string, string>; g: Map<string, string> } | null = null;
+  const hayOf = (e: Entry): string => {
+    const c = hayCache.get(e);
+    if (c && c.p === data.people && c.t === data.topics && c.g === data.groups) return c.hay;
+    names ??= {
+      p: new Map(data.people.map((p) => [p.id, `${p.name} ${p.reading ?? ''}`])),
+      t: new Map(data.topics.map((t) => [t.id, `${t.name} ${t.reading ?? ''}`])),
+      g: new Map((data.groups ?? []).map((g) => [g.id, g.name])),
+    };
+    const n = names;
     const hay = normalize(
       [
         e.title ?? '',
         e.text,
         e.memo ?? '',
-        ...e.personIds.map((id) => pName.get(id) ?? ''),
-        ...(e.groupIds ?? []).map((id) => gName.get(id) ?? ''),
-        ...e.topics.map((t) => tName.get(t.topicId) ?? ''),
+        ...e.personIds.map((id) => n.p.get(id) ?? ''),
+        ...(e.groupIds ?? []).map((id) => n.g.get(id) ?? ''),
+        ...e.topics.map((t) => n.t.get(t.topicId) ?? ''),
       ].join('\n'),
     );
-    return words.every((w) => hay.includes(w));
-  });
+    hayCache.set(e, { p: data.people, t: data.topics, g: data.groups, hay });
+    return hay;
+  };
+  return sortEntries(data.entries.filter((e) => { const hay = hayOf(e); return words.every((w) => hay.includes(w)); }));
 }
 
 /** 新しい順(話した日→作成日時) */

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { PersonProfileSection } from './profile';
 import { entryHasPerson, entryLabel, type ID } from '../core/types';
 import {
@@ -23,6 +23,8 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
   const data = useData();
   const store = useStore();
   const [q, setQ] = useState('');
+  // 入力中は前の結果を出したまま裏で検索し、打鍵を待たせない
+  const dq = useDeferredValue(q);
   const [sort, setSort] = usePref<EntrySort>('entrySort', 'newest');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -73,11 +75,11 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
   );
   // 検索はこのフォルダ以下すべて(一番上なら全体)が対象
   const results = useMemo(() => {
-    if (!q.trim()) return null;
+    if (!dq.trim()) return null;
     const scope = folderId ? new Set([folderId, ...folderDescendants(folders, folderId)]) : null;
     const pool = scope ? data.entries.filter((e) => e.folderId && scope.has(e.folderId)) : data.entries;
-    return sortEntriesBy(searchEntries({ ...data, entries: pool }, q), sort);
-  }, [q, data, folders, folderId, sort]);
+    return sortEntriesBy(searchEntries({ ...data, entries: pool }, dq), sort);
+  }, [dq, data, folders, folderId, sort]);
 
   if (folderId && !folder) return <Missing />;
   const parent = folder?.parentId ? folders.find((f) => f.id === folder.parentId) : undefined;
@@ -203,11 +205,13 @@ export function TrashScreen() {
 export function AllEntriesScreen({ fav }: { fav?: boolean }) {
   const data = useData();
   const [q, setQ] = useState('');
+  // 入力中は前の結果を出したまま裏で検索し、打鍵を待たせない
+  const dq = useDeferredValue(q);
   const [sort, setSort] = usePref<EntrySort>('entrySort', 'newest');
   const list = useMemo(() => {
     const pool = fav ? { ...data, entries: data.entries.filter((e) => e.favorite) } : data;
-    return sortEntriesBy(searchEntries(pool, q), sort);
-  }, [data, q, sort, fav]);
+    return sortEntriesBy(searchEntries(pool, dq), sort);
+  }, [data, dq, sort, fav]);
   return (
     <div className="screen">
       <Header title={fav ? t('★ お気に入りの記録') : t('すべての記録')} left={<button className="link" onClick={() => back('/')}>{t('‹ 戻る')}</button>} />
@@ -518,6 +522,8 @@ export function PersonScreen({ id }: { id: ID }) {
   const person = data.people.find((p) => p.id === id);
   useEffect(() => { store.markViewed('person', id); }, [store, id]);
   const [q, setQ] = useState('');
+  // 入力中は前の結果を出したまま裏で検索し、打鍵を待たせない
+  const dq = useDeferredValue(q);
   const [sort, setSort] = usePref<EntrySort>('detailSort', 'newest');
   const [topicFilter, setTopicFilter] = useState<ID | null>(null);
   const [entriesOpen, setEntriesOpen] = useFold('person-entries');
@@ -537,8 +543,8 @@ export function PersonScreen({ id }: { id: ID }) {
   }, [mine]);
   const shown = useMemo(() => {
     const base = topicFilter ? mine.filter((e) => e.topics.some((t) => t.topicId === topicFilter)) : mine;
-    return sortEntriesBy(searchEntries({ ...data, entries: base }, q), sort);
-  }, [mine, topicFilter, q, data, sort]);
+    return sortEntriesBy(searchEntries({ ...data, entries: base }, dq), sort);
+  }, [mine, topicFilter, dq, data, sort]);
 
   if (!person) return <Missing />;
 
