@@ -23,6 +23,13 @@ const retry = () => { if (!store.loaded && document.visibilityState === 'visible
 document.addEventListener('visibilitychange', retry);
 addEventListener('pageshow', retry);
 
+// キーボードが出ているか(見えている高さが大きく減ったら出ている)。編集画面の下の余白をこの間だけ付ける
+const vv = window.visualViewport;
+if (vv) {
+  const onVv = () => document.documentElement.classList.toggle('kb-open', vv.height < window.innerHeight - 120);
+  vv.addEventListener('resize', onVv);
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App store={store} />

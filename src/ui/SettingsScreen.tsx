@@ -95,6 +95,11 @@ export function SettingsScreen() {
             </span>
             <span className="chev">›</span>
           </li>
+          <li className="row-item" onClick={() => go('/settings/guide')}>
+            <span className="name">{t('使い方ガイド')}</span>
+            <span className="sub">{t('画面の構成と使える機能')}</span>
+            <span className="chev">›</span>
+          </li>
         </ul>
 
         {/* 人・話題それぞれの設定はカテゴリごとの欄にまとめる。今後の設定もここに足す */}

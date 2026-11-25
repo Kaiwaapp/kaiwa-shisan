@@ -52,7 +52,7 @@ export const FEATURE_LABELS: Record<(typeof FEATURE_KEYS)[number], { label: stri
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: true, readingTopic: true };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false };
 
 const load = (): Features => {
   try {

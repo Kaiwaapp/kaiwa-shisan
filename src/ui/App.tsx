@@ -9,6 +9,7 @@ import { NewNameScreen } from './NewName';
 import { GroupScreen } from './groups';
 import { SettingsScreen } from './SettingsScreen';
 import { FeaturesScreen } from './FeaturesScreen';
+import { GuideScreen } from './GuideScreen';
 import { ProfileFieldsScreen } from './profile';
 import { t, useLang } from '../i18n';
 
@@ -77,6 +78,7 @@ function Shell() {
     else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;
   }
   else if (head === 'settings' && sub === 'profile') screen = <ProfileFieldsScreen />;
+  else if (head === 'settings' && sub === 'guide') screen = <GuideScreen />;
   else if (head === 'settings') screen = sub === 'features' ? <FeaturesScreen /> : <SettingsScreen />;
   else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen /></Suspense>;
   else if (head === 'organize') screen = <OrganizeScreen key={sub} scope={sub === 'person' || sub === 'topic' ? sub : 'entry'} />;

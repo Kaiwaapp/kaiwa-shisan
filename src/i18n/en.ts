@@ -484,6 +484,22 @@ const en: Record<string, string> = {
   '人の名前に入力した文字から読み仮名を作る': "Make a reading from what you type for a person's name",
   '話題に入力した文字から読み仮名を作る': "Make a reading from what you type for a topic",
   '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。': "When typing Japanese, the kana before conversion is saved as the reading of new names (used for search).",
+  '入力した文字から読み仮名を登録する': "Save a reading from what you type",
+  '使い方ガイド': "Guide",
+  '画面の構成と使える機能': "Screens and features",
+  '画面の構成': "Screens",
+  '使える機能': "Features you can use",
+  '記録：話した内容を1件ずつ書いてためる画面。フォルダに分けられます': "Notes: write down what you talked about, one note at a time. You can sort them into folders.",
+  '人：話した相手の一覧。人を開くと、その人に話した記録とプロフィールが見られます': "People: everyone you talked to. Open a person to see the notes you shared with them and their profile.",
+  '話題：話した内容のテーマの一覧。話題を開くと、その話題の記録と話した相手が見られます': "Topics: the themes of your talks. Open a topic to see its notes and who you told.",
+  '設定：使う機能のオンオフ、人・話題ごとの設定、バックアップ': "Settings: turn features on or off, people and topic settings, and backups.",
+  '右下の＋で新しい記録。開いているフォルダや人・話題が付いた状態で作れます': "Tap + at the bottom right for a new note. It starts with the folder, person or topic you have open.",
+  '検索：本文・人・話題で探せます。読み仮名でも探せます': "Search: find notes by text, person or topic, including by reading.",
+  '長押し：並べ替え、フォルダへの移動、複数選択、ピン留め、削除': "Long press: reorder, move to a folder, select several, pin or delete.",
+  '★お気に入りと「All」：見出しの左から、お気に入りやすべての一覧を開けます': "★ Favorites and \"All\": open your favorites or everything from the left of the header.",
+  '人のグループ：人をグループに入れて、記録の相手としてまとめて選べます': "Groups: put people in a group and pick the whole group for a note.",
+  'コピーボタン：本文をコピーして、別の人に同じ話をするときに使えます': "Copy button: copy a note's text to tell the same story to someone else.",
+  'バックアップ：データはこの端末の中にあります。ときどき書き出して保存してください': "Backup: your data lives on this device. Export it from time to time.",
 };
 
 export default en;

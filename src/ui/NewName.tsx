@@ -5,7 +5,7 @@ import { back, useData, useStore } from './hooks';
 import { Header } from './components';
 import { currentLang, t } from '../i18n';
 import { useAutoReading } from './reading';
-import { useFeatures } from './features';
+import { setFeature, useFeatures } from './features';
 
 /** 人タブ・話題タブの右下「＋」から開く、人／話題の新規追加画面 */
 export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; folderId: ID | null }) {
@@ -14,8 +14,11 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
   const [name, setName] = useState('');
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
+  // 設定の人・話題の欄と同じチェック。ここで変えると設定にも反映される
+  const readingKey = kind === 'person' ? 'readingPerson' : 'readingTopic';
+  const autoOn = useFeatures()[readingKey];
   const clean = name.trim().replace(kind === 'topic' ? /^#/ : /^$/, '');
-  const { reading, setReading, isAuto } = useAutoReading(clean, '', useFeatures()[kind === 'person' ? 'readingPerson' : 'readingTopic']);
+  const { reading, setReading, isAuto } = useAutoReading(clean, '', autoOn);
   const list = kind === 'person' ? data.people : data.topics;
   const dup = clean ? list.find((x) => normalize(x.name) === normalize(clean)) : undefined;
   const base = kind === 'person' ? '#/people/' : '#/topics/';
@@ -65,6 +68,10 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
         {currentLang() === 'ja' && (
           <section className="field">
             <label>{t('読み仮名（検索用）')}</label>
+            <label className="toggle small-toggle">
+              <input type="checkbox" checked={autoOn} onChange={(e) => setFeature(readingKey, e.target.checked)} />
+              <span>{t('入力した文字から読み仮名を登録する')}</span>
+            </label>
             <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder={kind === 'person' ? t('例：たなか') : t('例：りょこう')} />
             {isAuto && <p className="muted small">{t('名前の入力から読み仮名を入れました')}</p>}
           </section>
