@@ -39,6 +39,9 @@ function FeatureGroup({ gkey, title, items }: { gkey: string; title: string; ite
                     <span className="muted small block-note">{t(FEATURE_LABELS[k].note)}</span>
                   </span>
                 </label>
+                {k === 'presetHint' && (
+                  <button className="btn block small-btn" onClick={() => go('/topics/presets')}>{t('おすすめの話題から登録')}</button>
+                )}
                 {k === 'profile' && feat.profile && (
                   <button className="btn block small-btn" onClick={() => go('/settings/profile')}>{t('プロフィールの項目を編集')}</button>
                 )}

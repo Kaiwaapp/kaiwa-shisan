@@ -14,6 +14,15 @@ const fresh = async () => {
 };
 
 describe('Store', () => {
+  it('話題をまとめて登録し、同じ名前の話題は登録しない', async () => {
+    const s = await fresh();
+    await s.addTopic('旅行');
+    const n = await s.addTopicsBulk([{ name: '旅行' }, { name: '映画', reading: 'えいが' }, { name: '映画' }]);
+    expect(n).toBe(1);
+    expect(s.snapshot.topics.map((t) => t.name)).toEqual(['旅行', '映画']);
+    expect(s.snapshot.topics[1].reading).toBe('えいが');
+  });
+
   it('記録を保存して再読み込みできる', async () => {
     const repo = new IdbRepository('persist');
     const s = new Store(repo);

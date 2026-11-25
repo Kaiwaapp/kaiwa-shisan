@@ -29,15 +29,17 @@ export interface Features {
   readingPerson: boolean;
   /** 話題: 名前に入力した文字から読み仮名を作る。設定画面の「話題」の欄に出す */
   readingTopic: boolean;
+  /** 話題: 話題タブに「おすすめの話題から登録」の案内を出す(案内の「今後表示しない」でオフになる) */
+  presetHint: boolean;
 }
 
-export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard'] as const;
+export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard', 'presetHint'] as const;
 
 /** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
   { key: 'entry', title: '記録', items: ['title', 'memo', 'images', 'copy', 'recent', 'confirmDiscard'] },
   { key: 'person', title: '人', items: ['readingPerson', 'groups', 'profile'] },
-  { key: 'topic', title: '話題', items: ['readingTopic'] },
+  { key: 'topic', title: '話題', items: ['readingTopic', 'presetHint'] },
   { key: 'common', title: '全体', items: ['folders', 'favorites', 'import'] },
 ];
 
@@ -55,11 +57,12 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   profile: { label: '人のプロフィール', note: '人の画面の年齢・仕事・趣味などの欄' },
   readingPerson: { label: '人の名前に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   readingTopic: { label: '話題に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
+  presetHint: { label: 'おすすめの話題の案内', note: '話題タブに、用意した話題リストから登録する案内を出す' },
   confirmDiscard: { label: '保存せずに戻るときの確認', note: '記録を入力したままキャンセルしたとき、保存されないことを確認する' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true };
 
 const load = (): Features => {
   try {

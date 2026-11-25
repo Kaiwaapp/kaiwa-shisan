@@ -13,6 +13,7 @@ import type { Folder } from '../core/types';
 import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
+import { PresetHint } from './PresetTopics';
 import { useFeatures } from './features';
 import { Fab, createItems, useAddRequest } from './fab';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
@@ -411,6 +412,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
           ) : (
             <>
               {kind === 'person' && !folderId && feat.groups && <GroupBar />}
+              {kind === 'topic' && !folderId && <PresetHint />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t(unit, { n: here.length })}
