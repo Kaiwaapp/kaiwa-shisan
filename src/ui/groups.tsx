@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useAddRequest } from './fab';
 import type { Group, ID, Person } from '../core/types';
 import { NAME_SORTS, normalize, sortEntries, type NameSort } from '../core/search';
 import { back, go, useData, usePref, useStore } from './hooks';
@@ -37,6 +38,7 @@ export function GroupBar() {
   const [name, setName] = useState('');
   const groups = [...data.groups].sort(byName);
   const [open, setOpen] = useFold('groups');
+  useAddRequest('group', () => setAdding(true));
   const create = async () => {
     if (!name.trim()) return;
     const g = await store.addGroup(name);

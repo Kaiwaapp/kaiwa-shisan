@@ -12,6 +12,8 @@ import { FeaturesScreen } from './FeaturesScreen';
 import { GuideScreen } from './GuideScreen';
 import { ProfileFieldsScreen } from './profile';
 import { t, useLang } from '../i18n';
+import { Fab, createItems } from './fab';
+import { useFeatures } from './features';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
@@ -39,6 +41,7 @@ function Shell() {
   const loaded = useLoaded();
   const { path, query } = useRoute();
   const selecting = useInteract().sel.active;
+  const feat = useFeatures();
   const [head, sub] = path;
 
   if (!loaded) return <Loading />;
@@ -92,18 +95,27 @@ function Shell() {
   const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('話題を追加') : t('記録を追加');
   const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
 
+  // 人タブ・話題タブでは人／話題を追加(開いているフォルダに入れる)。記録の追加は記録タブと各詳細画面の＋から
+  const inFolder = sub === 'f' && third ? `?folder=${third}` : '';
+  const fabTap = () => {
+    if (head === 'people' || head === 'topics') go(`/${head}/new` + inFolder);
+    else go(head === 'f' && sub ? `/new?folder=${sub}` : '/new');
+  };
+  // 長押しメニュー: その画面で作れるもの。フォルダは一覧(フォルダを出す画面)のときだけ、グループは人タブの一番上だけ
+  const onFolderList = head === 'people' || head === 'topics' ? (!sub || sub === 'f') : (!head || head === 'f');
+  const fabItems = createItems({
+    first: { icon: head === 'people' ? '☺' : head === 'topics' ? '#' : '✎', label: fabLabel, run: fabTap },
+    entry: head === 'people' || head === 'topics' ? '/new' : undefined,
+    people: head !== 'people' ? '/people/new' : undefined,
+    topics: head !== 'topics' ? '/topics/new' : undefined,
+    group: head === 'people' && !sub && feat.groups,
+    folder: onFolderList && feat.folders,
+  });
+
   return (
     <div className="app">
       <main className="main">{screen}</main>
-      {showFab && (
-        <button className="fab" aria-label={fabLabel} onClick={() => {
-          // 人タブ・話題タブでは人／話題を追加(開いているフォルダに入れる)。記録の追加は記録タブと各詳細画面の＋から
-          if (head === 'people' || head === 'topics') go(`/${head}/new` + (sub === 'f' && path[2] ? `?folder=${path[2]}` : ''));
-          else go(head === 'f' && sub ? `/new?folder=${sub}` : '/new');
-        }}>
-          ＋
-        </button>
-      )}
+      {showFab && <Fab label={fabLabel} onTap={fabTap} items={fabItems} />}
       <nav className="tabbar">
         {TABS.map((tb) => (
           <button

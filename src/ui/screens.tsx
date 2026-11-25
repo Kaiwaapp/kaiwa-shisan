@@ -14,6 +14,7 @@ import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSe
 import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
 import { useFeatures } from './features';
+import { Fab, createItems, useAddRequest } from './fab';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
@@ -31,6 +32,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
   const feat = useFeatures();
   // フォルダ機能オフ: 一番上でフォルダを出さず、全部の記録を並べる
   const flat = !feat.folders && !folderId;
+  useAddRequest('folder', () => setAdding(true), !flat);
   const [memosOpen, setMemosOpen] = useFold('entries');
 
   useEffect(() => { if (folderId) store.markViewed('folder', folderId); }, [store, folderId]);
@@ -341,6 +343,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
   const unit = kind === 'person' ? '{n}人' : '{n}件';
   const feat = useFeatures();
   const flat = !feat.folders && !folderId;
+  useAddRequest('folder', () => setAdding(true), !flat);
 
   const path = useMemo(() => folderPath(folders, folderId), [folders, folderId]);
   const deepCount = useMemo(() => makeDeepCount(folders, kind === 'person' ? data.people : data.topics), [folders, data, kind]);
@@ -728,11 +731,12 @@ export function TopicScreen({ id }: { id: ID }) {
 function AddEntryFab({ to, label }: { to: string; label: string }) {
   const selecting = useInteract().sel.active;
   if (selecting) return null;
-  return (
-    <button className="fab" aria-label={label} title={label} onClick={() => go(to)}>
-      ＋
-    </button>
-  );
+  // 長押しで、その人／話題に関係なく記録・人・話題を作ることもできる
+  const items = createItems({
+    first: { icon: '✎', label, run: () => go(to) },
+    entry: '/new', people: '/people/new', topics: '/topics/new',
+  });
+  return <Fab label={label} onTap={() => go(to)} items={items} />;
 }
 
 // 人のメモ。「編集」を開かなくても、タップしてその場で書き換えられる
