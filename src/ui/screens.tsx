@@ -576,7 +576,7 @@ export function PersonScreen({ id }: { id: ID }) {
               ))}
             </div>
           )}
-          {person.memo && <p className="memo">{person.memo}</p>}
+          <PersonMemo id={id} memo={person.memo} />
           <div className="section-title">
             {t('{name}に話したこと', { name: person.name })} <span className="muted">{t('{n}件', { n: mine.length })}</span>
           </div>
@@ -705,6 +705,28 @@ function AddEntryFab({ to, label }: { to: string; label: string }) {
       ＋
     </button>
   );
+}
+
+// 人のメモ。「編集」を開かなくても、タップしてその場で書き換えられる
+function PersonMemo({ id, memo }: { id: ID; memo: string }) {
+  const store = useStore();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(memo);
+  if (open) {
+    const save = async () => { if (draft !== memo) await store.updatePerson(id, { memo: draft }); setOpen(false); };
+    return (
+      <div className="memo-edit">
+        <textarea className="textarea" rows={3} autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('メモ（関係・好きなものなど）')} />
+        <div className="memo-actions">
+          <button className="link" onClick={() => { setDraft(memo); setOpen(false); }}>{t('キャンセル')}</button>
+          <button className="link strong" onClick={save}>{t('保存')}</button>
+        </div>
+      </div>
+    );
+  }
+  return memo
+    ? <button className="memo memo-tap" onClick={() => { setDraft(memo); setOpen(true); }} aria-label={t('メモを編集')}>{memo}</button>
+    : <button className="link small-link memo-add" onClick={() => { setDraft(''); setOpen(true); }}>{t('＋ メモを書く')}</button>;
 }
 
 function Missing() {

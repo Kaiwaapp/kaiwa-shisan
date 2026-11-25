@@ -116,6 +116,11 @@ button:disabled { opacity: .4; cursor: default; }
 
 .section-title { font-size: 13px; font-weight: 700; color: var(--muted); margin: 14px 2px 8px; }
 .memo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin: 0 0 4px; white-space: pre-wrap; font-size: 14px; }
+.memo-tap { display: block; width: 100%; text-align: left; color: inherit; cursor: text; }
+.memo-add { display: inline-block; margin: 0 0 4px; }
+.memo-edit { margin: 0 0 4px; }
+.memo-edit .textarea { min-height: 0; }
+.memo-actions { display: flex; justify-content: flex-end; gap: 18px; padding: 6px 4px 0; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 .center { text-align: center; }
