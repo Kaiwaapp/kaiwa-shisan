@@ -5,6 +5,7 @@ import { StoreContext, go, switchTab, useLoadFailed, useLoaded, useRoute, useSto
 import { InteractProvider, useInteract } from './interact';
 import { TrashScreen, AllEntriesScreen, FolderScreen, NameAllScreen, NameFolderScreen, PersonScreen, TopicScreen } from './screens';
 import { EntryEditor } from './EntryEditor';
+import { NewNameScreen } from './NewName';
 import { GroupScreen } from './groups';
 import { SettingsScreen } from './SettingsScreen';
 import { t, useLang } from '../i18n';
@@ -54,6 +55,14 @@ function Shell() {
     );
   }
 
+  if ((head === 'people' || head === 'topics') && sub === 'new') {
+    return (
+      <div className="app editor-app">
+        <NewNameScreen kind={head === 'people' ? 'person' : 'topic'} folderId={query.get('folder')} />
+      </div>
+    );
+  }
+
   let screen;
   const third = path[2];
   if (head === 'people' || head === 'topics') {
@@ -75,14 +84,17 @@ function Shell() {
   else screen = <FolderScreen key="root" folderId={null} />;
 
   const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : (head ?? '');
+  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('話題を追加') : t('記録を追加');
   const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
 
   return (
     <div className="app">
       <main className="main">{screen}</main>
       {showFab && (
-        <button className="fab" aria-label={t('記録を追加')} onClick={() => {
-          go(head === 'f' && sub ? `/new?folder=${sub}` : '/new');
+        <button className="fab" aria-label={fabLabel} onClick={() => {
+          // 人タブ・話題タブでは人／話題を追加(開いているフォルダに入れる)。記録の追加は記録タブと各詳細画面の＋から
+          if (head === 'people' || head === 'topics') go(`/${head}/new` + (sub === 'f' && path[2] ? `?folder=${path[2]}` : ''));
+          else go(head === 'f' && sub ? `/new?folder=${sub}` : '/new');
         }}>
           ＋
         </button>
