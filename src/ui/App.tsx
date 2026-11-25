@@ -6,6 +6,7 @@ import { InteractProvider, useInteract } from './interact';
 import { TrashScreen, AllEntriesScreen, FolderScreen, NameAllScreen, NameFolderScreen, PersonScreen, TopicScreen } from './screens';
 import { EntryEditor } from './EntryEditor';
 import { NewNameScreen } from './NewName';
+import { PresetTopicsScreen } from './PresetTopics';
 import { GroupScreen } from './groups';
 import { SettingsScreen } from './SettingsScreen';
 import { FeaturesScreen } from './FeaturesScreen';
@@ -65,6 +66,14 @@ function Shell() {
     return (
       <div className="app editor-app">
         <NewNameScreen kind={head === 'people' ? 'person' : 'topic'} folderId={query.get('folder')} />
+      </div>
+    );
+  }
+
+  if (head === 'topics' && sub === 'presets') {
+    return (
+      <div className="app editor-app">
+        <PresetTopicsScreen />
       </div>
     );
   }

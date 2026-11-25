@@ -8,6 +8,7 @@ import { useEntryAi } from './AiTools';
 import { t } from '../i18n';
 import { setFeature, useFeatures } from './features';
 import { compressImage, ImageStrip } from './images';
+import { HoldButton } from './fab';
 
 
 export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
@@ -154,7 +155,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     e.preventDefault();
     void attachImages(files);
   };
-  const save = async () => {
+  /** stay: 保存したあと画面を移らず、この記録の編集画面に留まる */
+  const save = async (stay = false) => {
     if (saving) return;
     // 押せない理由がわかるように、ボタンは無効にせずにお知らせする
     if (!hasContent) {
@@ -169,13 +171,21 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     saved.current = true;
     // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
+    let entry;
     try {
-      await store.saveEntry({ title, text, ...(feat.memo ? { memo } : {}), personIds, groupIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, imageIds, newImages: [...pendingImages.values()], ...(existing ? {} : { favorite: newFav }) }, id);
+      entry = await store.saveEntry({ title, text, ...(feat.memo ? { memo } : {}), personIds, groupIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, imageIds, newImages: [...pendingImages.values()], ...(existing ? {} : { favorite: newFav }) }, id);
     } catch {
       // 保存に失敗したら入力はそのまま残して、もう一度押せるようにする
       saved.current = false;
       setSaving(false);
       toast(t('保存できませんでした。もう一度押してください'));
+      return;
+    }
+    if (stay) {
+      // 保存した内容で編集画面を開き直す(履歴は増やさないので、戻ると開く前の画面へ)
+      saved.current = false;
+      toast(t('保存しました'));
+      location.replace(`#/edit/${entry.id}?saved=${Date.now()}`);
       return;
     }
     back();
@@ -196,7 +206,18 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
             {existing
               ? <FavToggle kind="entry" id={existing.id} on={!!existing.favorite} className="in-header" />
               : <FavButton on={newFav} onToggle={() => setNewFav(!newFav)} className="in-header" />}
-            <button className={`link strong ${hasContent ? '' : 'dim'}`} aria-disabled={!hasContent || saving || imgBusy > 0} onClick={save}>{saving ? t('保存中…') : t('保存')}</button>
+            <HoldButton
+              className={`link strong ${hasContent ? '' : 'dim'}`}
+              aria-disabled={!hasContent || saving || imgBusy > 0}
+              title={t('保存(長押しで保存後の動きを選ぶ)')}
+              onTap={() => save()}
+              holdDisabled={!hasContent || saving}
+              menuTitle={t('保存')}
+              items={[
+                { icon: '↩', label: t('保存して戻る'), run: () => save() },
+                { icon: '✓', label: t('保存してこの画面に留まる'), run: () => save(true) },
+              ]}
+            >{saving ? t('保存中…') : t('保存')}</HoldButton>
           </span>
         }
       />
