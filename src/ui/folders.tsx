@@ -16,13 +16,13 @@ export const folderHref = (scope: FolderScope, id: ID | null) => (id ? `${SCOPE_
 export const allHref = (scope: FolderScope) => `${SCOPE_BASE[scope]}/all`;
 export const favHref = (scope: FolderScope) => `${SCOPE_BASE[scope]}/fav`;
 
-/** 見出しの左に出すアイコン: お気に入り一覧と「すべての記録/人/話題」へ */
+/** 見出し行の左端に出すアイコン: お気に入り一覧と「すべての記録/人/話題」へ */
 export function TitleIcons({ scope }: { scope: FolderScope }) {
   const fav = useFeatures().favorites;
   return (
     <span className="title-icons">
       {fav && <button className="icon-btn fav" aria-label={t('お気に入り')} title={t('お気に入り')} onClick={() => go(favHref(scope))}>★</button>}
-      <button className="icon-btn" aria-label={t(ALL_LABEL[scope])} title={t(ALL_LABEL[scope])} onClick={() => go(allHref(scope))}>▦</button>
+      <button className="icon-btn all" aria-label={t(ALL_LABEL[scope])} title={t(ALL_LABEL[scope])} onClick={() => go(allHref(scope))}>All</button>
     </span>
   );
 }
