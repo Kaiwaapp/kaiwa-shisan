@@ -5,6 +5,7 @@
   --muted: #7a756a;
   --line: #e6e1d6;
   --accent: #2f6f62;
+  --fav: #e0a100;
   --accent-soft: #e2efe9;
   --topic: #9a5b12;
   --topic-soft: #f6ead8;
@@ -22,6 +23,7 @@
     --muted: #9c968a;
     --line: #34322d;
     --accent: #7cc3b1;
+    --fav: #f2c14e;
     --accent-soft: #243832;
     --topic: #e0a865;
     --topic-soft: #3a2e1f;
@@ -55,7 +57,8 @@ button:disabled { opacity: .4; cursor: default; }
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px);
 }
-.header-title { margin: 0; font-size: 17px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+.header-center { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; max-width: 60vw; }
+.header-title { margin: 0; font-size: 17px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .header-side { display: flex; }
 .header-side.right { justify-content: flex-end; }
 .link { color: var(--accent); font-size: 16px; padding: 6px 0; }
@@ -272,6 +275,25 @@ button:disabled { opacity: .4; cursor: default; }
 }
 .copy-btn:active { background: var(--bg); color: var(--accent); }
 .copy-line { align-self: flex-end; margin-top: -8px; }
+/* ---- お気に入り ---- */
+.title-icons { display: inline-flex; gap: 2px; flex: none; }
+.icon-btn {
+  width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--accent); font-size: 17px; line-height: 1;
+}
+.icon-btn.fav { color: var(--fav); }
+.icon-btn:active { background: var(--line); }
+.fav-btn {
+  width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 18px; line-height: 1; flex: none;
+}
+.fav-btn.on { color: var(--fav); }
+.fav-btn:active { background: var(--bg); }
+.card .fav-btn { position: absolute; right: 6px; top: 6px; }
+.card .fav-btn + .copy-btn { top: 40px; }
+.fav-btn.in-header { width: 34px; height: 34px; font-size: 20px; }
+.row-item.with-fav { grid-template-columns: 1fr auto auto auto; padding-top: 7px; padding-bottom: 7px; min-height: 48px; }
+
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 60;
@@ -333,7 +355,8 @@ body.dragging { cursor: grabbing; }
   .app.editor-app { max-width: 760px; }
   .screen { padding: 0; }
   .header { margin: 0 0 12px; padding-left: 0; padding-right: 0; padding-top: 18px; }
-  .header-title { font-size: 20px; max-width: 420px; }
+  .header-title { font-size: 20px; }
+  .header-center { max-width: 420px; }
   .main { padding-bottom: 120px; }
 
   /* 下のタブを左のサイドバーに */
@@ -378,3 +401,22 @@ body.dragging { cursor: grabbing; }
 .organize-group h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .badge-new { font-size: 11px; font-weight: 700; color: var(--topic); background: var(--topic-soft); border-radius: 999px; padding: 2px 8px; }
 .organize-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* 人のグループ(タグのように複数可) */
+.chip.group { color: var(--ink); background: var(--surface); white-space: nowrap; flex: none; }
+.chip.group.small { background: var(--line); color: var(--ink); }
+.chip.group.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.group-bar { margin-bottom: 4px; }
+.group-bar .section-title { margin-top: 4px; }
+.group-bar .picker-input { margin-bottom: 10px; }
+.person-groups { margin: 0 0 10px; }
+.chips.quick { margin: 8px -16px 0; padding: 0 16px 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.chips.quick::-webkit-scrollbar { display: none; }
+.chips.quick .chip { flex: none; white-space: nowrap; }
+.chips.quick .chip { padding: 4px 11px; font-size: 13.5px; }
+.group-members { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 12px; align-items: center; }
+.dd-group .group-mark { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: var(--ink); color: var(--bg); }
+.sheet-item .check { color: var(--accent); font-weight: 700; }
+.sheet-item.strong { justify-content: center; font-weight: 700; color: var(--accent); }
+.sheet-input { gap: 8px; }
+.sheet-input input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 16px; outline: none; }

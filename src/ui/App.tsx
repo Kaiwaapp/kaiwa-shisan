@@ -5,6 +5,7 @@ import { StoreContext, go, switchTab, useData, useLoadFailed, useLoaded, useRout
 import { InteractProvider, useInteract } from './interact';
 import { TrashScreen, AllEntriesScreen, FolderScreen, NameAllScreen, NameFolderScreen, PersonScreen, TopicScreen } from './screens';
 import { EntryEditor } from './EntryEditor';
+import { GroupScreen } from './groups';
 import { SettingsScreen } from './SettingsScreen';
 import { needsBackupReminder } from './backupUi';
 import { t, useLang } from '../i18n';
@@ -49,6 +50,7 @@ function Shell() {
           initialPerson={query.get('person') ?? undefined}
           initialTopic={query.get('topic') ?? undefined}
           initialFolder={query.get('folder') ?? undefined}
+          initialGroup={query.get('group') ?? undefined}
         />
       </div>
     );
@@ -58,7 +60,9 @@ function Shell() {
   const third = path[2];
   if (head === 'people' || head === 'topics') {
     const kind = head === 'people' ? 'person' : 'topic';
-    if (sub === 'all') screen = <NameAllScreen key={kind + 'all'} kind={kind} />;
+    if (kind === 'person' && sub === 'g' && third) screen = <GroupScreen key={third} id={third} />;
+    else if (sub === 'all') screen = <NameAllScreen key={kind + 'all'} kind={kind} />;
+    else if (sub === 'fav') screen = <NameAllScreen key={kind + 'fav'} kind={kind} fav />;
     else if (sub === 'f' && third) screen = <NameFolderScreen key={kind + third} kind={kind} folderId={third} />;
     else if (sub) screen = kind === 'person' ? <PersonScreen key={sub} id={sub} /> : <TopicScreen key={sub} id={sub} />;
     else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;
@@ -66,13 +70,14 @@ function Shell() {
   else if (head === 'settings') screen = <SettingsScreen />;
   else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen /></Suspense>;
   else if (head === 'organize') screen = <OrganizeScreen key={sub} scope={sub === 'person' || sub === 'topic' ? sub : 'entry'} />;
-  else if (head === 'all') screen = <AllEntriesScreen />;
+  else if (head === 'all') screen = <AllEntriesScreen key="all" />;
+  else if (head === 'fav') screen = <AllEntriesScreen key="fav" fav />;
   else if (head === 'trash') screen = <TrashScreen />;
   else if (head === 'f' && sub) screen = <FolderScreen key={sub} folderId={sub} />;
   else screen = <FolderScreen key="root" folderId={null} />;
 
-  const tab = head === 'f' || head === 'all' || head === 'trash' ? '' : head === 'import' ? 'settings' : (head ?? '');
-  const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all');
+  const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : (head ?? '');
+  const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
   const remind = head !== 'settings' && head !== 'import' && needsBackupReminder(data);
 
   return (

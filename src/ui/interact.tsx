@@ -60,6 +60,8 @@ interface UiState {
   move: ItemRef[] | null;
   /** 中の記録をまとめて削除するフォルダ */
   clear: ID | null;
+  /** グループに入れる人 */
+  group?: ItemRef[] | null;
 }
 interface SelectState {
   active: boolean;
@@ -70,6 +72,7 @@ interface Ctx {
   openMenu: (i: ItemRef) => void;
   openMove: (items: ItemRef[]) => void;
   openClear: (folderId: ID) => void;
+  openGroup: (people: ItemRef[]) => void;
   close: () => void;
   sel: SelectState;
   setSelecting: (on: boolean) => void;
@@ -93,6 +96,7 @@ export function InteractProvider({ children }: { children: ReactNode }) {
     openMenu: (i) => setUi({ menu: i, move: null, clear: null }),
     openMove: (items) => setUi({ menu: null, move: items, clear: null }),
     openClear: (id) => setUi({ menu: null, move: null, clear: id }),
+    openGroup: (people) => setUi({ menu: null, move: null, clear: null, group: people }),
     close: () => setUi({ menu: null, move: null, clear: null }),
     sel,
     setSelecting: (on) => setSel({ active: on, selected: new Map() }),
@@ -112,6 +116,7 @@ export function InteractProvider({ children }: { children: ReactNode }) {
       <ItemMenu />
       <MoveSheet />
       <ClearSheet />
+      <GroupSheet />
       <DragLayer />
       <ToastHost />
     </InteractCtx.Provider>
@@ -161,7 +166,7 @@ export async function moveTo(store: Store, items: ItemRef[], folderId: ID | null
 }
 
 function ItemMenu() {
-  const { ui, close, openMove, openClear } = useInteract();
+  const { ui, close, openMove, openClear, openGroup } = useInteract();
   const store = useStore();
   const data = useData();
   const item = ui.menu;
@@ -200,6 +205,9 @@ function ItemMenu() {
           <span className="ic">✎</span>{t('名前を変更')}
         </button>
       )}
+      {item.kind === 'person' && (
+        <button className="sheet-item" onClick={() => openGroup([item])}><span className="ic">👥</span>{t('グループに追加')}</button>
+      )}
       <button className="sheet-item" onClick={() => openMove([item])}><span className="ic">▤</span>{t('フォルダへ移動')}</button>
       {item.kind === 'folder' && item.scope === 'entry' && (
         <button className="sheet-item danger" onClick={() => openClear(item.id)}><span className="ic">🗑</span>{t('中の記録をすべて削除')}</button>
@@ -232,6 +240,56 @@ function MoveSheet() {
         <button key={c.id} className="sheet-item" onClick={() => go(c.id, c.label)}><span className="ic">▤</span>{c.label}</button>
       ))}
       {choices.length === 0 && <p className="muted small pad">{t('移せるフォルダがありません。先にフォルダを作ってください。')}</p>}
+    </Sheet>
+  );
+}
+
+/**
+ * 人をグループに入れる・外すシート。グループをタップするたびに入れたり外したりでき、
+ * 新しいグループもその場で作れる(複数人を選んでいるときは全員まとめて)
+ */
+function GroupSheet() {
+  const { ui, close, clearSel } = useInteract();
+  const store = useStore();
+  const data = useData();
+  const [name, setName] = useState('');
+  const people = ui.group;
+  if (!people || people.length === 0) return null;
+  const ids = people.map((p) => p.id);
+  const inAll = (gid: ID) => ids.every((id) => data.people.find((p) => p.id === id)?.groupIds?.includes(gid));
+  const groups = [...data.groups].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  const done = () => { close(); clearSel(); setName(''); };
+  const create = async () => {
+    if (!name.trim()) return;
+    const g = await store.addGroup(name);
+    await store.setGroupMembers(g.id, ids, true);
+    setName('');
+    toast(t('「{name}」に追加しました', { name: g.name }));
+  };
+  return (
+    <Sheet onClose={done} title={people.length === 1 ? t('「{name}」を入れるグループ', { name: people[0].label }) : t('{n}人を入れるグループ', { n: people.length })}>
+      {groups.map((g) => {
+        const on = inAll(g.id);
+        return (
+          <button key={g.id} className="sheet-item" onClick={async () => {
+            await store.setGroupMembers(g.id, ids, !on);
+            toast(on ? t('「{name}」から外しました', { name: g.name }) : t('「{name}」に追加しました', { name: g.name }));
+          }}>
+            <span className="ic check">{on ? '✓' : ''}</span>{g.name}
+          </button>
+        );
+      })}
+      <div className="sheet-item sheet-input">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('新しいグループの名前')}
+          enterKeyHint="done"
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); create(); } }}
+        />
+        <button className="btn small" disabled={!name.trim()} onClick={create}>{t('作成')}</button>
+      </div>
+      <button className="sheet-item strong" onClick={done}>{t('完了')}</button>
     </Sheet>
   );
 }
@@ -313,6 +371,28 @@ function dropTarget(x: number, y: number, item: ItemRef) {
 
 function DragLayer() {
   const d = useDrag();
+  // 念のため: 指/マウスを離した後や画面を離れた後にドラッグ表示が残っていたら消す
+  useEffect(() => {
+    if (!d) return;
+    let timer = 0;
+    const later = () => { clearTimeout(timer); timer = window.setTimeout(() => { if (drag) setDrag(null); }, 300); };
+    const onTouchEnd = (e: TouchEvent) => { if (e.touches.length === 0) later(); };
+    const now = () => { if (drag) setDrag(null); };
+    const onVis = () => { if (document.hidden) now(); };
+    addEventListener('pointerup', later, true);
+    addEventListener('touchend', onTouchEnd, true);
+    addEventListener('hashchange', now);
+    addEventListener('blur', now);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearTimeout(timer);
+      removeEventListener('pointerup', later, true);
+      removeEventListener('touchend', onTouchEnd, true);
+      removeEventListener('hashchange', now);
+      removeEventListener('blur', now);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [!!d]);
   if (!d) return null;
   return (
     <div className="drag-ghost" style={{ left: d.x, top: d.y }}>
@@ -338,16 +418,84 @@ export function usePress(item: ItemRef, onTap: () => void) {
   const store = useStore();
   const st = useRef({ timer: 0, x: 0, y: 0, lifted: false, dragging: false, suppress: false, id: -1 });
   const [lifted, setLifted] = useState(false);
-
-  useEffect(() => () => clearTimeout(st.current.timer), []);
+  // 最新の値をドキュメントのリスナーから使えるように
+  const latest = useRef({ item, sel });
+  latest.current = { item, sel };
+  // ドキュメントに付けるリスナーは描画をまたいで同じ関数にする(外し漏れを防ぐ)
+  const impl = useRef({ move: (_e: TouchEvent) => {}, end: (_e: TouchEvent) => {}, cancel: () => {} });
+  const L = useRef({
+    block: (e: TouchEvent) => { if (st.current.lifted) e.preventDefault(); },
+    move: (e: TouchEvent) => impl.current.move(e),
+    end: (e: TouchEvent) => impl.current.end(e),
+    cancel: () => impl.current.cancel(),
+  }).current;
 
   const end = () => {
     clearTimeout(st.current.timer);
-    document.removeEventListener('touchmove', block);
+    // 持ち上げた後は画面がスクロールしないように付けていたもの
+    document.removeEventListener('touchmove', L.block);
+    document.removeEventListener('touchmove', L.move);
+    document.removeEventListener('touchend', L.end);
+    document.removeEventListener('touchcancel', L.cancel);
     setLifted(false);
   };
-  // 持ち上げた後は画面がスクロールしないように
-  function block(e: TouchEvent) { if (st.current.lifted) e.preventDefault(); }
+
+  // 画面から消えたら(フォルダを開いた・データが更新された等)ドラッグ表示も片付ける
+  useEffect(() => () => {
+    const s = st.current;
+    if (s.dragging && drag) setDrag(null);
+    s.lifted = false; s.dragging = false;
+    end();
+  }, []);
+
+  const moveAt = (x: number, y: number) => {
+    const s = st.current;
+    const dist = Math.hypot(x - s.x, y - s.y);
+    if (!s.lifted) {
+      if (dist > 10) end();
+      return;
+    }
+    if (!s.dragging && dist > 8) s.dragging = true;
+    if (s.dragging) {
+      const it = latest.current.item;
+      const t = dropTarget(x, y, it);
+      setDrag({ item: it, x, y, over: t && { id: t.id, name: t.name }, overEl: t?.el });
+    }
+  };
+  const finishNow = async (cancel: boolean) => {
+    const s = st.current;
+    const wasLifted = s.lifted;
+    const wasDragging = s.dragging;
+    end();
+    s.lifted = false;
+    s.dragging = false;
+    s.id = -1;
+    if (wasDragging) {
+      const over = drag?.over ?? null;
+      setDrag(null);
+      s.suppress = true;
+      if (over && !cancel) {
+        const { item: it, sel: sl } = latest.current;
+        const items = sl.active && sl.selected.has(itemKey(it)) ? [...sl.selected.values()] : [it];
+        await moveTo(store, items.filter((i) => i.scope === it.scope), over.id, over.name);
+      }
+    } else if (wasLifted && !cancel) {
+      s.suppress = true;
+      if (!latest.current.sel.active) openMenu(latest.current.item);
+    }
+  };
+  // iPhoneでは長押し中にポインタが取り消される(pointercancel)ことがあり、その後 pointerup が来ない。
+  // そうなったらタッチイベントで指を追い、指を離した時点でドロップ/片付けをする。
+  impl.current = {
+    move: (e) => {
+      const p = e.touches[0];
+      if (!p) return;
+      if (st.current.lifted && e.cancelable) e.preventDefault();
+      moveAt(p.clientX, p.clientY);
+    },
+    end: (e) => { if (e.touches.length === 0) void finishNow(false); },
+    cancel: () => { void finishNow(true); },
+  };
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -355,7 +503,7 @@ export function usePress(item: ItemRef, onTap: () => void) {
     s.x = e.clientX; s.y = e.clientY; s.lifted = false; s.dragging = false; s.suppress = false; s.id = e.pointerId;
     clearTimeout(s.timer);
     try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* noop */ }
-    document.addEventListener('touchmove', block, { passive: false });
+    document.addEventListener('touchmove', L.block, { passive: false });
     s.timer = window.setTimeout(() => {
       s.lifted = true;
       setLifted(true);
@@ -363,38 +511,12 @@ export function usePress(item: ItemRef, onTap: () => void) {
     }, 450);
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    const s = st.current;
-    if (e.pointerId !== s.id) return;
-    const dist = Math.hypot(e.clientX - s.x, e.clientY - s.y);
-    if (!s.lifted) {
-      if (dist > 10) end();
-      return;
-    }
-    if (!s.dragging && dist > 8) s.dragging = true;
-    if (s.dragging) {
-      const t = dropTarget(e.clientX, e.clientY, item);
-      setDrag({ item, x: e.clientX, y: e.clientY, over: t && { id: t.id, name: t.name }, overEl: t?.el });
-    }
+    if (e.pointerId !== st.current.id) return;
+    moveAt(e.clientX, e.clientY);
   };
-  const finish = async (e: React.PointerEvent, cancel = false) => {
-    const s = st.current;
-    if (e.pointerId !== s.id) return;
-    const wasLifted = s.lifted;
-    const wasDragging = s.dragging;
-    end();
-    s.lifted = false;
-    if (wasDragging) {
-      const over = drag?.over ?? null;
-      setDrag(null);
-      s.suppress = true;
-      if (over && !cancel) {
-        const items = sel.active && sel.selected.has(itemKey(item)) ? [...sel.selected.values()] : [item];
-        await moveTo(store, items.filter((i) => i.scope === item.scope), over.id, over.name);
-      }
-    } else if (wasLifted && !cancel) {
-      s.suppress = true;
-      if (!sel.active) openMenu(item);
-    }
+  const finish = (e: React.PointerEvent, cancel = false) => {
+    if (e.pointerId !== st.current.id) return;
+    void finishNow(cancel);
   };
   return {
     lifted,
@@ -403,9 +525,18 @@ export function usePress(item: ItemRef, onTap: () => void) {
       onPointerMove,
       onPointerUp: (e: React.PointerEvent) => finish(e),
       onPointerCancel: (e: React.PointerEvent) => {
+        const s = st.current;
+        if (e.pointerId !== s.id) return;
+        if (s.lifted && e.pointerType === 'touch') {
+          // 持ち上げ済みならタッチイベントで続きを追う(指を離せば必ず終わる)
+          s.id = -1;
+          document.addEventListener('touchmove', L.move, { passive: false });
+          document.addEventListener('touchend', L.end);
+          document.addEventListener('touchcancel', L.cancel);
+          return;
+        }
         // スクロールが始まったなどでキャンセルされた
-        if (st.current.dragging) return; // ドラッグ中はキャンセル扱いにしない(ポインタは追う)
-        finish(e, true);
+        void finishNow(true);
       },
       onContextMenu: (e: React.MouseEvent) => {
         e.preventDefault();
@@ -430,7 +561,7 @@ export function SelectMark({ item }: { item: ItemRef }) {
 
 /** 選択モード中、画面下に出す操作バー */
 export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 記録のフォルダ内なら、未選択時に「すべて削除」を出す */ folderId?: ID | null }) {
-  const { sel, clearSel, openMove, toggle, openClear } = useInteract();
+  const { sel, clearSel, openMove, toggle, openClear, openGroup } = useInteract();
   const store = useStore();
   if (!sel.active) return null;
   const items = [...sel.selected.values()];
@@ -451,6 +582,9 @@ export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 記録の�
           toast('ピン留めしました');
           clearSel();
         }}>📌</button>
+        {all.some((i) => i.kind === 'person') && (
+          <button className="link" disabled={!n || items.some((i) => i.kind !== 'person')} onClick={() => openGroup(items)}>{t('グループ')}</button>
+        )}
         <button className="link" disabled={!n} onClick={() => openMove(items)}>{t('移動')}</button>
         {!n && folderId ? (
           <button className="link danger" onClick={() => openClear(folderId)}>{t('すべて削除')}</button>

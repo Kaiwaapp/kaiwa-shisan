@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
-import { ComboPicker, Header } from './components';
+import { ComboPicker, FavButton, FavToggle, Header } from './components';
 import { copyText } from './interact';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
 import { t } from '../i18n';
 
 
-export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: {
+export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
   id?: ID;
   initialPerson?: ID;
   initialTopic?: ID;
   initialFolder?: ID;
+  /** グループの画面から開いたとき、そのグループの人を最初から相手に入れる */
+  initialGroup?: ID;
 }) {
   const store = useStore();
   const data = useData();
@@ -20,12 +22,17 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [text, setText] = useState(existing?.text ?? '');
-  const [personIds, setPersonIds] = useState<ID[]>(existing?.personIds ?? (initialPerson ? [initialPerson] : []));
+  const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (
+    initialPerson ? [initialPerson]
+      : initialGroup ? data.people.filter((p) => p.groupIds?.includes(initialGroup)).map((p) => p.id)
+        : []));
   const [newPeople, setNewPeople] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<ID[]>(existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : []));
   const [newTopics, setNewTopics] = useState<string[]>([]);
   const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? today());
   const [saving, setSaving] = useState(false);
+  // 新しい記録のお気に入り(保存時に付ける)。既存の記録は☆を押した時点で保存する
+  const [newFav, setNewFav] = useState(false);
   const [aiTopicIds, setAiTopicIds] = useState<ID[]>([]);
   const [aiNewTopics, setAiNewTopics] = useState<string[]>([]);
 
@@ -40,6 +47,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   }, [data.entries]);
   const rankOf = (x: { id: ID; createdAt: number; selectedAt?: number }) => x.selectedAt ?? used.get(x.id) ?? x.createdAt;
   const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: rankOf(p) }));
+  const groupOpts = useMemo(
+    () => data.groups.map((g) => ({ id: g.id, name: g.name, memberIds: data.people.filter((p) => p.groupIds?.includes(g.id)).map((p) => p.id) })),
+    [data.groups, data.people],
+  );
   const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, reading: t.reading, rank: rankOf(t) }));
   const pick = (kind: 'person' | 'topic', prev: ID[], next: ID[]) => {
     for (const x of next) if (!prev.includes(x)) store.markSelected(kind, x);
@@ -88,7 +99,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
     setSaving(true);
     // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
-    await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId }, id);
+    await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, ...(existing ? {} : { favorite: newFav }) }, id);
     back();
   };
   const remove = async () => {
@@ -102,7 +113,14 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
       <Header
         title={existing ? t('記録を編集') : t('新しい記録')}
         left={<button className="link" onClick={() => back()}>{t('キャンセル')}</button>}
-        right={<button className="link strong" disabled={!canSave} onClick={save}>{t('保存')}</button>}
+        right={
+          <span className="header-actions">
+            {existing
+              ? <FavToggle kind="entry" id={existing.id} on={!!existing.favorite} className="in-header" />
+              : <FavButton on={newFav} onToggle={() => setNewFav(!newFav)} className="in-header" />}
+            <button className="link strong" disabled={!canSave} onClick={save}>{t('保存')}</button>
+          </span>
+        }
       />
       <div className="form">
         <input
@@ -138,6 +156,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           <ComboPicker
             kind="person"
             options={personOpts}
+            groups={groupOpts}
+            recent={5}
             selected={personIds}
             newNames={newPeople}
             onChange={(s, n) => { pick('person', personIds, s); setPersonIds(s); setNewPeople(n); }}
@@ -148,6 +168,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           <ComboPicker
             kind="topic"
             options={topicOpts}
+            recent={5}
             selected={topicIds}
             newNames={newTopics}
             onChange={(s, n) => { pick('topic', topicIds, s); setTopicIds(s); setNewTopics(n); }}

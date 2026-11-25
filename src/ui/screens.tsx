@@ -6,12 +6,13 @@ import {
 } from '../core/search';
 import { back, formatDate, go, useData, usePref, useStore } from './hooks';
 import { folderDescendants, folderPath, foldersOf } from '../core/store';
-import { Crumbs, FolderEdit, FolderRows, FolderSelect, UpButton, makeDeepCount, rootHref } from './folders';
+import { Crumbs, FolderEdit, FolderRows, FolderSelect, TitleIcons, UpButton, makeDeepCount, rootHref } from './folders';
 import { SelectButton, SelectionBar, toast, useInteract, usePress, SelectMark, type ItemRef } from './interact';
 import type { Folder } from '../core/types';
-import { EntryList, EntryPreview, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
+import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
+import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
 export function FolderScreen({ folderId }: { folderId: ID | null }) {
@@ -74,6 +75,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
     <div className="screen">
       <Header
         title={folder ? folder.name : t('記録')}
+        lead={<TitleIcons scope="entry" />}
         left={folder && <UpButton scope="entry" parent={parent} />}
         right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
@@ -102,7 +104,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                   <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
                 </span>
               </div>
-              <FolderRows scope="entry" folderId={folderId} children={children} count={deepCount} total={data.entries.length} adding={adding} setAdding={setAdding} />
+              <FolderRows scope="entry" folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding} />
               {!folderId && trash.length > 0 && !selecting && (
                 <ul className="rows folder-rows">
                   <li className="row-item" onClick={() => go('/trash')}>
@@ -183,21 +185,29 @@ export function TrashScreen() {
   );
 }
 
-// ---- すべての記録: フォルダに関係なく全部 ----
-export function AllEntriesScreen() {
+// ---- すべての記録: フォルダに関係なく全部(fav ならお気に入りだけ) ----
+export function AllEntriesScreen({ fav }: { fav?: boolean }) {
   const data = useData();
   const [q, setQ] = useState('');
   const [sort, setSort] = usePref<EntrySort>('entrySort', 'newest');
-  const list = useMemo(() => sortEntriesBy(searchEntries(data, q), sort), [data, q, sort]);
+  const list = useMemo(() => {
+    const pool = fav ? { ...data, entries: data.entries.filter((e) => e.favorite) } : data;
+    return sortEntriesBy(searchEntries(pool, q), sort);
+  }, [data, q, sort, fav]);
   return (
     <div className="screen">
-      <Header title={t('すべての記録')} left={<button className="link" onClick={() => location.replace('#/')}>{t('‹ 記録')}</button>} />
-      <SearchBox value={q} onChange={setQ} placeholder={t('本文・人・話題で検索（読み仮名も可）')} />
+      <Header title={fav ? t('★ お気に入り') : t('すべての記録')} left={<button className="link" onClick={() => location.replace('#/')}>{t('‹ 記録')}</button>} />
+      <SearchBox value={q} onChange={setQ} placeholder={fav ? t('お気に入りの記録を検索') : t('本文・人・話題で検索（読み仮名も可）')} />
       <div className="toolbar">
         <span className="count">{t('{n}件', { n: list.length })}</span>
         <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
       </div>
-      <EntryList entries={list} data={data} pinSplit empty={q ? t('見つかりませんでした') : t('まだ記録がありません')} />
+      <EntryList
+        entries={list}
+        data={data}
+        pinSplit={!fav}
+        empty={q ? t('見つかりませんでした') : fav ? <>{t('お気に入りの記録はまだありません。')}<br />{t('記録の☆をタップすると、ここに入ります。')}</> : t('まだ記録がありません')}
+      />
     </div>
   );
 }
@@ -205,7 +215,7 @@ export function AllEntriesScreen() {
 // ---- 人・話題の一覧(フォルダで整理できる) ----
 type NameKind = 'person' | 'topic';
 
-function useNameItems(kind: NameKind, sort: NameSort) {
+export function useNameItems(kind: NameKind, sort: NameSort) {
   const data = useData();
   const stats = useMemo(() => statsBy(data, kind), [data, kind]);
   return useMemo(
@@ -217,7 +227,7 @@ function useNameItems(kind: NameKind, sort: NameSort) {
   );
 }
 
-function NameRows({ kind, items, sort, showFolder }: {
+export function NameRows({ kind, items, sort, showFolder }: {
   kind: NameKind;
   items: ReturnType<typeof useNameItems>;
   sort: NameSort;
@@ -245,8 +255,9 @@ function NameRow({ kind, x, sort, showFolder }: {
   const base = kind === 'person' ? '/people/' : '/topics/';
   const item: ItemRef = { kind, id: x.id, label: (kind === 'topic' ? '#' : '') + x.name, scope: kind };
   const { lifted, handlers } = usePress(item, () => go(base + x.id));
+  const selecting = useInteract().sel.active;
   return (
-    <li className={`row-item pressable ${lifted ? 'lifted' : ''}`} {...handlers}>
+    <li className={`row-item pressable with-fav ${lifted ? 'lifted' : ''}`} {...handlers}>
       <span className={kind === 'topic' ? 'name topic-name' : 'name'}>
         <SelectMark item={item} />
         {x.pinned && <span className="pin">📌</span>}
@@ -255,7 +266,11 @@ function NameRow({ kind, x, sort, showFolder }: {
         {showFolder && x.folderId && (
           <span className="reading">▤ {folderPath(data.folders, x.folderId).map((f) => f.name).join(' / ')}</span>
         )}
+        {kind === 'person' && (x as { groupIds?: ID[] }).groupIds?.length ? (
+          <span className="reading">{groupsOf(data.groups, x as { groupIds?: ID[] }).map((g) => g.name).join('・')}</span>
+        ) : null}
       </span>
+      {selecting ? <span /> : <FavToggle kind={kind} id={x.id} on={!!x.favorite} />}
       <span className="sub">
         {t('{n}件', { n: x.stat.count })}
         {x.stat.count > 0 && (sort === 'first' ? t(' ・ 最初 {d}', { d: formatDate(x.stat.first) }) : t(' ・ 最終 {d}', { d: formatDate(x.stat.last) }))}
@@ -341,6 +356,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
     <div className="screen">
       <Header
         title={folder ? folder.name : label}
+        lead={<TitleIcons scope={kind} />}
         left={folder && <UpButton scope={kind} parent={parent} />}
         right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
@@ -366,6 +382,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
             </>
           ) : (
             <>
+              {kind === 'person' && !folderId && !selecting && <GroupBar />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t(unit, { n: here.length })}
@@ -375,7 +392,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
                   <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
                 </span>
               </div>
-              <FolderRows scope={kind} folderId={folderId} children={children} count={deepCount} total={all.length} adding={adding} setAdding={setAdding} />
+              <FolderRows scope={kind} folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding} />
               <PinnedSplit kind={kind} items={here} sort={sort} restTitle={label} />
               <SelectionBar all={[
                 ...children.map((f) => ({ kind: 'folder' as const, id: f.id, label: f.name, scope: kind })),
@@ -400,22 +417,30 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
   );
 }
 
-export function NameAllScreen({ kind }: { kind: NameKind }) {
+export function NameAllScreen({ kind, fav }: { kind: NameKind; fav?: boolean }) {
   const [q, setQ] = useState('');
   const [sort, setSort] = usePref<NameSort>(kind + 'Sort', 'last');
   const all = useNameItems(kind, sort);
-  const list = all.filter((x) => nameMatches(x, q));
+  const list = all.filter((x) => (!fav || x.favorite) && nameMatches(x, q));
   const label = kind === 'person' ? t('人') : t('話題');
+  const title = fav ? t('★ お気に入り') : t(kind === 'person' ? 'すべての人' : 'すべての話題');
+  const empty = q
+    ? t('見つかりませんでした')
+    : fav
+      ? <>{t(kind === 'person' ? 'お気に入りの人はまだいません。' : 'お気に入りの話題はまだありません。')}<br />{t('一覧の☆をタップすると、ここに入ります。')}</>
+      : t('まだありません');
   return (
     <div className="screen">
-      <Header title={t(kind === 'person' ? 'すべての人' : 'すべての話題')} left={<button className="link" onClick={() => location.replace('#' + rootHref(kind))}>‹ {label}</button>} />
+      <Header title={title} left={<button className="link" onClick={() => location.replace('#' + rootHref(kind))}>‹ {label}</button>} />
       <SearchBox value={q} onChange={setQ} placeholder={t(kind === 'person' ? '人を探す' : '話題を探す')} />
       <div className="toolbar">
         <span className="count">{t(kind === 'person' ? '{n}人' : '{n}件', { n: list.length })}</span>
         <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
       </div>
-      <PinnedSplit kind={kind} items={list} sort={sort} showFolder restTitle={label} />
-      {list.length === 0 && <div className="empty">{q ? t('見つかりませんでした') : t('まだありません')}</div>}
+      {fav
+        ? <NameRows kind={kind} items={list} sort={sort} showFolder />
+        : <PinnedSplit kind={kind} items={list} sort={sort} showFolder restTitle={label} />}
+      {list.length === 0 && <div className="empty">{empty}</div>}
     </div>
   );
 }
@@ -472,6 +497,7 @@ export function PersonScreen({ id }: { id: ID }) {
   const [reading, setReading] = useState('');
   const [memo, setMemo] = useState('');
   const [pfolder, setPfolder] = useState<ID | null>(null);
+  const [pgroups, setPgroups] = useState<ID[]>([]);
 
   const mine = useMemo(() => data.entries.filter((e) => e.personIds.includes(id)), [data, id]);
   const topicCounts = useMemo(() => {
@@ -491,7 +517,7 @@ export function PersonScreen({ id }: { id: ID }) {
       <Header
         title={person.name}
         left={<button className="link" onClick={() => back('/people')}>{t('‹ 人')}</button>}
-        right={<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button>}
+        right={<span className="header-actions">{!editing && <FavToggle kind="person" id={id} on={!!person.favorite} className="in-header" />}<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setPgroups(person.groupIds ?? []); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
       />
       {editing ? (
         <div className="form">
@@ -510,10 +536,14 @@ export function PersonScreen({ id }: { id: ID }) {
             <FolderSelect scope="person" value={pfolder} onChange={setPfolder} />
           </section>
           <section className="field">
+            <label>{t('グループ（いくつでも）')}</label>
+            <GroupToggles value={pgroups} onChange={setPgroups} />
+          </section>
+          <section className="field">
             <label>{t('メモ（関係・好きなものなど）')}</label>
             <textarea className="textarea" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
           </section>
-          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder }); setEditing(false); }}>
+          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder, groupIds: pgroups.filter((g) => data.groups.some((x) => x.id === g)) }); setEditing(false); }}>
             {t('保存')}
           </button>
           <MergeBox kind="person" id={id} name={person.name} />
@@ -527,6 +557,13 @@ export function PersonScreen({ id }: { id: ID }) {
         </div>
       ) : (
         <>
+          {(person.groupIds?.length ?? 0) > 0 && (
+            <div className="chips person-groups">
+              {groupsOf(data.groups, person).map((g) => (
+                <button key={g.id} className="chip group small" onClick={() => go(groupHref(g.id))}>{g.name}</button>
+              ))}
+            </div>
+          )}
           {person.memo && <p className="memo">{person.memo}</p>}
           <div className="section-title">
             {t('{name}に話したこと', { name: person.name })} <span className="muted">{t('{n}件', { n: mine.length })}</span>
@@ -586,7 +623,7 @@ export function TopicScreen({ id }: { id: ID }) {
       <Header
         title={`#${topic.name}`}
         left={<button className="link" onClick={() => back('/topics')}>{t('‹ 話題')}</button>}
-        right={<button className="link" onClick={() => { setName(topic.name); setReading(topic.reading ?? ''); setTfolder(topic.folderId ?? null); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button>}
+        right={<span className="header-actions">{!editing && <FavToggle kind="topic" id={id} on={!!topic.favorite} className="in-header" />}<button className="link" onClick={() => { setName(topic.name); setReading(topic.reading ?? ''); setTfolder(topic.folderId ?? null); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
       />
       {editing ? (
         <div className="form">
