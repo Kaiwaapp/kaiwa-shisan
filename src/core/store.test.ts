@@ -234,6 +234,26 @@ describe('Store', () => {
     expect(s.trash).toHaveLength(0);
     expect(s.snapshot.entries).toHaveLength(1);
   });
+  it('お気に入り(記録・人・話題)。記録を編集してもお気に入り・ピン留めは残る', async () => {
+    const s = await fresh();
+    const e = await s.saveEntry({ text: 'a', personIds: [], topicIds: [], talkedOn: '2026-01-01' });
+    const p = await s.addPerson('ゆい');
+    const tp = await s.addTopic('旅行');
+    await s.setFavorite('entry', [e.id], true);
+    await s.setPinned('entry', [e.id], true);
+    await s.setFavorite('person', [p.id], true);
+    await s.setFavorite('topic', [tp.id], true);
+    await s.saveEntry({ text: 'a2', personIds: [], topicIds: [], talkedOn: '2026-01-01' }, e.id);
+    const saved = s.snapshot.entries.find((x) => x.id === e.id)!;
+    expect(saved.favorite).toBe(true);
+    expect(saved.pinned).toBe(true);
+    expect(s.snapshot.people[0].favorite).toBe(true);
+    expect(s.snapshot.topics[0].favorite).toBe(true);
+    await s.setFavorite('entry', [e.id], false);
+    expect(s.snapshot.entries[0].favorite).toBe(false);
+    const n = await s.saveEntry({ text: 'b', personIds: [], topicIds: [], talkedOn: '2026-01-01', favorite: true });
+    expect(n.favorite).toBe(true);
+  });
   it('フォルダ内の記録をまとめて削除(中のフォルダを含むか選べる)', async () => {
     const s = await fresh();
     const f = await s.addFolder('F');
