@@ -19,6 +19,8 @@ export interface EntryInput {
   aiNewTopics?: string[];
   talkedOn: string;
   folderId?: ID | null;
+  /** お気に入り。未指定なら今の状態のまま */
+  favorite?: boolean;
 }
 
 export interface ImportResult { entryIds: ID[]; personIds: ID[]; topicIds: ID[]; folderIds: ID[] }
@@ -126,6 +128,9 @@ export class Store {
         source: prevSource.get(topicId) ?? (aiIds.has(topicId) ? 'ai' : 'manual'),
       })),
       talkedOn: input.talkedOn,
+      // 編集してもピン留め・お気に入りは外さない
+      ...(prev?.pinned ? { pinned: true } : {}),
+      ...((input.favorite ?? prev?.favorite) ? { favorite: true } : {}),
       createdAt: prev?.createdAt ?? now,
       updatedAt: now,
       viewedAt: now,
@@ -189,16 +194,25 @@ export class Store {
 
   // ---- ピン留め・まとめて移動 ----
   async setPinned(kind: 'entry' | 'person' | 'topic', ids: ID[], pinned: boolean) {
+    await this.setFlag(kind, ids, { pinned });
+  }
+
+  /** お気に入りに入れる・外す */
+  async setFavorite(kind: 'entry' | 'person' | 'topic', ids: ID[], favorite: boolean) {
+    await this.setFlag(kind, ids, { favorite });
+  }
+
+  private async setFlag(kind: 'entry' | 'person' | 'topic', ids: ID[], patch: { pinned?: boolean; favorite?: boolean }) {
     const set = new Set(ids);
     if (kind === 'entry') {
-      await this.putEntries(this.data.entries.filter((e) => set.has(e.id)).map((e) => ({ ...e, pinned })));
+      await this.putEntries(this.data.entries.filter((e) => set.has(e.id)).map((e) => ({ ...e, ...patch })));
     } else if (kind === 'person') {
-      const list = this.data.people.filter((p) => set.has(p.id)).map((p) => ({ ...p, pinned }));
+      const list = this.data.people.filter((p) => set.has(p.id)).map((p) => ({ ...p, ...patch }));
       for (const x of list) await this.repo.putPerson(x);
       const m = new Map(list.map((x) => [x.id, x]));
       this.set({ ...this.data, people: this.data.people.map((x) => m.get(x.id) ?? x) });
     } else {
-      const list = this.data.topics.filter((t) => set.has(t.id)).map((t) => ({ ...t, pinned }));
+      const list = this.data.topics.filter((t) => set.has(t.id)).map((t) => ({ ...t, ...patch }));
       for (const x of list) await this.repo.putTopic(x);
       const m = new Map(list.map((x) => [x.id, x]));
       this.set({ ...this.data, topics: this.data.topics.map((x) => m.get(x.id) ?? x) });

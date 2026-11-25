@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
-import { ComboPicker, Header } from './components';
+import { ComboPicker, FavButton, FavToggle, Header } from './components';
 import { copyText } from './interact';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
@@ -31,6 +31,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   const [newTopics, setNewTopics] = useState<string[]>([]);
   const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? today());
   const [saving, setSaving] = useState(false);
+  // 新しい記録のお気に入り(保存時に付ける)。既存の記録は☆を押した時点で保存する
+  const [newFav, setNewFav] = useState(false);
   const [aiTopicIds, setAiTopicIds] = useState<ID[]>([]);
   const [aiNewTopics, setAiNewTopics] = useState<string[]>([]);
 
@@ -97,7 +99,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     setSaving(true);
     // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
-    await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId }, id);
+    await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, ...(existing ? {} : { favorite: newFav }) }, id);
     back();
   };
   const remove = async () => {
@@ -111,7 +113,14 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
       <Header
         title={existing ? t('記録を編集') : t('新しい記録')}
         left={<button className="link" onClick={() => back()}>{t('キャンセル')}</button>}
-        right={<button className="link strong" disabled={!canSave} onClick={save}>{t('保存')}</button>}
+        right={
+          <span className="header-actions">
+            {existing
+              ? <FavToggle kind="entry" id={existing.id} on={!!existing.favorite} className="in-header" />
+              : <FavButton on={newFav} onToggle={() => setNewFav(!newFav)} className="in-header" />}
+            <button className="link strong" disabled={!canSave} onClick={save}>{t('保存')}</button>
+          </span>
+        }
       />
       <div className="form">
         <input

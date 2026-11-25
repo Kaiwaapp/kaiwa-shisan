@@ -103,6 +103,18 @@ const en: Record<string, string> = {
   '名前順': 'Name',
 
   // フォルダ
+  'お気に入り': 'Favorites',
+  '★ お気に入り': '★ Favorites',
+  'お気に入りに追加': 'Add to Favorites',
+  'お気に入りから外す': 'Remove from Favorites',
+  'お気に入りに追加しました': 'Added to Favorites',
+  'お気に入りから外しました': 'Removed from Favorites',
+  'お気に入りの記録を検索': 'Search favorite notes',
+  'お気に入りの記録はまだありません。': 'No favorite notes yet.',
+  '記録の☆をタップすると、ここに入ります。': 'Tap ☆ on a note to add it here.',
+  'お気に入りの人はまだいません。': 'No favorite people yet.',
+  'お気に入りの話題はまだありません。': 'No favorite topics yet.',
+  '一覧の☆をタップすると、ここに入ります。': 'Tap ☆ in the list to add it here.',
   'すべての記録': 'All Notes',
   'すべての人': 'All People',
   'すべての話題': 'All Topics',

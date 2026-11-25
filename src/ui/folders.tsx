@@ -13,6 +13,17 @@ const ALL_LABEL: Record<FolderScope, string> = { entry: 'すべての記録', pe
 export const rootHref = (scope: FolderScope) => SCOPE_BASE[scope] || '/';
 export const folderHref = (scope: FolderScope, id: ID | null) => (id ? `${SCOPE_BASE[scope]}/f/${id}` : rootHref(scope));
 export const allHref = (scope: FolderScope) => `${SCOPE_BASE[scope]}/all`;
+export const favHref = (scope: FolderScope) => `${SCOPE_BASE[scope]}/fav`;
+
+/** 見出しの左に出すアイコン: お気に入り一覧と「すべての記録/人/話題」へ */
+export function TitleIcons({ scope }: { scope: FolderScope }) {
+  return (
+    <span className="title-icons">
+      <button className="icon-btn fav" aria-label={t('お気に入り')} title={t('お気に入り')} onClick={() => go(favHref(scope))}>★</button>
+      <button className="icon-btn" aria-label={t(ALL_LABEL[scope])} title={t(ALL_LABEL[scope])} onClick={() => go(allHref(scope))}>▦</button>
+    </span>
+  );
+}
 
 /** 一番上へ・途中の階層へ戻るためのパンくず(2階層以上のとき) */
 export function Crumbs({ scope, path }: { scope: FolderScope; path: Folder[] }) {
@@ -32,21 +43,18 @@ export function Crumbs({ scope, path }: { scope: FolderScope; path: Folder[] }) 
   );
 }
 
-/** フォルダの行の一覧(「すべて」行・子フォルダ・新規フォルダ入力) */
-export function FolderRows({ scope, folderId, children, count, total, adding, setAdding }: {
+/** フォルダの行の一覧(子フォルダ・新規フォルダ入力)。「すべて」は見出しのアイコン(TitleIcons)から */
+export function FolderRows({ scope, folderId, children, count, adding, setAdding }: {
   scope: FolderScope;
   folderId: ID | null;
   children: Folder[];
   count: (id: ID) => number;
-  total: number;
   adding: boolean;
   setAdding: (v: boolean) => void;
 }) {
-  const data = useData();
   const store = useStore();
   const [name, setName] = useState('');
-  const showAll = !folderId && foldersOf(data.folders, scope).length > 0;
-  if (!showAll && children.length === 0 && !adding) return null;
+  if (children.length === 0 && !adding) return null;
   const create = async () => {
     if (!name.trim()) return;
     await store.addFolder(name, folderId, scope);
@@ -55,13 +63,6 @@ export function FolderRows({ scope, folderId, children, count, total, adding, se
   };
   return (
     <ul className="rows folder-rows">
-      {showAll && (
-        <li className="row-item" onClick={() => go(allHref(scope))}>
-          <span className="name"><span className="folder-icon">▦</span>{t(ALL_LABEL[scope])}</span>
-          <span className="sub">{total}</span>
-          <span className="chev">›</span>
-        </li>
-      )}
       {children.map((f) => (
         <FolderRow key={f.id} scope={scope} folder={f} count={count(f.id)} />
       ))}
