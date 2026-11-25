@@ -210,7 +210,7 @@ export function AllEntriesScreen({ fav }: { fav?: boolean }) {
   }, [data, q, sort, fav]);
   return (
     <div className="screen">
-      <Header title={fav ? t('★ お気に入り') : t('すべての記録')} left={<button className="link" onClick={() => location.replace('#/')}>{t('‹ 記録')}</button>} />
+      <Header title={fav ? t('★ お気に入りの記録') : t('すべての記録')} left={<button className="link" onClick={() => location.replace('#/')}>{t('‹ 記録')}</button>} />
       <SearchBox value={q} onChange={setQ} placeholder={fav ? t('お気に入りの記録を検索') : t('本文・人・話題で検索（読み仮名も可）')} />
       <div className="toolbar">
         <span className="count">{t('{n}件', { n: list.length })}</span>
@@ -451,7 +451,7 @@ export function NameAllScreen({ kind, fav }: { kind: NameKind; fav?: boolean }) 
   const all = useNameItems(kind, sort);
   const list = all.filter((x) => (!fav || x.favorite) && nameMatches(x, q));
   const label = kind === 'person' ? t('人') : t('話題');
-  const title = fav ? t('★ お気に入り') : t(kind === 'person' ? 'すべての人' : 'すべての話題');
+  const title = fav ? t(kind === 'person' ? '★ お気に入りの人' : '★ お気に入りの話題') : t(kind === 'person' ? 'すべての人' : 'すべての話題');
   const empty = q
     ? t('見つかりませんでした')
     : fav

@@ -260,6 +260,18 @@ export function sameNameHints(people: Person[], groups: Group[]): Map<ID, string
   return out;
 }
 
+/**
+ * スマホでは入力欄の下の候補がキーボードに隠れてしまうので、
+ * 入力欄をタップしたら画面の上の方までスクロールして候補が見えるようにする。
+ */
+function liftAboveKeyboard(el: HTMLElement) {
+  if (typeof matchMedia === 'undefined' || !matchMedia('(pointer: coarse)').matches) return;
+  setTimeout(() => {
+    const top = el.getBoundingClientRect().top;
+    if (top > 80) window.scrollBy({ top: top - 72, behavior: 'smooth' });
+  }, 300);
+}
+
 /** 横スクロールの候補の列。端の目印が見えたら onMore で追加表示する */
 /** wrap: 絞り込み中は折り返して全部見えるように(多いときは縦にスクロール) */
 function PickRow({ children, more, onMore, resetKey, wrap }: { children: ReactNode; more: boolean; onMore: () => void; resetKey: string; wrap?: boolean }) {
@@ -383,6 +395,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange, group
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          onFocus={(e) => liftAboveKeyboard(e.currentTarget)}
           placeholder={kind === 'person' ? t('🔍 名前で絞り込む／新しい人を入力') : t('🔍 話題で絞り込む／新しい話題を入力')}
           enterKeyHint="done"
           onKeyDown={(e) => {
