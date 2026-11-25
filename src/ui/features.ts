@@ -31,6 +31,8 @@ export interface Features {
   readingTopic: boolean;
   /** 話題: 話題タブに「おすすめの話題から登録」の案内を出す(案内の「今後表示しない」でオフになる) */
   presetHint: boolean;
+  /** 有料機能(将来は月額課金): バナー広告を出さない。今は誰でも切り替えられる。設定画面の「有料機能」の欄に出す */
+  noAds: boolean;
 }
 
 export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard', 'presetHint'] as const;
@@ -58,11 +60,12 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   readingPerson: { label: '人の名前に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   readingTopic: { label: '話題に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   presetHint: { label: 'おすすめの話題の案内', note: '話題タブに、用意した話題リストから登録する案内を出す' },
+  noAds: { label: 'バナー広告を表示しない', note: '画面下のバナー広告を消します。' },
   confirmDiscard: { label: '保存せずに戻るときの確認', note: '記録を入力したままキャンセルしたとき、保存されないことを確認する' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, noAds: false };
 
 const load = (): Features => {
   try {

@@ -13,6 +13,7 @@
   --tabbar-h: 58px;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
+  --ad-h: 0px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -47,9 +48,9 @@ button:disabled { opacity: .4; cursor: default; }
 
 .loading { padding: 40vh 0; text-align: center; color: var(--muted); }
 .app { max-width: 680px; margin: 0 auto; min-height: 100dvh; }
-.main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 16px); }
+.main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 16px); }
 /* 右下の＋がある画面だけ、最後の行が＋に隠れない分の余白を足す */
-.app:has(.fab) .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 88px); }
+.app:has(.fab) .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 88px); }
 /* 中身が画面に収まるときに、iPhoneで引っぱって画面ごと動く(バウンス)のを止める */
 html, body { overscroll-behavior-y: none; }
 .screen { padding: 0 16px; }
@@ -183,7 +184,7 @@ html, body { overscroll-behavior-y: none; }
 .fab {
   position: fixed; z-index: 10;
   right: max(18px, calc(50vw - 340px + 18px));
-  bottom: calc(var(--tabbar-h) + var(--safe-b) + 16px);
+  bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 16px);
   width: 58px; height: 58px; border-radius: 50%;
   background: var(--accent); color: var(--surface); font-size: 28px; line-height: 1;
   box-shadow: 0 6px 18px rgba(0,0,0,.18);
@@ -313,7 +314,7 @@ html, body { overscroll-behavior-y: none; }
 
 .toast {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 60;
-  bottom: calc(var(--tabbar-h) + var(--safe-b) + 90px);
+  bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 90px);
   background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 14px; font-weight: 600;
   box-shadow: 0 6px 20px rgba(0,0,0,.2); animation: toast-in .15s ease-out; white-space: nowrap;
 }
@@ -352,7 +353,7 @@ html, body { overscroll-behavior-y: none; }
 body.dragging { cursor: grabbing; }
 
 .select-bar {
-  position: fixed; left: 0; right: 0; z-index: 15; bottom: calc(var(--tabbar-h) + var(--safe-b));
+  position: fixed; left: 0; right: 0; z-index: 15; bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h));
   display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px;
   background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(0,0,0,.06);
 }
@@ -376,7 +377,7 @@ body.dragging { cursor: grabbing; }
   .screen { padding: 0; }
   .header { margin: 0 0 12px; padding-left: 0; padding-right: 0; padding-top: 18px; }
   .header-title { font-size: 20px; max-width: 420px; }
-  .main { padding-bottom: 120px; }
+  .main { padding-bottom: calc(120px + var(--ad-h)); }
 
   /* 下のタブを左のサイドバーに */
   .tabbar {
@@ -391,9 +392,10 @@ body.dragging { cursor: grabbing; }
   .tab-icon { font-size: 18px; width: 22px; text-align: center; }
   .tab-label { font-size: 15px; }
 
-  .fab { right: max(32px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); bottom: 32px; }
-  .select-bar { left: var(--rail); bottom: 0; padding-left: max(24px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); padding-right: max(24px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); }
-  .toast { bottom: 110px; margin-left: calc(var(--rail) / 2); }
+  .fab { right: max(32px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); bottom: calc(32px + var(--ad-h)); }
+  .ad-banner { left: var(--rail); bottom: 0; }
+  .select-bar { left: var(--rail); bottom: var(--ad-h); padding-left: max(24px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); padding-right: max(24px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); }
+  .toast { bottom: calc(110px + var(--ad-h)); margin-left: calc(var(--rail) / 2); }
   .reminder { width: auto; margin: 16px 0 0; }
 
   .card:hover, .row-item:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
@@ -549,3 +551,33 @@ body.dragging { cursor: grabbing; }
 .panel.preset-hint { margin-bottom: 12px; }
 .panel.preset-hint .small-btn { width: auto; }
 .preset-bar .count { margin: 0; }
+
+/* ---- 表示確認用のダミーのバナー広告(320x50)。タブバーの上に固定。＋・選択バー・トーストは --ad-h だけ上にずらす ---- */
+.app.with-ad { --ad-h: 58px; }
+.ad-banner {
+  position: fixed; left: 0; right: 0; z-index: 9; bottom: calc(var(--tabbar-h) + var(--safe-b));
+  height: var(--ad-h); display: flex; align-items: center; justify-content: center;
+  background: var(--bg); border-top: 1px solid var(--line);
+}
+.ad-box {
+  width: 320px; max-width: calc(100% - 16px); height: 50px; display: flex; align-items: center; gap: 8px; padding: 0 10px;
+  background: var(--surface); border: 1px dashed var(--muted); border-radius: 6px; font-size: 12px; color: var(--muted);
+}
+.ad-tag { flex: none; font-size: 10px; font-weight: 700; line-height: 1; padding: 3px 4px; border: 1px solid var(--muted); border-radius: 3px; }
+.ad-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ad-off { flex: none; font-size: 12px; color: var(--accent); padding: 10px 2px; }
+/* キーボードが出ている間は出さない(入力欄の邪魔をしない) */
+html.kb-open .ad-banner { display: none; }
+
+/* 動画広告(ダミー)。画面全体を覆い、右上の✕でいつでも閉じられる */
+.reward-ad { position: fixed; inset: 0; z-index: 80; background: #000; color: #fff; display: flex; flex-direction: column; padding-top: var(--safe-t); padding-bottom: var(--safe-b); }
+.reward-top { display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 13px; }
+.reward-top .ad-tag { color: #fff; border-color: #fff; }
+.reward-close { margin-left: auto; width: 44px; height: 44px; font-size: 20px; color: #fff; }
+.reward-video { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 0 24px; text-align: center; }
+.reward-video .small { font-size: 13px; opacity: .75; }
+.reward-bar { width: 220px; height: 4px; background: rgba(255,255,255,.25); border-radius: 2px; overflow: hidden; }
+.reward-bar span { display: block; height: 100%; background: #fff; transition: width 1s linear; }
+.reward-got { font-size: 18px; font-weight: 700; }
+.credit-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.credit-row b { font-size: 18px; margin-left: 4px; }
