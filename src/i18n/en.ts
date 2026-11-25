@@ -545,7 +545,7 @@ const en: Record<string, string> = {
   '設定の「機能とカスタマイズ」の話題からいつでも開けます': 'You can open this anytime from Settings > Features & customization > Topics',
   'おすすめの話題から登録': 'Add from suggested topics',
   'おすすめの話題の案内': 'Suggested topics tip',
-  '話題が少ないとき、話題タブに用意した話題リストから登録する案内を出す': 'When you have few topics, show a tip on the Topics tab to add from a ready-made list',
+  '話題タブに、用意した話題リストから登録する案内を出す': 'Show a tip on the Topics tab to add from a ready-made list',
   '食べ物': 'Food',
   '休日・おでかけ': 'Days off & outings',
   '仕事・学生時代': 'Work & school',

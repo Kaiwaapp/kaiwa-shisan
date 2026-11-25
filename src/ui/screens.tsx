@@ -412,7 +412,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
           ) : (
             <>
               {kind === 'person' && !folderId && feat.groups && <GroupBar />}
-              {kind === 'topic' && !folderId && <PresetHint count={all.length} />}
+              {kind === 'topic' && !folderId && <PresetHint />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t(unit, { n: here.length })}

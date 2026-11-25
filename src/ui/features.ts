@@ -57,7 +57,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   profile: { label: '人のプロフィール', note: '人の画面の年齢・仕事・趣味などの欄' },
   readingPerson: { label: '人の名前に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   readingTopic: { label: '話題に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
-  presetHint: { label: 'おすすめの話題の案内', note: '話題が少ないとき、話題タブに用意した話題リストから登録する案内を出す' },
+  presetHint: { label: 'おすすめの話題の案内', note: '話題タブに、用意した話題リストから登録する案内を出す' },
   confirmDiscard: { label: '保存せずに戻るときの確認', note: '記録を入力したままキャンセルしたとき、保存されないことを確認する' },
 };
 

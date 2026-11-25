@@ -84,10 +84,10 @@ export function PresetTopicsScreen() {
   );
 }
 
-/** 話題タブの一番上に出す案内。話題が少ないときだけ。「今後表示しない」で設定の presetHint をオフにする */
-export function PresetHint({ count }: { count: number }) {
+/** 話題タブの一番上に出す案内。「今後表示しない」で設定の presetHint をオフにする */
+export function PresetHint() {
   const feat = useFeatures();
-  if (!feat.presetHint || count >= 10) return null;
+  if (!feat.presetHint) return null;
   return (
     <section className="panel preset-hint">
       <p>{t('会話によく出る話題（趣味・食べ物・仕事など）を選んで、まとめて登録できます。')}</p>
