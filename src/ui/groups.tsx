@@ -145,7 +145,7 @@ export function GroupScreen({ id }: { id: ID }) {
                 <span className="count">{t('{n}人', { n: members.length })}</span>
                 <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
               </div>
-              <NameRows kind="person" items={members} sort={sort} showFolder />
+              <NameRows kind="person" items={members} sort={sort} showFolder reorder />
               <button className="btn block ghost" onClick={() => go(`/new?group=${id}`)}>
                 {t('＋ 「{name}」の人に話したことを記録', { name: group.name })}
               </button>

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { Folder, FolderScope, ID } from '../core/types';
 import { folderDescendants, foldersOf } from '../core/store';
 import { go, useData, usePref, useStore } from './hooks';
-import { dropProps, SelectMark, useDragging, useInteract, usePress, type ItemRef } from './interact';
+import { dropProps, reorderProps, SelectMark, useDragging, useInteract, usePress, useReorderList, type ItemRef } from './interact';
 import { t } from '../i18n';
 import { useFeatures } from './features';
 
@@ -67,8 +67,10 @@ export function FoldHeader({ label, count, open, onToggle }: { label: string; co
   );
 }
 
-export function FolderRows({ scope, folderId, children, count, adding, setAdding, extra }: {
+export function FolderRows({ scope, folderId, children, count, adding, setAdding, extra, reorder }: {
   scope: FolderScope;
+  /** 手動の並び順のとき true(長押しして上下に動かすと並べ替え) */
+  reorder?: boolean;
   folderId: ID | null;
   children: Folder[];
   count: (id: ID) => number;
@@ -80,6 +82,7 @@ export function FolderRows({ scope, folderId, children, count, adding, setAdding
   const store = useStore();
   const [name, setName] = useState('');
   const [open, setOpen] = useFold('folders:' + scope);
+  const list = useReorderList(reorder ? children.map((f) => f.id) : null);
   if (children.length === 0 && !adding && !extra) return null;
   const create = async () => {
     if (!name.trim()) return;
@@ -94,7 +97,7 @@ export function FolderRows({ scope, folderId, children, count, adding, setAdding
       {shown && (children.length > 0 || adding) && (
         <ul className="rows folder-rows">
           {children.map((f) => (
-            <FolderRow key={f.id} scope={scope} folder={f} count={count(f.id)} />
+            <FolderRow key={f.id} scope={scope} folder={f} count={count(f.id)} list={list} />
           ))}
           {adding && (
             <li className="row-edit">
@@ -197,11 +200,11 @@ export function FolderSelect({ scope, value, onChange }: { scope: FolderScope; v
   );
 }
 
-function FolderRow({ scope, folder, count }: { scope: FolderScope; folder: Folder; count: number }) {
+function FolderRow({ scope, folder, count, list }: { scope: FolderScope; folder: Folder; count: number; list?: string }) {
   const item: ItemRef = { kind: 'folder', id: folder.id, label: folder.name, scope };
   const { lifted, handlers } = usePress(item, () => go(folderHref(scope, folder.id)));
   return (
-    <li className={`row-item pressable ${lifted ? 'lifted' : ''}`} {...dropProps(scope, folder.id, folder.name)} {...handlers}>
+    <li className={`row-item pressable ${lifted ? 'lifted' : ''}`} {...dropProps(scope, folder.id, folder.name)} {...reorderProps(list, 'folder', folder.id)} {...handlers}>
       <span className="name"><SelectMark item={item} /><span className="folder-icon">▤</span>{folder.name}</span>
       <span className="sub">{count}</span>
       <span className="chev">›</span>

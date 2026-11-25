@@ -352,6 +352,20 @@ const en: Record<string, string> = {
   'コピーボタン': 'Copy buttons',
   '一覧と編集画面の本文コピーボタン': 'Buttons that copy the note text, in lists and the editor',
   '設定の取り込みの項目': 'The import section in Settings',
+  // 並び順・エクスポート・読み仮名
+  '名前の入力から読み仮名を入れました': 'Reading filled in from what you typed',
+  '変更分を書き出しました': 'Exported the changes',
+  '変更分を反映しました': 'Applied the changes',
+  'すべて書き出す（一括）': 'Export everything (full)',
+  '変更分だけ書き出す（増分）': 'Export changes only (incremental)',
+  '前回の書き出しから{n}件の追加・変更・削除があります。増分は前回の書き出し以降の変更だけを小さいファイルにします。': '{n} additions, edits or deletions since the last export. Incremental export saves only these changes in a small file.',
+  '前回の書き出しから変更はありません。': 'No changes since the last export.',
+  'まだ書き出したことがないので、増分でも全部を書き出します。': 'You have not exported yet, so an incremental export will include everything.',
+  '一括のファイルも増分のファイルも読み込めます。増分は、一括のあとに書き出した順に読み込むと元に戻せます。': 'Both full and incremental files can be imported. To restore, import the full file, then the incremental files in the order you exported them.',
+  '増分のファイル（{d}時点）: 追加・変更 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個、削除{x}件': 'Incremental file (as of {d}): added/changed {e} notes, {p} people, {t} topics, {f} folders; {x} deleted',
+  '今のデータに反映する': 'Apply to current data',
+  'ここに並べる': 'Place here',
+  '手動（長押しで並べ替え）': 'Manual (long-press to reorder)',
 };
 
 export default en;

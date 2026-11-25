@@ -44,8 +44,38 @@ export const sortEntries = (entries: Entry[]): Entry[] =>
 /** 開いた日時。まだ開いていなければ作成・編集した日時 */
 export const lastSeen = (x: { viewedAt?: number; updatedAt: number }) => Math.max(x.viewedAt ?? 0, x.updatedAt);
 
-export type EntrySort = 'viewed' | 'newest' | 'oldest' | 'updated';
+// ---- 手動の並び順 ----
+type Orderable = { id: string; createdAt: number; order?: number };
+/** 手動の並び順の値。まだ並べ替えていないものは新しいほど上(-作成日時) */
+export const manualKey = (x: Orderable): number => x.order ?? -x.createdAt;
+export const byManual = (a: Orderable, b: Orderable) => manualKey(a) - manualKey(b) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/** ids の中で dragId を targetId の前(after なら後ろ)へ動かした並びを返す。dragId がなければ足す */
+export function moveInList(ids: string[], dragId: string, targetId: string, after: boolean): string[] {
+  const l = ids.filter((x) => x !== dragId);
+  const i = l.indexOf(targetId);
+  if (i < 0) return ids;
+  l.splice(after ? i + 1 : i, 0, dragId);
+  return l;
+}
+
+/**
+ * 新しい並び arranged に合わせて order を振り直す。並べ替えた項目がもともと使っていた値を
+ * 小さい順に配り直すので、この一覧に出ていない項目との前後関係は変わらない
+ * (フォルダの中で並べ替えても「すべての記録」での位置が大きく崩れない)
+ */
+export function reorderValues(items: Orderable[], arranged: string[]): Map<string, number> {
+  const byId = new Map(items.map((x) => [x.id, x]));
+  const list = arranged.map((id) => byId.get(id)).filter((x): x is Orderable => !!x);
+  const slots = list.map(manualKey).sort((a, b) => a - b);
+  // 同じ値が重なると順番が決まらないので、少しずつずらす
+  for (let i = 1; i < slots.length; i++) if (slots[i] <= slots[i - 1]) slots[i] = slots[i - 1] + 0.001;
+  return new Map(list.map((x, i) => [x.id, slots[i]]));
+}
+
+export type EntrySort = 'manual' | 'viewed' | 'newest' | 'oldest' | 'updated';
 export const ENTRY_SORTS: { key: EntrySort; label: string }[] = [
+  { key: 'manual', label: '手動（長押しで並べ替え）' },
   { key: 'viewed', label: '最後に見た順' },
   { key: 'newest', label: '話した日が新しい順' },
   { key: 'oldest', label: '話した日が古い順' },
@@ -57,11 +87,13 @@ export function sortEntriesBy(entries: Entry[], mode: EntrySort): Entry[] {
   if (mode === 'oldest') return l.sort((a, b) => a.talkedOn.localeCompare(b.talkedOn) || a.createdAt - b.createdAt);
   if (mode === 'updated') return l.sort((a, b) => b.updatedAt - a.updatedAt);
   if (mode === 'viewed') return l.sort((a, b) => lastSeen(b) - lastSeen(a));
+  if (mode === 'manual') return l.sort(byManual);
   return sortEntries(l);
 }
 
-export type NameSort = 'viewed' | 'last' | 'first' | 'count' | 'name';
+export type NameSort = 'manual' | 'viewed' | 'last' | 'first' | 'count' | 'name';
 export const NAME_SORTS: { key: NameSort; label: string }[] = [
+  { key: 'manual', label: '手動（長押しで並べ替え）' },
   { key: 'viewed', label: '最後に見た順' },
   { key: 'last', label: '最後に話した順' },
   { key: 'first', label: '最初に話した順' },
@@ -87,10 +119,12 @@ export function statsBy(data: AppData, key: 'person' | 'topic'): Map<string, Nam
   return m;
 }
 
-export function sortNames<T extends { name: string; createdAt: number; updatedAt: number; viewedAt?: number; stat: NameStat }>(items: T[], mode: NameSort): T[] {
+export function sortNames<T extends { id: string; name: string; createdAt: number; updatedAt: number; viewedAt?: number; order?: number; stat: NameStat }>(items: T[], mode: NameSort): T[] {
   const byName = (a: T, b: T) => a.name.localeCompare(b.name, 'ja');
   const l = [...items];
   switch (mode) {
+    case 'manual':
+      return l.sort(byManual);
     case 'viewed':
       return l.sort((a, b) => lastSeen(b) - lastSeen(a));
     case 'name':

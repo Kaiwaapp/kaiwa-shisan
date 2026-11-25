@@ -22,6 +22,8 @@ export interface Person {
   favorite?: boolean;
   /** 入っているグループ(複数可)。フォルダは1か所だけだが、グループはいくつでも */
   groupIds?: ID[];
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い(新しいものが上) */
+  order?: number;
 }
 
 /** 人のグループ(「マッチングアプリ」「職場」など)。1人が複数のグループに入れる */
@@ -49,6 +51,8 @@ export interface Topic {
   pinned?: boolean;
   /** お気に入り(☆でワンタップ。お気に入り一覧に出る) */
   favorite?: boolean;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -81,6 +85,8 @@ export interface Entry {
   favorite?: boolean;
   /** 削除した日時。あるものは「最近削除した項目」にあり、30日で完全に消える */
   deletedAt?: number;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
 }
 
 export type FolderScope = 'entry' | 'person' | 'topic';
@@ -96,6 +102,8 @@ export interface Folder {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
 }
 
 export interface AppData {

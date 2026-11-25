@@ -1,7 +1,7 @@
 import type { Repository } from './repository';
-import { mergeData } from './backup';
+import { applyIncremental, mergeData, type ParsedBackup } from './backup';
 import { newId, type AppData, type Entry, type Folder, type FolderScope, type Group, type ID, type Person, type Topic } from './types';
-import { normalize } from './search';
+import { normalize, reorderValues } from './search';
 
 type Listener = () => void;
 
@@ -38,6 +38,9 @@ export class Store {
   /** 読み込みに失敗したとき true(画面から再試行できる) */
   loadFailed = false;
   private loading: Promise<void> | null = null;
+
+  /** 新しく作る人・話題の読み仮名を名前から推測する(画面側が入力から拾ったもの) */
+  readingGuess: ((name: string) => string) | null = null;
 
   constructor(private repo: Repository) {}
 
@@ -219,6 +222,35 @@ export class Store {
     }
   }
 
+  /**
+   * 手動の並び順を変える。arranged は並べ替えた後の一覧(その画面に出ている順)。
+   * 並び順は編集ではないので更新日時は変えない
+   */
+  async reorder(kind: 'entry' | 'person' | 'topic' | 'folder', arranged: ID[]) {
+    const pool: { id: ID; createdAt: number; order?: number }[] =
+      kind === 'entry' ? this.data.entries : kind === 'person' ? this.data.people : kind === 'topic' ? this.data.topics : this.data.folders;
+    const values = reorderValues(pool, arranged);
+    const apply = <T extends { id: ID; order?: number }>(xs: T[]) => xs.filter((x) => values.has(x.id) && x.order !== values.get(x.id)).map((x) => ({ ...x, order: values.get(x.id)! }));
+    if (kind === 'entry') {
+      await this.putEntries(apply(this.data.entries));
+    } else if (kind === 'person') {
+      const list = apply(this.data.people);
+      for (const x of list) await this.repo.putPerson(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, people: this.data.people.map((x) => m.get(x.id) ?? x) });
+    } else if (kind === 'topic') {
+      const list = apply(this.data.topics);
+      for (const x of list) await this.repo.putTopic(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, topics: this.data.topics.map((x) => m.get(x.id) ?? x) });
+    } else {
+      const list = apply(this.data.folders);
+      for (const x of list) await this.repo.putFolder(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, folders: this.data.folders.map((x) => m.get(x.id) ?? x) });
+    }
+  }
+
   /** 記録・人・話題・フォルダをまとめて別のフォルダへ移す(null は一番上) */
   async moveItems(kind: 'entry' | 'person' | 'topic' | 'folder', ids: ID[], folderId: ID | null) {
     const set = new Set(ids);
@@ -252,7 +284,8 @@ export class Store {
     const existing = this.findPersonByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const p: Person = { id: newId(), name: name.trim(), memo: '', folderId, ...(groupIds.length ? { groupIds } : {}), createdAt: now, updatedAt: now, selectedAt: now };
+    const reading = this.readingGuess?.(name.trim()) || undefined;
+    const p: Person = { id: newId(), name: name.trim(), memo: '', ...(reading ? { reading } : {}), folderId, ...(groupIds.length ? { groupIds } : {}), createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putPerson(p);
     this.set({ ...this.data, people: [...this.data.people, p] });
     return p;
@@ -348,7 +381,8 @@ export class Store {
     const existing = this.findTopicByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), folderId, createdAt: now, updatedAt: now, selectedAt: now };
+    const tr = this.readingGuess?.(name.trim().replace(/^#/, '')) || undefined;
+    const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), ...(tr ? { reading: tr } : {}), folderId, createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putTopic(t);
     this.set({ ...this.data, topics: [...this.data.topics, t] });
     return t;
@@ -624,6 +658,13 @@ export class Store {
   }
 
   // ---- バックアップ ----
+  /** 増分バックアップを反映する */
+  async importIncremental(file: ParsedBackup) {
+    const next = applyIncremental(this.data, file);
+    await this.repo.replaceAll(next);
+    this.set(next);
+  }
+
   async importData(incoming: AppData, mode: 'merge' | 'replace') {
     const next = mode === 'merge' ? mergeData(this.data, incoming) : incoming;
     await this.repo.replaceAll(next);

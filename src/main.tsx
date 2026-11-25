@@ -5,6 +5,7 @@ import { App } from './ui/App';
 import { Store } from './core/store';
 import { IdbRepository } from './core/idbRepository';
 import './ui/styles.css';
+import { guessReading, installReadingCapture } from './ui/reading';
 
 registerSW({ immediate: true });
 
@@ -13,6 +14,9 @@ navigator.storage?.persist?.().catch(() => {});
 
 const store = new Store(new IdbRepository());
 store.init();
+// 入力から読み仮名を拾い、新しく作る人・話題に付ける(無料)
+installReadingCapture();
+store.readingGuess = guessReading;
 // 読み込みに失敗したままアプリを閉じて開き直した(復帰した)ときは、もう一度読む
 const retry = () => { if (!store.loaded && document.visibilityState === 'visible') store.init(); };
 document.addEventListener('visibilitychange', retry);

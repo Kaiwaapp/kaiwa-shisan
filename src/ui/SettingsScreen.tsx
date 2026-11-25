@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { parseBackup } from '../core/backup';
-import type { AppData } from '../core/types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { diffSince, readBackup, type BackupKind, type ParsedBackup } from '../core/backup';
 import { go, useData, useStore } from './hooks';
 import { Header } from './components';
-import { exportBackup, getLastBackup } from './backupUi';
+import { exportBackup, getLastBackup, getManifest } from './backupUi';
 import { AiSettingsPanel } from './AiTools';
 import { FEATURE_KEYS, FEATURE_LABELS, setFeature, useFeatures } from './features';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
@@ -12,10 +11,13 @@ export function SettingsScreen() {
   const data = useData();
   const store = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState<AppData | null>(null);
+  const [pending, setPending] = useState<ParsedBackup | null>(null);
   const [msg, setMsg] = useState('');
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [last, setLast] = useState(getLastBackup());
+  // 前回の書き出しからの変更数(増分で書き出す件数)
+  const [manifest, setManifest] = useState(getManifest());
+  const changes = useMemo(() => diffSince(data, manifest).count, [data, manifest]);
   const feat = useFeatures();
 
   useEffect(() => {
@@ -25,18 +27,19 @@ export function SettingsScreen() {
   const standalone =
     matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
 
-  const onExport = async () => {
-    const r = await exportBackup(data);
+  const onExport = async (kind: BackupKind) => {
+    const r = await exportBackup(data, kind);
     if (r !== 'cancelled') {
       setLast(getLastBackup());
-      setMsg(t('バックアップを書き出しました'));
+      setManifest(getManifest());
+      setMsg(kind === 'incremental' ? t('変更分を書き出しました') : t('バックアップを書き出しました'));
     }
   };
 
   const onFile = async (f: File | undefined) => {
     if (!f) return;
     try {
-      setPending(parseBackup(await f.text()));
+      setPending(readBackup(await f.text()));
       setMsg('');
     } catch (e) {
       setMsg(t((e as Error).message));
@@ -44,13 +47,15 @@ export function SettingsScreen() {
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const apply = async (mode: 'merge' | 'replace') => {
+  const apply = async (mode: 'merge' | 'replace' | 'incremental') => {
     if (!pending) return;
     if (mode === 'replace' && !confirm(t('今のデータをすべて消して、バックアップの内容に置き換えます。よろしいですか？'))) return;
-    await store.importData(pending, mode);
+    if (mode === 'incremental') await store.importIncremental(pending);
+    else await store.importData(pending.data, mode);
     setPending(null);
-    setMsg(mode === 'merge' ? t('バックアップを統合しました') : t('バックアップで置き換えました'));
+    setMsg(mode === 'merge' ? t('バックアップを統合しました') : mode === 'replace' ? t('バックアップで置き換えました') : t('変更分を反映しました'));
   };
+  const deletedCount = pending ? Object.values(pending.deleted).reduce((n, l) => n + l.length, 0) : 0;
 
   return (
     <div className="screen">
@@ -102,13 +107,36 @@ export function SettingsScreen() {
           <p className="muted small">
             {t('最終バックアップ: {d}', { d: last ? new Date(last).toLocaleString(locale()) : t('まだありません') })}
           </p>
-          <button className="btn primary block" onClick={onExport}>{t('バックアップを書き出す')}</button>
+          <button className="btn primary block" onClick={() => onExport('full')}>{t('すべて書き出す（一括）')}</button>
+          <button className="btn block" disabled={!!manifest && changes === 0} onClick={() => onExport('incremental')}>
+            {t('変更分だけ書き出す（増分）')}
+          </button>
+          <p className="muted small">
+            {manifest
+              ? changes
+                ? t('前回の書き出しから{n}件の追加・変更・削除があります。増分は前回の書き出し以降の変更だけを小さいファイルにします。', { n: changes })
+                : t('前回の書き出しから変更はありません。')
+              : t('まだ書き出したことがないので、増分でも全部を書き出します。')}
+          </p>
           <button className="btn block" onClick={() => fileRef.current?.click()}>{t('バックアップから読み込む')}</button>
+          <p className="muted small">{t('一括のファイルも増分のファイルも読み込めます。増分は、一括のあとに書き出した順に読み込むと元に戻せます。')}</p>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => onFile(e.target.files?.[0])} />
-          {pending && (
+          {pending && pending.kind === 'incremental' && (
             <div className="confirm">
               <p>
-                {t('読み込むファイル: 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個', { e: pending.entries.length, p: pending.people.length, t: pending.topics.length, f: pending.folders.length })}
+                {t('増分のファイル（{d}時点）: 追加・変更 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個、削除{x}件', {
+                  d: new Date(pending.exportedAt).toLocaleString(locale()),
+                  e: pending.data.entries.length, p: pending.data.people.length, t: pending.data.topics.length, f: pending.data.folders.length, x: deletedCount,
+                })}
+              </p>
+              <button className="btn primary block" onClick={() => apply('incremental')}>{t('今のデータに反映する')}</button>
+              <button className="btn ghost block" onClick={() => setPending(null)}>{t('やめる')}</button>
+            </div>
+          )}
+          {pending && pending.kind === 'full' && (
+            <div className="confirm">
+              <p>
+                {t('読み込むファイル: 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個', { e: pending.data.entries.length, p: pending.data.people.length, t: pending.data.topics.length, f: pending.data.folders.length })}
               </p>
               <button className="btn primary block" onClick={() => apply('merge')}>{t('今のデータに統合する')}</button>
               <button className="btn danger block" onClick={() => apply('replace')}>{t('今のデータを置き換える')}</button>
