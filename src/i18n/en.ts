@@ -108,7 +108,9 @@ const en: Record<string, string> = {
 
   // フォルダ
   'お気に入り': 'Favorites',
-  '★ お気に入り': '★ Favorites',
+  '★ お気に入りの記録': '★ Favorite Notes',
+  '★ お気に入りの人': '★ Favorite People',
+  '★ お気に入りの話題': '★ Favorite Topics',
   'お気に入りに追加': 'Add to Favorites',
   'お気に入りから外す': 'Remove from Favorites',
   'お気に入りに追加しました': 'Added to Favorites',
