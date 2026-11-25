@@ -225,7 +225,8 @@ export function ComboPicker({ kind, options, selected, newNames, onChange, group
     return rows.sort((a, b) => b.rank - a.rank);
   }, [options, groups, nq, frozen]);
   // 直近の候補は画面を開いた時点の順で固定(選ぶたびに並びが変わらないように)
-  const [recentIds] = useState(() => [...options].sort((a, b) => b.rank - a.rank).slice(0, recent).map((o) => o.id));
+  // 最初から選ばれているもの(グループのメンバーなど)は除き、それ以外の直近から出す
+  const [recentIds] = useState(() => options.filter((o) => !selected.includes(o.id)).sort((a, b) => b.rank - a.rank).slice(0, recent).map((o) => o.id));
   const recentOpts = recentIds.map((id) => options.find((o) => o.id === id)).filter((o): o is (typeof options)[number] => !!o);
   const quickGroups = [...groups].filter((g) => g.memberIds.length).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
   const exact =
@@ -324,7 +325,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange, group
           </ul>
         )}
       </div>
-      {(recentOpts.some((o) => !selected.includes(o.id)) || (recent > 0 && quickGroups.length > 0)) && (
+      {recentOpts.some((o) => !selected.includes(o.id)) && (
         <div className="chips quick">
           {/* 選んだものは上の選択済みに移る */}
           {recentOpts.filter((o) => !selected.includes(o.id)).map((o) => (
@@ -332,7 +333,11 @@ export function ComboPicker({ kind, options, selected, newNames, onChange, group
               ＋ {prefix}{o.name}
             </button>
           ))}
-          {recent > 0 && quickGroups.map((g) => (
+        </div>
+      )}
+      {recent > 0 && quickGroups.length > 0 && (
+        <div className="chips quick">
+          {quickGroups.map((g) => (
             <button key={'g:' + g.id} type="button" className={`chip group ${openGroup === g.id ? 'on' : ''}`} onClick={() => setOpenGroup(openGroup === g.id ? null : g.id)}>
               {g.name} {openGroup === g.id ? '▴' : '▾'}
             </button>

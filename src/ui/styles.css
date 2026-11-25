@@ -387,7 +387,13 @@ body.dragging { cursor: grabbing; }
 .group-bar .section-title { margin-top: 4px; }
 .group-bar .picker-input { margin-bottom: 10px; }
 .person-groups { margin: 0 0 10px; }
-.chips.quick { margin-top: 8px; }
+.chips.quick { margin: 8px -16px 0; padding: 0 16px 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.chips.quick::-webkit-scrollbar { display: none; }
+.chips.quick .chip { flex: none; white-space: nowrap; }
 .chips.quick .chip { padding: 4px 11px; font-size: 13.5px; }
 .group-members { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 12px; align-items: center; }
 .dd-group .group-mark { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: var(--ink); color: var(--bg); }
+.sheet-item .check { color: var(--accent); font-weight: 700; }
+.sheet-item.strong { justify-content: center; font-weight: 700; color: var(--accent); }
+.sheet-input { gap: 8px; }
+.sheet-input input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 16px; outline: none; }
