@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
+import { autoFocusRef, focusNoScroll } from './focus';
 import { today, type EntryImage, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
 import { ComboPicker, FavButton, FavToggle, Header, sameNameHints } from './components';
@@ -230,7 +231,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
             // 変換確定のEnterでは移動しない
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              (e.currentTarget.nextElementSibling as HTMLElement | null)?.focus();
+              const next = e.currentTarget.nextElementSibling as HTMLElement | null;
+              if (next) focusNoScroll(next);
             }
           }}
           placeholder={t('タイトル（なくてもOK）')}
@@ -243,14 +245,14 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           onChange={(e) => setText(e.target.value)}
           onPaste={onPaste}
           placeholder={t('話した内容を自由に書く')}
-          autoFocus={!existing}
+          ref={!existing ? autoFocusRef : undefined}
           rows={6}
         />
         {feat.copy && text.trim() && (
           <button type="button" className="link small-link copy-line" onClick={(e) => copyText(text, e.currentTarget)}>{t('⧉ 本文をコピー')}</button>
         )}
         {feat.memo && (memoOpen
-          ? <textarea className="textarea memo-field" rows={4} autoFocus={!memo} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t('メモ（相手の反応など）')} aria-label={t('メモ')} />
+          ? <textarea className="textarea memo-field" rows={4} ref={!memo ? autoFocusRef : undefined} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t('メモ（相手の反応など）')} aria-label={t('メモ')} />
           : <button type="button" className="link small-link memo-add" onClick={() => setMemoOpen(true)}>{t('＋ メモを書く')}</button>)}
         {feat.images && (
           <div className="img-field">

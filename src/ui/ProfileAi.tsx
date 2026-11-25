@@ -1,5 +1,6 @@
 // プロフィールのAI自動入力(試作)。プロフィールの編集を開いたときだけ読み込む。
 import { useRef, useState, type ClipboardEvent } from 'react';
+import { autoFocusRef } from './focus';
 import { aiErrorMessage, isDemo } from '../core/ai';
 import { demoFillProfile, fillProfile, type FieldSpec, type ProfileSource } from '../core/aiProfile';
 import type { Person, PersonProfile } from '../core/types';
@@ -88,7 +89,7 @@ export default function ProfileAi({ person, texts, fields, current, onApply }: {
       </div>
       {mode === 'paste' && (
         <div className="profile-paste">
-          <textarea className="textarea" rows={4} autoFocus value={pasted} onChange={(e) => setPasted(e.target.value)} onPaste={onPaste}
+          <textarea className="textarea" rows={4} ref={autoFocusRef} value={pasted} onChange={(e) => setPasted(e.target.value)} onPaste={onPaste}
             placeholder={t('マッチングアプリやSNSのプロフィールをコピーして貼り付け（画像の貼り付けもできます）')} />
           <button className="btn small primary" disabled={busy || !pasted.trim()} onClick={() => run({ kind: 'text', text: pasted })}>{t('読み取る')}</button>
         </div>
