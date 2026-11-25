@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { PersonProfileSection } from './profile';
 import { entryLabel, type ID } from '../core/types';
 import {
   ENTRY_SORTS, NAME_SORTS, lastSeen, nameMatches, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
@@ -582,6 +583,7 @@ export function PersonScreen({ id }: { id: ID }) {
               ))}
             </div>
           )}
+          {feat.profile && <PersonProfileSection person={person} entries={mine} />}
           <FoldHeader label={t('{name}に話したこと', { name: person.name })} count={mine.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
           {entriesOpen && <>
           {topicCounts.length > 0 && (

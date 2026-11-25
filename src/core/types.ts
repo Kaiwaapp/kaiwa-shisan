@@ -22,9 +22,55 @@ export interface Person {
   favorite?: boolean;
   /** 入っているグループ(複数可)。フォルダは1か所だけだが、グループはいくつでも */
   groupIds?: ID[];
+  /** プロフィール(年齢・仕事・趣味など)。空の項目は持たない */
+  profile?: PersonProfile;
 }
 
-/** 人のグループ(「マッチングアプリ」「職場」など)。1人が複数のグループに入れる */
+/** 初めから用意しているプロフィール項目。表示名は画面側(ui/profileFields.ts)で付け、設定で変えられる */
+export const PROFILE_KEYS = ['age', 'birthday', 'area', 'hometown', 'job', 'hobbies', 'likes', 'dislikes', 'metAt'] as const;
+
+/** この人だけに足した項目(身長・血液型など) */
+export interface ProfileExtra {
+  label: string;
+  value: string;
+}
+
+/** プロフィールの中身。fields は項目ID(age や 自分で足した項目のID) → 値 */
+export interface PersonProfile {
+  fields?: Record<string, string>;
+  extra?: ProfileExtra[];
+}
+
+/** 空の項目を取り除く。何も残らなければ undefined */
+export function cleanProfile(p: PersonProfile | undefined): PersonProfile | undefined {
+  if (!p) return undefined;
+  const out: PersonProfile = {};
+  const fields: Record<string, string> = {};
+  for (const [k, v] of Object.entries(p.fields ?? {})) if (typeof v === 'string' && v.trim()) fields[k] = v.trim();
+  if (Object.keys(fields).length) out.fields = fields;
+  const extra = (p.extra ?? [])
+    .map((x) => ({ label: x.label.trim(), value: x.value.trim() }))
+    .filter((x) => x.label || x.value);
+  if (extra.length) out.extra = extra;
+  return Object.keys(out).length ? out : undefined;
+}
+
+export const hasProfile = (p: PersonProfile | undefined) => !!cleanProfile(p);
+
+/** 検索用に、プロフィールの値を全部並べる */
+export const profileValues = (p: PersonProfile | undefined): string[] =>
+  p ? [...Object.values(p.fields ?? {}), ...(p.extra ?? []).map((e) => e.value)] : [];
+
+/** 2人をまとめるとき。dst を優先し、dst が空の項目だけ src で埋める。この人だけの項目は両方残す */
+export function mergeProfiles(dst: PersonProfile | undefined, src: PersonProfile | undefined): PersonProfile | undefined {
+  const a = cleanProfile(dst) ?? {};
+  const b = cleanProfile(src) ?? {};
+  const fields = { ...(b.fields ?? {}), ...(a.fields ?? {}) };
+  const seen = new Set((a.extra ?? []).map((x) => x.label + '\u0000' + x.value));
+  const extra = [...(a.extra ?? []), ...(b.extra ?? []).filter((x) => !seen.has(x.label + '\u0000' + x.value))];
+  return cleanProfile({ fields, extra });
+}
+
 export interface Group {
   id: ID;
   name: string;

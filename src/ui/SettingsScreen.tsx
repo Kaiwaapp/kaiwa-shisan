@@ -83,6 +83,12 @@ export function SettingsScreen() {
           </li>
         </ul>
 
+        {feat.profile && <section className="panel">
+          <h2>{t('プロフィールの項目')}</h2>
+          <p className="muted small">{t('人のプロフィールに出す項目（年齢・仕事・趣味など）を、変えたり足したりできます。')}</p>
+          <button className="btn block" onClick={() => go('/settings/profile')}>{t('項目を編集')}</button>
+        </section>}
+
         {feat.import && <section className="panel">
           <h2>{t('他のアプリから取り込む')}</h2>
           <p className="muted small">{t('iPhoneのメモ・テキストやLINEのトーク履歴を、記録としてまとめて取り込めます。')}</p>

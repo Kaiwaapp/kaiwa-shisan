@@ -198,7 +198,7 @@ export function AiSettingsPanel() {
     <section className="panel">
       <h2>{t('AI機能（試作）')}</h2>
       <p className="muted small">
-        {t('スクショの文字起こし、話題・相手の提案、フォルダの整理をAI（Claude Haiku）が手伝います。APIキーがなければ「お試し表示」で画面と動きだけ確認できます。')}
+        {t('スクショの文字起こし、話題・相手の提案、フォルダの整理、プロフィールの自動入力をAI（Claude Haiku）が手伝います。APIキーがなければ「お試し表示」で画面と動きだけ確認できます。')}
       </p>
       <label className="toggle toggle-main">
         <input type="checkbox" checked={s.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
@@ -217,6 +217,10 @@ export function AiSettingsPanel() {
           <label className="toggle">
             <input type="checkbox" checked={s.organize} onChange={(e) => update({ organize: e.target.checked })} />
             <span>{t('フォルダの自動整理')}</span>
+          </label>
+          <label className="toggle">
+            <input type="checkbox" checked={s.profile} onChange={(e) => update({ profile: e.target.checked })} />
+            <span>{t('プロフィールの自動入力')}</span>
           </label>
           {s.organize && (
             <div className="ai-bar">
