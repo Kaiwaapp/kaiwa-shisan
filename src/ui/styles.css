@@ -57,8 +57,7 @@ button:disabled { opacity: .4; cursor: default; }
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px);
 }
-.header-center { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; max-width: 60vw; }
-.header-title { margin: 0; font-size: 17px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.header-title { margin: 0; font-size: 17px; font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
 .header-side { display: flex; }
 .header-side.right { justify-content: flex-end; }
 .link { color: var(--accent); font-size: 16px; padding: 6px 0; }
@@ -276,7 +275,10 @@ button:disabled { opacity: .4; cursor: default; }
 .copy-btn:active { background: var(--bg); color: var(--accent); }
 .copy-line { align-self: flex-end; margin-top: -8px; }
 /* ---- お気に入り ---- */
-.title-icons { display: inline-flex; gap: 2px; flex: none; }
+.title-icons { display: inline-flex; gap: 4px; flex: none; margin-left: -6px; }
+.header-side.with-lead { align-items: center; gap: 8px; min-width: 0; }
+.header-side.with-lead > .link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-btn.all { width: auto; padding: 0 7px; height: 26px; font-size: 13px; font-weight: 700; border: 1.5px solid currentColor; border-radius: 7px; }
 .icon-btn {
   width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;
   color: var(--accent); font-size: 17px; line-height: 1;
@@ -355,8 +357,7 @@ body.dragging { cursor: grabbing; }
   .app.editor-app { max-width: 760px; }
   .screen { padding: 0; }
   .header { margin: 0 0 12px; padding-left: 0; padding-right: 0; padding-top: 18px; }
-  .header-title { font-size: 20px; }
-  .header-center { max-width: 420px; }
+  .header-title { font-size: 20px; max-width: 420px; }
   .main { padding-bottom: 120px; }
 
   /* 下のタブを左のサイドバーに */
