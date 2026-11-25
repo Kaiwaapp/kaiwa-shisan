@@ -9,6 +9,8 @@ export interface EntryInput {
   /** タイトル(任意)。空なら付けない */
   title?: string;
   text: string;
+  /** メモ(任意)。未指定なら今のまま、空なら消す */
+  memo?: string;
   personIds: ID[];
   /** 話したグループ(グループ自体を付ける) */
   groupIds?: ID[];
@@ -134,6 +136,7 @@ export class Store {
       id: prev?.id ?? newId(),
       ...(input.title?.trim() ? { title: input.title.trim() } : {}),
       text: input.text.trim(),
+      ...((input.memo ?? prev?.memo ?? '').trim() ? { memo: (input.memo ?? prev?.memo ?? '').trim() } : {}),
       personIds: [...new Set(personIds)],
       ...(groupIds.length ? { groupIds } : {}),
       folderId: input.folderId === undefined ? (prev?.folderId ?? null) : input.folderId,

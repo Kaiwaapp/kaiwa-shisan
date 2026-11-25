@@ -25,6 +25,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [text, setText] = useState(existing?.text ?? '');
+  const [memo, setMemo] = useState(existing?.memo ?? '');
+  const [memoOpen, setMemoOpen] = useState(!!existing?.memo);
   const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (initialPerson ? [initialPerson] : []));
   const [groupIds, setGroupIds] = useState<ID[]>(() => existing?.groupIds ?? (initialGroup ? [initialGroup] : []));
   const [newPeople, setNewPeople] = useState<string[]>([]);
@@ -112,9 +114,9 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   });
 
   // 開いた時点の内容。これと違えば「入力した」とみなし、キャンセル時に確認する
-  const [initial] = useState(() => JSON.stringify([title, text, personIds, groupIds, topicIds, talkedOn]));
+  const [initial] = useState(() => JSON.stringify([title, text, memo, personIds, groupIds, topicIds, talkedOn]));
   const dirty = !saving && (
-    JSON.stringify([title, text, personIds, groupIds, topicIds, talkedOn]) !== initial || newPeople.length > 0 || newTopics.length > 0 || newFav
+    JSON.stringify([title, text, memo, personIds, groupIds, topicIds, talkedOn]) !== initial || newPeople.length > 0 || newTopics.length > 0 || newFav
   );
   const [asking, setAsking] = useState(false);
   const [dontAsk, setDontAsk] = useState(false);
@@ -168,7 +170,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
     try {
-      await store.saveEntry({ title, text, personIds, groupIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, imageIds, newImages: [...pendingImages.values()], ...(existing ? {} : { favorite: newFav }) }, id);
+      await store.saveEntry({ title, text, ...(feat.memo ? { memo } : {}), personIds, groupIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, imageIds, newImages: [...pendingImages.values()], ...(existing ? {} : { favorite: newFav }) }, id);
     } catch {
       // 保存に失敗したら入力はそのまま残して、もう一度押せるようにする
       saved.current = false;
@@ -226,6 +228,9 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
         {feat.copy && text.trim() && (
           <button type="button" className="link small-link copy-line" onClick={() => copyText(text)}>{t('⧉ 本文をコピー')}</button>
         )}
+        {feat.memo && (memoOpen
+          ? <textarea className="textarea memo-field" rows={2} autoFocus={!memo} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t('メモ（相手の反応など）')} aria-label={t('メモ')} />
+          : <button type="button" className="link small-link memo-add" onClick={() => setMemoOpen(true)}>{t('＋ メモを書く')}</button>)}
         {feat.images && (
           <div className="img-field">
             <ImageStrip ids={imageIds} pending={pendingImages} onRemove={(x) => setImageIds((xs) => xs.filter((y) => y !== x))} />

@@ -15,7 +15,7 @@ export const nameMatches = (x: { name: string; reading?: string; profile?: Perso
   return profileValues(x.profile).some((v) => normalize(v).includes(n));
 };
 
-/** スペース区切りの全語を、タイトル・本文・人の名前・話題名のどこかに含む記録を返す */
+/** スペース区切りの全語を、タイトル・本文・メモ・人の名前・話題名のどこかに含む記録を返す */
 export function searchEntries(data: AppData, query: string): Entry[] {
   const words = normalize(query).split(/\s+/).filter(Boolean);
   const sorted = sortEntries(data.entries);
@@ -28,6 +28,7 @@ export function searchEntries(data: AppData, query: string): Entry[] {
       [
         e.title ?? '',
         e.text,
+        e.memo ?? '',
         ...e.personIds.map((id) => pName.get(id) ?? ''),
         ...(e.groupIds ?? []).map((id) => gName.get(id) ?? ''),
         ...e.topics.map((t) => tName.get(t.topicId) ?? ''),

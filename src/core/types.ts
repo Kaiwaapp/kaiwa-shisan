@@ -117,6 +117,8 @@ export interface Entry {
   /** タイトル(任意)。未設定なら一覧では本文の1行目を見出しに使う */
   title?: string;
   text: string;
+  /** メモ(任意)。本文とは別の覚え書き(相手の反応など) */
+  memo?: string;
   personIds: ID[];
   /** 話したグループ(グループ自体を相手として付ける。メンバーには展開しない) */
   groupIds?: ID[];
