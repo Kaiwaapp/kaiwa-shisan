@@ -6,15 +6,12 @@ import { formatDate, go, useStore } from './hooks';
 import { copyText, SelectMark, toast, useInteract, usePress, type ItemRef } from './interact';
 import { t } from '../i18n';
 
-/** lead: タイトルの左に並べるアイコン(お気に入り・すべて など) */
+/** lead: 見出し行の左端に並べるアイコン(お気に入り・すべて など)。戻るボタンより左に出す */
 export function Header({ title, left, right, lead }: { title: ReactNode; left?: ReactNode; right?: ReactNode; lead?: ReactNode }) {
   return (
     <header className="header">
-      <div className="header-side">{left}</div>
-      <div className="header-center">
-        {lead}
-        <h1 className="header-title">{title}</h1>
-      </div>
+      <div className={`header-side ${lead ? 'with-lead' : ''}`}>{lead}{left}</div>
+      <h1 className="header-title">{title}</h1>
       <div className="header-side right">{right}</div>
     </header>
   );
