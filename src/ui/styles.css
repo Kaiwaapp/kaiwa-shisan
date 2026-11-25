@@ -121,8 +121,8 @@ button:disabled { opacity: .4; cursor: default; }
 .memo-tap { display: block; width: 100%; text-align: left; color: inherit; cursor: text; }
 .memo-add { display: inline-block; margin: 0 0 4px; }
 .memo-edit { margin: 0 0 4px; }
-.memo-edit .textarea { min-height: 0; }
-.textarea.memo-field { min-height: 0; margin-top: 4px; font-size: 14px; }
+.memo-edit .textarea { min-height: 140px; }
+.textarea.memo-field { min-height: 120px; margin-top: 4px; }
 .memo-actions { display: flex; justify-content: flex-end; gap: 18px; padding: 6px 4px 0; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
@@ -266,8 +266,17 @@ button:disabled { opacity: .4; cursor: default; }
   position: absolute; right: 6px; top: 6px; width: 32px; height: 32px; border-radius: 8px;
   color: var(--muted); font-size: 17px; display: flex; align-items: center; justify-content: center;
 }
-.copy-btn:active { background: var(--bg); color: var(--accent); }
-.copy-line { align-self: flex-end; margin-top: -8px; }
+.copy-btn { transition: transform .1s, background .15s, color .15s; }
+.copy-btn:active { background: var(--bg); color: var(--accent); transform: scale(.85); }
+.copy-btn.copied { background: var(--accent); color: #fff; animation: copied-pop .35s ease-out; }
+.copy-line { align-self: flex-end; margin-top: -8px; border-radius: 8px; padding: 4px 8px; transition: transform .1s, background .15s; }
+.copy-line:active { transform: scale(.94); }
+.copy-line.copied { background: var(--accent); color: #fff; animation: copied-pop .35s ease-out; }
+@keyframes copied-pop { 0% { transform: scale(.85); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+/* iPhoneは文字が16px未満の入力欄をタップすると画面を拡大するので、入力欄は16px以上にする */
+@supports (-webkit-touch-callout: none) {
+  input, textarea, select { font-size: max(16px, 1em) !important; }
+}
 /* ---- お気に入り ---- */
 .title-icons { display: inline-flex; gap: 4px; flex: none; margin-left: -6px; }
 .header-side.with-lead { align-items: center; gap: 8px; min-width: 0; }
