@@ -1,4 +1,4 @@
-import type { AppData, Entry, Folder, Group, Person, Topic, ID } from './types';
+import type { AppData, Entry, EntryImage, Folder, Group, Person, Topic, ID } from './types';
 
 /**
  * 保存先の抽象。Webは IndexedDB、将来のネイティブ版は SQLite 実装に差し替える。
@@ -16,6 +16,12 @@ export interface Repository {
   putGroup(g: Group): Promise<void>;
   deleteGroup(id: ID): Promise<void>;
   deleteEntry(id: ID): Promise<void>;
-  /** 全データを置き換える(インポート用) */
+  /** 添付画像。loadAll では読まず、使うときに1枚ずつ読む */
+  putImage(img: EntryImage): Promise<void>;
+  getImage(id: ID): Promise<EntryImage | undefined>;
+  deleteImage(id: ID): Promise<void>;
+  /** 保存されている画像の id 一覧(いらない画像の掃除用) */
+  imageIds(): Promise<ID[]>;
+  /** 全データを置き換える(インポート用)。画像は対象外 */
   replaceAll(data: AppData): Promise<void>;
 }

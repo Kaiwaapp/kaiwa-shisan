@@ -122,6 +122,7 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
       )}
       <div className="card-meta">
         <span className="date">{formatDate(entry.talkedOn)}</span>
+        {feat.images && !!entry.imageIds?.length && <span className="img-count" aria-label={t('画像{n}枚', { n: entry.imageIds.length })}>🖼 {entry.imageIds.length}</span>}
         {folder && <span className="chip folder small">▤ {folderPath(data.folders, folder.id).map((f) => f.name).join(' / ')}</span>}
         {groups.map((g) => (
           <span key={g!.id} className="chip group small">{g!.name}</span>

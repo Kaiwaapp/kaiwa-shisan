@@ -1,5 +1,5 @@
 import { toBackup } from '../core/backup';
-import { today, type AppData } from '../core/types';
+import { today, type AppData, type EntryImage } from '../core/types';
 import { t } from '../i18n';
 
 const KEY = 'kaiwa-shisan:lastBackupAt';
@@ -18,8 +18,9 @@ const markBackup = () => {
 };
 
 /** iPhoneでは共有シート(「ファイルに保存」など)、それ以外はダウンロード */
-export async function exportBackup(data: AppData): Promise<'shared' | 'downloaded' | 'cancelled'> {
-  const json = JSON.stringify(toBackup(data), null, 2);
+export async function exportBackup(data: AppData, images?: EntryImage[]): Promise<'shared' | 'downloaded' | 'cancelled'> {
+  // 画像入りは大きくなるので、整形(改行・字下げ)なしで書き出す
+  const json = images?.length ? JSON.stringify(toBackup(data, images)) : JSON.stringify(toBackup(data, images), null, 2);
   const name = `kaiwa-shisan-${today()}.json`;
   const file = new File([json], name, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] })) {

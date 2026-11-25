@@ -16,6 +16,8 @@ export interface AiSettings {
   apiKey: string;
   /** スクショ文字起こし */
   ocr: boolean;
+  /** 文字起こしした画像を記録に自動で添付する(「使う機能」で画像の添付がオンのとき) */
+  ocrAttach: boolean;
   /** 話題・相手の自動提案 */
   suggest: boolean;
   /** フォルダの自動整理 */
@@ -27,7 +29,7 @@ export interface AiSettings {
 }
 
 const KEY = 'kaiwa.ai.v1';
-const DEFAULTS: AiSettings = { enabled: false, apiKey: '', ocr: true, suggest: true, organize: true, profile: true, spentYen: 0 };
+const DEFAULTS: AiSettings = { enabled: false, apiKey: '', ocr: true, ocrAttach: true, suggest: true, organize: true, profile: true, spentYen: 0 };
 
 export function loadAiSettings(): AiSettings {
   try {

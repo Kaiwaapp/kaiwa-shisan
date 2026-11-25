@@ -1,15 +1,39 @@
-import type { AppData, Entry, Folder, Group, Person, Topic } from './types';
+import type { AppData, Entry, EntryImage, Folder, Group, Person, Topic } from './types';
 
 export const BACKUP_FORMAT = 'kaiwa-shisan-backup';
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
+
+/** バックアップの中の画像。JSONに入れるため中身はbase64 */
+export interface BackupImage extends Omit<EntryImage, 'data'> {
+  data: string;
+}
 
 export interface BackupFile extends AppData {
   format: typeof BACKUP_FORMAT;
   version: number;
   exportedAt: string;
+  /** v4から。画像を含めずに書き出したときはない */
+  images?: BackupImage[];
 }
 
-export const toBackup = (data: AppData): BackupFile => ({
+/** 画像つきのデータ(バックアップの読み書き用) */
+export type BackupData = AppData & { images?: EntryImage[] };
+
+export function bufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+export function base64ToBuffer(b64: string): ArrayBuffer {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+
+export const toBackup = (data: AppData, images?: EntryImage[]): BackupFile => ({
   format: BACKUP_FORMAT,
   version: BACKUP_VERSION,
   exportedAt: new Date().toISOString(),
@@ -18,9 +42,10 @@ export const toBackup = (data: AppData): BackupFile => ({
   entries: data.entries,
   folders: data.folders,
   groups: data.groups,
+  ...(images ? { images: images.map((img) => ({ ...img, data: bufferToBase64(img.data) })) } : {}),
 });
 
-export function parseBackup(json: string): AppData {
+export function parseBackup(json: string): BackupData {
   let raw: unknown;
   try {
     raw = JSON.parse(json);
@@ -38,6 +63,10 @@ export function parseBackup(json: string): AppData {
     folders: Array.isArray(r.folders) ? (r.folders as Folder[]).map((f) => ({ ...f, parentId: f.parentId ?? null })) : [],
     // v2までのバックアップにはグループがない
     groups: Array.isArray(r.groups) ? (r.groups as Group[]) : [],
+    // v3までのバックアップ・画像なしで書き出したものには画像がない
+    images: Array.isArray(r.images)
+      ? r.images.filter((i) => i && typeof i.id === 'string' && typeof i.data === 'string').map((i) => ({ ...i, data: base64ToBuffer(i.data) }))
+      : [],
   };
 }
 

@@ -1,6 +1,6 @@
 import type { Repository } from './repository';
 import { mergeData } from './backup';
-import { newId, type AppData, type Entry, type Folder, type FolderScope, type Group, type ID, type Person, type Topic, mergeProfiles } from './types';
+import { newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type Topic, mergeProfiles } from './types';
 import { normalize } from './search';
 
 type Listener = () => void;
@@ -23,6 +23,10 @@ export interface EntryInput {
   folderId?: ID | null;
   /** お気に入り。未指定なら今の状態のまま */
   favorite?: boolean;
+  /** 添付画像の id(並び順どおり)。未指定なら今のまま。外した画像は保存時に消す */
+  imageIds?: ID[];
+  /** 今回新しく添付した画像(imageIds に入っているものだけ保存する) */
+  newImages?: EntryImage[];
 }
 
 export interface ImportResult { entryIds: ID[]; personIds: ID[]; topicIds: ID[]; folderIds: ID[] }
@@ -72,6 +76,8 @@ export class Store {
       }
     }
     await this.purgeTrash().catch(() => {});
+    // 保存の途中でアプリが閉じられた等で残った、どの記録にも付いていない画像を消す
+    await this.gcImages().catch(() => {});
   }
 
   get snapshot(): AppData { return this.snap; }
@@ -140,7 +146,12 @@ export class Store {
       updatedAt: now,
       viewedAt: now,
     };
+    const imageIds = input.imageIds ?? prev?.imageIds ?? [];
+    if (imageIds.length) entry.imageIds = [...new Set(imageIds)];
+    // 画像を先に保存してから記録を保存する(途中で閉じても記録が画像を見失わない)
+    for (const img of input.newImages ?? []) if (imageIds.includes(img.id)) await this.repo.putImage(img);
     await this.repo.putEntry(entry);
+    for (const old of prev?.imageIds ?? []) if (!imageIds.includes(old)) await this.repo.deleteImage(old).catch(() => {});
     this.set({
       ...this.data,
       entries: prev
@@ -186,7 +197,10 @@ export class Store {
   /** 完全に削除 */
   async purgeEntries(ids: ID[]) {
     const set = new Set(ids);
-    for (const id of ids) await this.repo.deleteEntry(id);
+    for (const id of ids) {
+      for (const img of this.data.entries.find((e) => e.id === id)?.imageIds ?? []) await this.repo.deleteImage(img).catch(() => {});
+      await this.repo.deleteEntry(id);
+    }
     this.set({ ...this.data, entries: this.data.entries.filter((e) => !set.has(e.id)) });
   }
 
@@ -647,11 +661,35 @@ export class Store {
     }, 'replace');
   }
 
+  // ---- 添付画像 ----
+  /** 画像を1枚読む(画面で表示するとき) */
+  getImage(id: ID): Promise<EntryImage | undefined> { return this.repo.getImage(id); }
+
+  /** 記録に付いている画像をまとめて読む(バックアップ用)。見つからないものは飛ばす */
+  async imagesOf(entries: Entry[]): Promise<EntryImage[]> {
+    const out: EntryImage[] = [];
+    for (const id of new Set(entries.flatMap((e) => e.imageIds ?? []))) {
+      const img = await this.repo.getImage(id);
+      if (img) out.push(img);
+    }
+    return out;
+  }
+
+  /** どの記録(最近削除した項目も含む)にも付いていない画像を消す */
+  async gcImages() {
+    const used = new Set(this.data.entries.flatMap((e) => e.imageIds ?? []));
+    for (const id of await this.repo.imageIds()) if (!used.has(id)) await this.repo.deleteImage(id);
+  }
+
   // ---- バックアップ ----
-  async importData(incoming: AppData, mode: 'merge' | 'replace') {
-    const next = mode === 'merge' ? mergeData(this.data, incoming) : incoming;
+  async importData(incoming: AppData & { images?: EntryImage[] }, mode: 'merge' | 'replace') {
+    const { images, ...rest } = incoming;
+    const next = mode === 'merge' ? mergeData(this.data, rest) : rest;
+    // 画像は記録より先に入れる
+    for (const img of images ?? []) await this.repo.putImage(img);
     await this.repo.replaceAll(next);
     this.set(next);
+    await this.gcImages().catch(() => {});
   }
 }
 

@@ -442,6 +442,25 @@ const en: Record<string, string> = {
   '記録を入力したままキャンセルしたとき、保存されないことを確認する': "When you cancel a note you've typed in, warn that it won't be saved",
   '＋ 「{name}」に話したことを記録': '+ Note something you told "{name}"',
   'このグループに話した記録': 'Notes told to this group',
+  // 添付画像
+  '。画像も添付しました': '. The image was attached too',
+  '文字起こしした画像を記録に添付する': 'Attach the transcribed image to the note',
+  'オフにすると、文字だけを記録に入れて画像は残しません': 'When off, only the text is added and the image is not kept',
+  '「使う機能」で画像の添付がオフのため、今は添付されません': 'Image attachments are off in "Features", so nothing is attached right now',
+  '画像を読み込めませんでした': "Couldn't read the image",
+  '画像を準備中…': 'Preparing image…',
+  '🖼 画像を添付': '🖼 Attach image',
+  '画像{n}枚が付いています（「使う機能」で画像の添付をオンにすると表示されます）': '{n} image(s) attached (turn on image attachments in "Features" to see them)',
+  '添付画像も含める（{n}枚）': 'Include attached images ({n})',
+  '画像を含めるとファイルが大きくなります': 'Including images makes the file larger',
+  '書き出し中…': 'Exporting…',
+  '・画像{n}枚': ', {n} image(s)',
+  '画像{n}枚': '{n} image(s)',
+  '画像の添付': 'Image attachments',
+  '記録に写真やスクショを添付する機能': 'Attach photos and screenshots to notes',
+  '画像を大きく見る': 'View image',
+  '画像を外す': 'Remove image',
+  '画像': 'Image',
 };
 
 export default en;
