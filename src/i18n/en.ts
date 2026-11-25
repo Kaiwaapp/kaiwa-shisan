@@ -508,6 +508,8 @@ const en: Record<string, string> = {
   'その話を誰にしたか': "Who you told about it",
   'この話題を話した相手': "People you talked to about this topic",
   'データはこの端末の中にあります。設定の「バックアップ」から、ときどき書き出して保存してください。': "Your data lives on this device. Export a backup from Settings from time to time.",
+  '全体': "General",
+  'プロフィールの項目を編集': "Edit profile fields",
 };
 
 export default en;

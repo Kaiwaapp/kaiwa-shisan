@@ -33,11 +33,16 @@ export interface Features {
 
 export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard'] as const;
 
-/** 使う機能の一覧には出さず、設定画面のカテゴリ(人・話題)の欄に出すもの */
-export type CategoryKey = 'readingPerson' | 'readingTopic';
+/** 設定 > 使う機能 の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
+export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
+  { key: 'entry', title: '記録', items: ['title', 'memo', 'images', 'copy', 'recent', 'confirmDiscard'] },
+  { key: 'person', title: '人', items: ['readingPerson', 'groups', 'profile'] },
+  { key: 'topic', title: '話題', items: ['readingTopic'] },
+  { key: 'common', title: '全体', items: ['folders', 'favorites', 'import'] },
+];
 
 /** 設定画面に出す名前と説明(表示時に t() を通す) */
-export const FEATURE_LABELS: Record<(typeof FEATURE_KEYS)[number], { label: string; note: string }> = {
+export const FEATURE_LABELS: Record<keyof Features, { label: string; note: string }> = {
   folders: { label: 'フォルダ', note: 'オフにすると、記録・人・話題をフォルダに分けずに全部並べます' },
   favorites: { label: 'お気に入り', note: '☆ボタンと★のお気に入り一覧' },
   groups: { label: 'グループ', note: '人のグループと、記録の相手を「グループから」選ぶ機能' },
@@ -48,6 +53,8 @@ export const FEATURE_LABELS: Record<(typeof FEATURE_KEYS)[number], { label: stri
   images: { label: '画像の添付', note: '記録に写真やスクショを添付する機能' },
   import: { label: '他のアプリから取り込む', note: '設定の取り込みの項目' },
   profile: { label: '人のプロフィール', note: '人の画面の年齢・仕事・趣味などの欄' },
+  readingPerson: { label: '人の名前に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
+  readingTopic: { label: '話題に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   confirmDiscard: { label: '保存せずに戻るときの確認', note: '記録を入力したままキャンセルしたとき、保存されないことを確認する' },
 };
 
