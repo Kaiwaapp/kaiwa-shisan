@@ -510,6 +510,21 @@ const en: Record<string, string> = {
   'データはこの端末の中にあります。設定の「バックアップ」から、ときどき書き出して保存してください。': "Your data lives on this device. Export a backup from Settings from time to time.",
   '全体': "General",
   'プロフィールの項目を編集': "Edit profile fields",
+  '人の編集': "Editing a person",
+  '人の画面の「編集」から': "From \"Edit\" on a person",
+  '名前を変える': "Change the name",
+  '読み仮名（ひらがなで検索できる）': "Reading (search in hiragana)",
+  'フォルダとグループ（グループはいくつでも）': "Folder and groups (any number of groups)",
+  '同じ人を2回登録したときは1つにまとめる': "Merge if you added the same person twice",
+  '機能の切り替えとバックアップ': "Switch features and back up",
+  '使う機能：機能のオンオフと読み仮名などの設定': "Features: turn features on or off, reading settings and more",
+  'このガイド': "This guide",
+  'メモやLINEから記録を取り込む': "Import notes from Notes or LINE",
+  'バックアップの書き出し・読み込み': "Export and import backups",
+  '使わない機能は隠せる（データは消えない）': "Hide features you don't use (data is kept)",
+  '見出しをタップで折りたたむ': "Tap a heading to fold it",
+  'チェックを外すと画面に出なくなる': "Uncheck to hide it",
+  '人・話題・全体・AIのグループごとに並ぶ': "Grouped by people, topics, general and AI",
 };
 
 export default en;
