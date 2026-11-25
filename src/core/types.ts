@@ -24,6 +24,8 @@ export interface Person {
   groupIds?: ID[];
   /** プロフィール(年齢・仕事・趣味など)。空の項目は持たない */
   profile?: PersonProfile;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い(新しいものが上) */
+  order?: number;
 }
 
 /** 初めから用意しているプロフィール項目。表示名は画面側(ui/profileFields.ts)で付け、設定で変えられる */
@@ -97,6 +99,8 @@ export interface Topic {
   pinned?: boolean;
   /** お気に入り(☆でワンタップ。お気に入り一覧に出る) */
   favorite?: boolean;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -133,6 +137,8 @@ export interface Entry {
   deletedAt?: number;
   /** 添付した画像(EntryImage の id、並び順どおり)。画像そのものは別の保存場所に置く */
   imageIds?: ID[];
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
 }
 
 /**
@@ -162,6 +168,8 @@ export interface Folder {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
 }
 
 export interface AppData {

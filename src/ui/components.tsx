@@ -4,7 +4,7 @@ import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
 import { formatDate, go, useStore } from './hooks';
 import { useFeatures } from './features';
-import { copyText, SelectMark, toast, useInteract, usePress, type ItemRef } from './interact';
+import { copyText, reorderProps, SelectMark, toast, useInteract, usePress, useReorderList, type ItemRef } from './interact';
 import { t } from '../i18n';
 
 /** lead: 見出し行の左端に並べるアイコン(お気に入り・すべて など)。戻るボタンより左に出す */
@@ -83,8 +83,10 @@ export function EntryPreview({ entry, pinned }: { entry: Entry; pinned?: boolean
   );
 }
 
-export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }: {
+export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder, list }: {
   entry: Entry;
+  /** 手動の並び順の一覧(useReorderList のキー) */
+  list?: string;
   data: AppData;
   hidePersonId?: ID;
   hideTopicId?: ID;
@@ -106,7 +108,7 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
   const { lifted, handlers } = usePress(item, () => go(`/edit/${entry.id}`));
   const { sel } = useInteract();
   return (
-    <article className={`card ${lifted ? 'lifted' : ''} ${sel.active ? 'selecting' : ''}`} {...handlers}>
+    <article className={`card ${lifted ? 'lifted' : ''} ${sel.active ? 'selecting' : ''}`} {...reorderProps(list, 'entry', entry.id)} {...handlers}>
       <SelectMark item={item} />
       <EntryPreview entry={entry} pinned={entry.pinned} />
       {!sel.active && <FavToggle kind="entry" id={entry.id} on={!!entry.favorite} />}
@@ -138,8 +140,10 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
   );
 }
 
-export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hideFolder, pinSplit }: {
+export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hideFolder, pinSplit, reorder }: {
   entries: Entry[];
+  /** 手動の並び順のとき true(長押しして上下に動かすと並べ替え) */
+  reorder?: boolean;
   data: AppData;
   empty: ReactNode;
   hidePersonId?: ID;
@@ -149,10 +153,12 @@ export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hid
   pinSplit?: boolean;
 }) {
   const [limit, more] = useIncremental(entries.length);
-  if (pinSplit && entries.some((e) => e.pinned)) {
+  const split = pinSplit && entries.some((e) => e.pinned);
+  const list = useReorderList(reorder && !split ? entries.map((e) => e.id) : null);
+  if (split) {
     const pinned = entries.filter((e) => e.pinned);
     const rest = entries.filter((e) => !e.pinned);
-    const props = { data, hidePersonId, hideTopicId, hideFolder };
+    const props = { data, hidePersonId, hideTopicId, hideFolder, reorder };
     return (
       <>
         <div className="section-title">{t('📌 ピン留め')}</div>
@@ -166,7 +172,7 @@ export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hid
   return (
     <div className="list">
       {entries.slice(0, limit).map((e) => (
-        <EntryCard key={e.id} entry={e} data={data} hidePersonId={hidePersonId} hideTopicId={hideTopicId} hideFolder={hideFolder} />
+        <EntryCard key={e.id} entry={e} data={data} hidePersonId={hidePersonId} hideTopicId={hideTopicId} hideFolder={hideFolder} list={list} />
       ))}
       {limit < entries.length && <LoadMore onVisible={more} rest={entries.length - limit} />}
     </div>

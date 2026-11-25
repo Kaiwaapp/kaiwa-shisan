@@ -322,6 +322,11 @@ button:disabled { opacity: .4; cursor: default; }
 }
 .drag-to { margin-left: 8px; color: var(--accent); font-size: 13px; }
 .drop-hot { background: var(--accent-soft) !important; outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 10px; }
+/* 手動の並び順: 差し込む位置に線を出す */
+.drop-before, .drop-after { position: relative; }
+.drop-before::before, .drop-after::after { content: ""; position: absolute; left: 8px; right: 8px; height: 3px; border-radius: 2px; background: var(--accent); pointer-events: none; z-index: 5; }
+.drop-before::before { top: -2px; }
+.drop-after::after { bottom: -2px; }
 body.dragging { cursor: grabbing; }
 
 .select-bar {

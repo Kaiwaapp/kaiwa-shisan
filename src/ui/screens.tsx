@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { PersonProfileSection } from './profile';
 import { entryHasPerson, entryLabel, type ID } from '../core/types';
 import {
-  ENTRY_SORTS, NAME_SORTS, lastSeen, nameMatches, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
+  ENTRY_SORTS, NAME_SORTS, byManual, lastSeen, nameMatches, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
   type EntrySort, type NameSort,
 } from '../core/search';
 import { back, formatDate, go, useData, usePref, useStore } from './hooks';
 import { folderDescendants, folderPath, foldersOf } from '../core/store';
 import { Crumbs, FoldHeader, FolderEdit, FolderRows, FolderSelect, TitleIcons, useFold, UpButton, makeDeepCount, rootHref } from './folders';
-import { SelectButton, SelectionBar, toast, useInteract, usePress, SelectMark, type ItemRef } from './interact';
+import { reorderProps, SelectButton, SelectionBar, toast, useInteract, usePress, useReorderList, SelectMark, type ItemRef } from './interact';
 import type { Folder } from '../core/types';
 import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 import { currentLang, t } from '../i18n';
@@ -54,6 +54,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
     return kids.sort((a, b) => {
       const sa = span.get(a.id)!, sb = span.get(b.id)!;
       switch (sort) {
+        case 'manual': return byManual(a, b);
         case 'viewed': return lastSeen(b) - lastSeen(a) || byName(a, b);
         case 'updated': return sb.edited - sa.edited || byName(a, b);
         case 'oldest': return (sa.first || '9999').localeCompare(sb.first || '9999') || byName(a, b);
@@ -112,7 +113,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                 </span>
               </div>
               <FolderRows
-                scope="entry" folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding}
+                scope="entry" folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding} reorder={sort === 'manual'}
                 extra={!folderId && trash.length > 0 && !selecting && (
                   <ul className="rows folder-rows">
                     <li className="row-item" onClick={() => go('/trash')}>
@@ -131,6 +132,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                 data={data}
                 pinSplit
                 hideFolder
+                reorder={sort === 'manual'}
                 empty={
                   folder
                     ? <>{t('このフォルダはまだ空です。')}<br />{t('右下の＋で記録を、「＋ フォルダ」でフォルダを作れます。')}</>
@@ -218,11 +220,15 @@ export function AllEntriesScreen({ fav }: { fav?: boolean }) {
         entries={list}
         data={data}
         pinSplit={!fav}
+        reorder={sort === 'manual' && !q.trim()}
         empty={q ? t('見つかりませんでした') : fav ? <>{t('お気に入りの記録はまだありません。')}<br />{t('記録の☆をタップすると、ここに入ります。')}</> : t('まだ記録がありません')}
       />
     </div>
   );
 }
+
+/** 人・話題の画面の記録は、手動の並び順では並べない(並べ替えはフォルダの中で) */
+const DETAIL_SORTS = ENTRY_SORTS.filter((o) => o.key !== 'manual');
 
 // ---- 人・話題の一覧(フォルダで整理できる) ----
 type NameKind = 'person' | 'topic';
@@ -239,26 +245,30 @@ export function useNameItems(kind: NameKind, sort: NameSort) {
   );
 }
 
-export function NameRows({ kind, items, sort, showFolder }: {
+export function NameRows({ kind, items, sort, showFolder, reorder }: {
   kind: NameKind;
   items: ReturnType<typeof useNameItems>;
   sort: NameSort;
   showFolder?: boolean;
+  /** 手動の並び順で、長押しして上下に動かすと並べ替えられる(検索結果では使わない) */
+  reorder?: boolean;
 }) {
   const [limit, more] = useIncremental(items.length);
+  const list = useReorderList(reorder && sort === 'manual' ? items.map((x) => x.id) : null);
   if (items.length === 0) return null;
   return (
     <>
       <ul className="rows">
-        {items.slice(0, limit).map((x) => <NameRow key={x.id} kind={kind} x={x} sort={sort} showFolder={showFolder} />)}
+        {items.slice(0, limit).map((x) => <NameRow key={x.id} kind={kind} x={x} sort={sort} showFolder={showFolder} list={list} />)}
       </ul>
       {limit < items.length && <LoadMore onVisible={more} rest={items.length - limit} />}
     </>
   );
 }
 
-function NameRow({ kind, x, sort, showFolder }: {
+function NameRow({ kind, x, sort, showFolder, list }: {
   kind: NameKind;
+  list?: string;
   x: ReturnType<typeof useNameItems>[number];
   sort: NameSort;
   showFolder?: boolean;
@@ -270,7 +280,7 @@ function NameRow({ kind, x, sort, showFolder }: {
   const selecting = useInteract().sel.active;
   const feat = useFeatures();
   return (
-    <li className={`row-item pressable with-fav ${lifted ? 'lifted' : ''}`} {...handlers}>
+    <li className={`row-item pressable with-fav ${lifted ? 'lifted' : ''}`} {...reorderProps(list, kind, x.id)} {...handlers}>
       <span className={kind === 'topic' ? 'name topic-name' : 'name'}>
         <SelectMark item={item} />
         {x.pinned && <span className="pin">📌</span>}
@@ -303,14 +313,14 @@ function PinnedSplit({ kind, items, sort, showFolder, restTitle }: {
   restTitle: string;
 }) {
   const pinned = items.filter((x) => x.pinned);
-  if (!pinned.length) return <NameRows kind={kind} items={items} sort={sort} showFolder={showFolder} />;
+  if (!pinned.length) return <NameRows kind={kind} items={items} sort={sort} showFolder={showFolder} reorder />;
   const rest = items.filter((x) => !x.pinned);
   return (
     <>
       <div className="section-title">{t('📌 ピン留め')}</div>
-      <NameRows kind={kind} items={pinned} sort={sort} showFolder={showFolder} />
+      <NameRows kind={kind} items={pinned} sort={sort} showFolder={showFolder} reorder />
       {rest.length > 0 && <div className="section-title">{restTitle}</div>}
-      <NameRows kind={kind} items={rest} sort={sort} showFolder={showFolder} />
+      <NameRows kind={kind} items={rest} sort={sort} showFolder={showFolder} reorder />
     </>
   );
 }
@@ -338,6 +348,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
     if (flat) return [];
     const kids = folders.filter((f) => f.parentId === folderId);
     const byName = (a: Folder, b: Folder) => a.name.localeCompare(b.name, 'ja');
+    if (sort === 'manual') return kids.sort(byManual);
     if (sort === 'viewed') return kids.sort((a, b) => lastSeen(b) - lastSeen(a) || byName(a, b));
     if (sort === 'count') return kids.sort((a, b) => deepCount(b.id) - deepCount(a.id) || byName(a, b));
     if (sort === 'name') return kids.sort(byName);
@@ -409,7 +420,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
                   <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
                 </span>
               </div>
-              <FolderRows scope={kind} folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding} />
+              <FolderRows scope={kind} folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding} reorder={sort === 'manual'} />
               <PinnedSplit kind={kind} items={here} sort={sort} restTitle={label} />
               <SelectionBar all={[
                 ...children.map((f) => ({ kind: 'folder' as const, id: f.id, label: f.name, scope: kind })),
@@ -455,7 +466,7 @@ export function NameAllScreen({ kind, fav }: { kind: NameKind; fav?: boolean }) 
         <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
       </div>
       {fav
-        ? <NameRows kind={kind} items={list} sort={sort} showFolder />
+        ? <NameRows kind={kind} items={list} sort={sort} showFolder reorder />
         : <PinnedSplit kind={kind} items={list} sort={sort} showFolder restTitle={label} />}
       {list.length === 0 && <div className="empty">{empty}</div>}
     </div>
@@ -604,7 +615,7 @@ export function PersonScreen({ id }: { id: ID }) {
           {mine.length > 1 && (
             <div className="toolbar">
               <span className="count">{t('{n}件', { n: shown.length })}</span>
-              <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
+              <SortSelect value={sort} options={DETAIL_SORTS} onChange={setSort} />
             </div>
           )}
           <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? t('該当なし') : t('まだ記録がありません')} />
@@ -700,7 +711,7 @@ export function TopicScreen({ id }: { id: ID }) {
             {entries.length > 1 && (
               <div className="toolbar">
                 <span className="count">{t('{n}件', { n: shown.length })}</span>
-                <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
+                <SortSelect value={sort} options={DETAIL_SORTS} onChange={setSort} />
               </div>
             )}
             <EntryList entries={shown} data={data} hideTopicId={id} empty={t('まだ記録がありません')} />
