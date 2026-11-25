@@ -239,6 +239,9 @@ const en: Record<string, string> = {
   'メモ': 'Memo',
   'メモを編集': 'Edit memo',
   '＋ メモを書く': '+ Write a memo',
+  'メモ（相手の反応など）': "Memo (their reaction, etc.)",
+  '記録のメモ': 'Note memos',
+  '記録の本文とは別に、相手の反応などを書いておく欄': "A field, separate from the note body, for things like the other person's reaction",
   // AI機能(試作)
   "0.01円未満": "under ¥0.01",
   "約{v}円": "about ¥{v}",
