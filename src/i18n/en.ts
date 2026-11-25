@@ -338,8 +338,6 @@ const en: Record<string, string> = {
   'コピーボタン': 'Copy buttons',
   '一覧と編集画面の本文コピーボタン': 'Buttons that copy the note text, in lists and the editor',
   '設定の取り込みの項目': 'The import section in Settings',
-  'バックアップのお知らせ': 'Backup reminder',
-  'しばらく書き出していないときに上に出るお知らせ': "The notice at the top when you haven't exported in a while",
 };
 
 export default en;

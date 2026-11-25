@@ -1,15 +1,13 @@
 import { lazy, Suspense } from 'react';
 import { OrganizeScreen } from './OrganizeScreen';
 import type { Store } from '../core/store';
-import { StoreContext, go, switchTab, useData, useLoadFailed, useLoaded, useRoute, useStore } from './hooks';
+import { StoreContext, go, switchTab, useLoadFailed, useLoaded, useRoute, useStore } from './hooks';
 import { InteractProvider, useInteract } from './interact';
 import { TrashScreen, AllEntriesScreen, FolderScreen, NameAllScreen, NameFolderScreen, PersonScreen, TopicScreen } from './screens';
 import { EntryEditor } from './EntryEditor';
 import { GroupScreen } from './groups';
 import { SettingsScreen } from './SettingsScreen';
-import { needsBackupReminder } from './backupUi';
 import { t, useLang } from '../i18n';
-import { useFeatures } from './features';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
@@ -35,10 +33,8 @@ export function App({ store }: { store: Store }) {
 
 function Shell() {
   const loaded = useLoaded();
-  const data = useData();
   const { path, query } = useRoute();
   const selecting = useInteract().sel.active;
-  const feat = useFeatures();
   const [head, sub] = path;
 
   if (!loaded) return <Loading />;
@@ -80,15 +76,9 @@ function Shell() {
 
   const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : (head ?? '');
   const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
-  const remind = head !== 'settings' && head !== 'import' && feat.backupReminder && needsBackupReminder(data);
 
   return (
     <div className="app">
-      {remind && (
-        <button className="reminder" onClick={() => go('/settings')}>
-          {t('しばらくバックアップしていません。設定から書き出しておきましょう ›')}
-        </button>
-      )}
       <main className="main">{screen}</main>
       {showFab && (
         <button className="fab" aria-label={t('記録を追加')} onClick={() => {

@@ -344,7 +344,7 @@ export function Sheet({ title, onClose, children }: { title?: string; onClose: (
 }
 
 // ---------------- ドラッグ&ドロップ ----------------
-interface Drag { item: ItemRef; x: number; y: number; over: { id: ID | null; name: string } | null; overEl?: HTMLElement | null }
+interface Drag { item: ItemRef; x: number; y: number; over: { id: ID | null; name: string; group?: boolean } | null; overEl?: HTMLElement | null }
 let drag: Drag | null = null;
 const dragListeners = new Set<() => void>();
 let hotEl: HTMLElement | null = null;
@@ -364,6 +364,9 @@ const useDrag = () => useSyncExternalStore((l) => { dragListeners.add(l); return
 
 /** ドロップ先を探す: data-drop(フォルダID or 'root') と data-drop-scope を持つ要素 */
 function dropTarget(x: number, y: number, item: ItemRef) {
+  // 人はグループ(data-drop-group)の上にも落とせる。グループに入る(フォルダは変わらない)
+  const g = item.kind === 'person' ? document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-group]') : null;
+  if (g) return { id: g.dataset.dropGroup!, name: g.dataset.dropName ?? '', el: g, group: true };
   const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop]');
   if (!el || el.dataset.dropScope !== item.scope) return null;
   const id = el.dataset.drop === 'root' ? null : el.dataset.drop!;
@@ -405,6 +408,9 @@ function DragLayer() {
 }
 
 /** ドロップ先の要素につける属性 */
+/** 人をドラッグで入れられるグループ */
+export const groupDropProps = (id: ID, name: string) => ({ 'data-drop-group': id, 'data-drop-name': name });
+
 export const dropProps = (scope: FolderScope, id: ID | null, name: string) => ({
   'data-drop': id ?? 'root',
   'data-drop-scope': scope,
@@ -461,7 +467,7 @@ export function usePress(item: ItemRef, onTap: () => void) {
     if (s.dragging) {
       const it = latest.current.item;
       const t = dropTarget(x, y, it);
-      setDrag({ item: it, x, y, over: t && { id: t.id, name: t.name }, overEl: t?.el });
+      setDrag({ item: it, x, y, over: t && { id: t.id, name: t.name, group: 'group' in t }, overEl: t?.el });
     }
   };
   const finishNow = async (cancel: boolean) => {
@@ -479,7 +485,11 @@ export function usePress(item: ItemRef, onTap: () => void) {
       if (over && !cancel) {
         const { item: it, sel: sl } = latest.current;
         const items = sl.active && sl.selected.has(itemKey(it)) ? [...sl.selected.values()] : [it];
-        await moveTo(store, items.filter((i) => i.scope === it.scope), over.id, over.name);
+        if (over.group && over.id) {
+          const people = items.filter((i) => i.kind === 'person').map((i) => i.id);
+          await store.setGroupMembers(over.id, people, true);
+          toast(t('「{name}」に追加しました', { name: over.name }));
+        } else await moveTo(store, items.filter((i) => i.scope === it.scope), over.id, over.name);
       }
     } else if (wasLifted && !cancel) {
       s.suppress = true;

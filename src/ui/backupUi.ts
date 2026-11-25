@@ -43,9 +43,3 @@ export async function exportBackup(data: AppData): Promise<'shared' | 'downloade
   markBackup();
   return 'downloaded';
 }
-
-export const needsBackupReminder = (data: AppData) => {
-  if (data.entries.length < 5) return false;
-  const last = getLastBackup();
-  return !last || Date.now() - last > 14 * 24 * 3600 * 1000;
-};
