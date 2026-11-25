@@ -1,7 +1,7 @@
 import type { Repository } from './repository';
-import { mergeData } from './backup';
-import { newId, type AppData, type Entry, type Folder, type FolderScope, type Group, type ID, type Person, type Topic } from './types';
-import { normalize } from './search';
+import { applyIncremental, mergeData, type ParsedBackup } from './backup';
+import { newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type Topic, mergeProfiles } from './types';
+import { normalize, reorderValues } from './search';
 
 type Listener = () => void;
 
@@ -10,8 +10,10 @@ export interface EntryInput {
   title?: string;
   text: string;
   personIds: ID[];
+  /** 話したグループ(グループ自体を付ける) */
+  groupIds?: ID[];
   topicIds: ID[];
-  /** 保存時に新しく作る人・話題の名前 */
+  /** 保存時に新しく作る人・話題の名前。人は同名の人がいても別の人として作る */
   newPeople?: string[];
   newTopics?: string[];
   /** AIの提案から付けた話題(既存のid・新規の名前)。source を 'ai' にする */
@@ -21,6 +23,10 @@ export interface EntryInput {
   folderId?: ID | null;
   /** お気に入り。未指定なら今の状態のまま */
   favorite?: boolean;
+  /** 添付画像の id(並び順どおり)。未指定なら今のまま。外した画像は保存時に消す */
+  imageIds?: ID[];
+  /** 今回新しく添付した画像(imageIds に入っているものだけ保存する) */
+  newImages?: EntryImage[];
 }
 
 export interface ImportResult { entryIds: ID[]; personIds: ID[]; topicIds: ID[]; folderIds: ID[] }
@@ -38,6 +44,9 @@ export class Store {
   /** 読み込みに失敗したとき true(画面から再試行できる) */
   loadFailed = false;
   private loading: Promise<void> | null = null;
+
+  /** 新しく作る人・話題の読み仮名を名前から推測する(画面側が入力から拾ったもの) */
+  readingGuess: ((name: string) => string) | null = null;
 
   constructor(private repo: Repository) {}
 
@@ -70,6 +79,8 @@ export class Store {
       }
     }
     await this.purgeTrash().catch(() => {});
+    // 保存の途中でアプリが閉じられた等で残った、どの記録にも付いていない画像を消す
+    await this.gcImages().catch(() => {});
   }
 
   get snapshot(): AppData { return this.snap; }
@@ -107,7 +118,9 @@ export class Store {
     const prevSource = new Map(prev?.topics.map((t) => [t.topicId, t.source]));
     // 新規の人・話題は記録の保存時にはじめて作る(キャンセルしたらゴミが残らない)
     const personIds = [...input.personIds];
-    for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name)).id);
+    for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name, null, [], true)).id);
+    const alive = new Set(this.data.groups.map((g) => g.id));
+    const groupIds = [...new Set(input.groupIds ?? prev?.groupIds ?? [])].filter((g) => alive.has(g));
     const topicIds = [...input.topicIds];
     const aiIds = new Set(input.aiTopicIds ?? []);
     const aiNew = new Set((input.aiNewTopics ?? []).map((n) => normalize(n.trim())));
@@ -122,6 +135,7 @@ export class Store {
       ...(input.title?.trim() ? { title: input.title.trim() } : {}),
       text: input.text.trim(),
       personIds: [...new Set(personIds)],
+      ...(groupIds.length ? { groupIds } : {}),
       folderId: input.folderId === undefined ? (prev?.folderId ?? null) : input.folderId,
       topics: [...new Set(topicIds)].map((topicId) => ({
         topicId,
@@ -135,7 +149,12 @@ export class Store {
       updatedAt: now,
       viewedAt: now,
     };
+    const imageIds = input.imageIds ?? prev?.imageIds ?? [];
+    if (imageIds.length) entry.imageIds = [...new Set(imageIds)];
+    // 画像を先に保存してから記録を保存する(途中で閉じても記録が画像を見失わない)
+    for (const img of input.newImages ?? []) if (imageIds.includes(img.id)) await this.repo.putImage(img);
     await this.repo.putEntry(entry);
+    for (const old of prev?.imageIds ?? []) if (!imageIds.includes(old)) await this.repo.deleteImage(old).catch(() => {});
     this.set({
       ...this.data,
       entries: prev
@@ -181,7 +200,10 @@ export class Store {
   /** 完全に削除 */
   async purgeEntries(ids: ID[]) {
     const set = new Set(ids);
-    for (const id of ids) await this.repo.deleteEntry(id);
+    for (const id of ids) {
+      for (const img of this.data.entries.find((e) => e.id === id)?.imageIds ?? []) await this.repo.deleteImage(img).catch(() => {});
+      await this.repo.deleteEntry(id);
+    }
     this.set({ ...this.data, entries: this.data.entries.filter((e) => !set.has(e.id)) });
   }
 
@@ -219,6 +241,35 @@ export class Store {
     }
   }
 
+  /**
+   * 手動の並び順を変える。arranged は並べ替えた後の一覧(その画面に出ている順)。
+   * 並び順は編集ではないので更新日時は変えない
+   */
+  async reorder(kind: 'entry' | 'person' | 'topic' | 'folder', arranged: ID[]) {
+    const pool: { id: ID; createdAt: number; order?: number }[] =
+      kind === 'entry' ? this.data.entries : kind === 'person' ? this.data.people : kind === 'topic' ? this.data.topics : this.data.folders;
+    const values = reorderValues(pool, arranged);
+    const apply = <T extends { id: ID; order?: number }>(xs: T[]) => xs.filter((x) => values.has(x.id) && x.order !== values.get(x.id)).map((x) => ({ ...x, order: values.get(x.id)! }));
+    if (kind === 'entry') {
+      await this.putEntries(apply(this.data.entries));
+    } else if (kind === 'person') {
+      const list = apply(this.data.people);
+      for (const x of list) await this.repo.putPerson(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, people: this.data.people.map((x) => m.get(x.id) ?? x) });
+    } else if (kind === 'topic') {
+      const list = apply(this.data.topics);
+      for (const x of list) await this.repo.putTopic(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, topics: this.data.topics.map((x) => m.get(x.id) ?? x) });
+    } else {
+      const list = apply(this.data.folders);
+      for (const x of list) await this.repo.putFolder(x);
+      const m = new Map(list.map((x) => [x.id, x]));
+      this.set({ ...this.data, folders: this.data.folders.map((x) => m.get(x.id) ?? x) });
+    }
+  }
+
   /** 記録・人・話題・フォルダをまとめて別のフォルダへ移す(null は一番上) */
   async moveItems(kind: 'entry' | 'person' | 'topic' | 'folder', ids: ID[], folderId: ID | null) {
     const set = new Set(ids);
@@ -248,17 +299,19 @@ export class Store {
     return this.data.people.find((p) => normalize(p.name) === n);
   }
 
-  async addPerson(name: string, folderId: ID | null = null, groupIds: ID[] = []): Promise<Person> {
-    const existing = this.findPersonByName(name);
+  /** 人を追加。同名の人がいればその人を返す。allowSame なら同名でも別の人として作る */
+  async addPerson(name: string, folderId: ID | null = null, groupIds: ID[] = [], allowSame = false): Promise<Person> {
+    const existing = allowSame ? undefined : this.findPersonByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const p: Person = { id: newId(), name: name.trim(), memo: '', folderId, ...(groupIds.length ? { groupIds } : {}), createdAt: now, updatedAt: now, selectedAt: now };
+    const reading = this.readingGuess?.(name.trim()) || undefined;
+    const p: Person = { id: newId(), name: name.trim(), memo: '', ...(reading ? { reading } : {}), folderId, ...(groupIds.length ? { groupIds } : {}), createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putPerson(p);
     this.set({ ...this.data, people: [...this.data.people, p] });
     return p;
   }
 
-  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds'>>) {
+  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds' | 'profile'>>) {
     const p = this.data.people.find((x) => x.id === id);
     if (!p) return;
     const next = { ...p, ...patch, updatedAt: Date.now() };
@@ -306,19 +359,29 @@ export class Store {
     this.set({ ...this.data, groups: this.data.groups.map((x) => (x.id === id ? next : x)) });
   }
 
-  /** グループを削除。人は消さず、グループへの紐づけだけ外す */
+  /** グループを削除。人や記録は消さず、グループへの紐づけだけ外す */
   async deleteGroup(id: ID) {
     const now = Date.now();
     const touched = this.data.people
       .filter((p) => p.groupIds?.includes(id))
       .map((p) => ({ ...p, groupIds: p.groupIds!.filter((x) => x !== id), updatedAt: now }));
     for (const p of touched) await this.repo.putPerson(p);
+    const touchedE = this.data.entries
+      .filter((e) => e.groupIds?.includes(id))
+      .map((e) => {
+        const groupIds = e.groupIds!.filter((x) => x !== id);
+        const { groupIds: _, ...rest } = e;
+        return { ...rest, ...(groupIds.length ? { groupIds } : {}) } as Entry;
+      });
+    for (const e of touchedE) await this.repo.putEntry(e);
     await this.repo.deleteGroup(id);
     const m = new Map(touched.map((p) => [p.id, p]));
+    const me = new Map(touchedE.map((e) => [e.id, e]));
     this.set({
       ...this.data,
       groups: this.data.groups.filter((g) => g.id !== id),
       people: this.data.people.map((p) => m.get(p.id) ?? p),
+      entries: this.data.entries.map((e) => me.get(e.id) ?? e),
     });
   }
 
@@ -348,7 +411,8 @@ export class Store {
     const existing = this.findTopicByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), folderId, createdAt: now, updatedAt: now, selectedAt: now };
+    const tr = this.readingGuess?.(name.trim().replace(/^#/, '')) || undefined;
+    const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), ...(tr ? { reading: tr } : {}), folderId, createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putTopic(t);
     this.set({ ...this.data, topics: [...this.data.topics, t] });
     return t;
@@ -402,7 +466,9 @@ export class Store {
     for (const e of touched) await this.repo.putEntry(e);
     const memo = [dst.memo, src.memo].filter((m) => m.trim()).join('\n');
     const groupIds = [...new Set([...(dst.groupIds ?? []), ...(src.groupIds ?? [])])];
-    const merged: Person = { ...dst, memo, ...(groupIds.length ? { groupIds } : {}), updatedAt: now };
+    const profile = mergeProfiles(dst.profile, src.profile);
+    const merged: Person = { ...dst, memo, ...(groupIds.length ? { groupIds } : {}), profile, updatedAt: now };
+    if (!profile) delete merged.profile;
     await this.repo.putPerson(merged);
     await this.repo.deletePerson(sourceId);
     const map = new Map(touched.map((e) => [e.id, e]));
@@ -531,9 +597,15 @@ export class Store {
   }
 
   /** 記録の編集で人・話題を選んだ日時を残す(ドロップダウンの並び順用) */
-  async markSelected(kind: 'person' | 'topic', id: ID) {
+  async markSelected(kind: 'person' | 'topic' | 'group', id: ID) {
     const now = Date.now();
-    if (kind === 'person') {
+    if (kind === 'group') {
+      const g = this.data.groups.find((x) => x.id === id);
+      if (!g) return;
+      const next = { ...g, selectedAt: now };
+      await this.repo.putGroup(next);
+      this.set({ ...this.data, groups: this.data.groups.map((x) => (x.id === id ? next : x)) });
+    } else if (kind === 'person') {
       const p = this.data.people.find((x) => x.id === id);
       if (!p) return;
       const next = { ...p, selectedAt: now };
@@ -623,11 +695,44 @@ export class Store {
     }, 'replace');
   }
 
+  // ---- 添付画像 ----
+  /** 画像を1枚読む(画面で表示するとき) */
+  getImage(id: ID): Promise<EntryImage | undefined> { return this.repo.getImage(id); }
+
+  /** 記録に付いている画像をまとめて読む(バックアップ用)。見つからないものは飛ばす */
+  async imagesOf(entries: Entry[]): Promise<EntryImage[]> {
+    const out: EntryImage[] = [];
+    for (const id of new Set(entries.flatMap((e) => e.imageIds ?? []))) {
+      const img = await this.repo.getImage(id);
+      if (img) out.push(img);
+    }
+    return out;
+  }
+
+  /** どの記録(最近削除した項目も含む)にも付いていない画像を消す */
+  async gcImages() {
+    const used = new Set(this.data.entries.flatMap((e) => e.imageIds ?? []));
+    for (const id of await this.repo.imageIds()) if (!used.has(id)) await this.repo.deleteImage(id);
+  }
+
   // ---- バックアップ ----
-  async importData(incoming: AppData, mode: 'merge' | 'replace') {
-    const next = mode === 'merge' ? mergeData(this.data, incoming) : incoming;
+  /** 増分バックアップを反映する */
+  async importIncremental(file: ParsedBackup) {
+    const { images, ...rest } = file.data;
+    for (const img of images ?? []) await this.repo.putImage(img);
+    const next = applyIncremental(this.data, { ...file, data: rest });
     await this.repo.replaceAll(next);
     this.set(next);
+  }
+
+  async importData(incoming: AppData & { images?: EntryImage[] }, mode: 'merge' | 'replace') {
+    const { images, ...rest } = incoming;
+    const next = mode === 'merge' ? mergeData(this.data, rest) : rest;
+    // 画像は記録より先に入れる
+    for (const img of images ?? []) await this.repo.putImage(img);
+    await this.repo.replaceAll(next);
+    this.set(next);
+    await this.gcImages().catch(() => {});
   }
 }
 

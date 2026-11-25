@@ -18,6 +18,7 @@ import {
 } from '../core/ai';
 import { normalize } from '../core/search';
 import { go } from './hooks';
+import { useFeatures } from './features';
 import { t } from '../i18n';
 
 export function useAiSettings(): [AiSettings, (patch: Partial<AiSettings>) => void] {
@@ -43,6 +44,8 @@ export function useEntryAi(opts: {
   chosenTopics: string[];
   addPerson: (name: string) => void;
   addTopic: (name: string) => void;
+  /** 文字起こしした画像を記録に添付する(設定でオンのときに呼ぶ)。未指定なら添付しない */
+  attachImage?: (img: Blob) => void;
 }) {
   const [s] = useAiSettings();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -57,7 +60,12 @@ export function useEntryAi(opts: {
       const r = isDemo(s) ? await demoTranscribe() : await transcribeImage(s.apiKey, img);
       if (!r.text) throw new Error(t('文字が見つかりませんでした'));
       opts.setText((prev) => (prev.trim() ? prev.replace(/\s*$/, '') + '\n\n' : '') + r.text);
-      setInfo(isDemo(s) ? t('お試し表示です(APIキー未設定のためサンプルの文章)') : t('文字起こししました({v})', { v: yenText(r.yen) }));
+      const attach = s.ocrAttach && opts.attachImage;
+      if (attach) attach(img);
+      setInfo(
+        (isDemo(s) ? t('お試し表示です(APIキー未設定のためサンプルの文章)') : t('文字起こししました({v})', { v: yenText(r.yen) }))
+        + (attach ? t('。画像も添付しました') : ''),
+      );
     } catch (e) {
       setErr(aiErrorMessage(e));
     } finally {
@@ -172,6 +180,7 @@ export function useEntryAi(opts: {
 /** 設定画面の「AI機能(試作)」 */
 export function AiSettingsPanel() {
   const [s, update] = useAiSettings();
+  const feat = useFeatures();
   const [key, setKey] = useState(s.apiKey);
   const [show, setShow] = useState(false);
   const [msg, setMsg] = useState('');
@@ -198,9 +207,9 @@ export function AiSettingsPanel() {
     <section className="panel">
       <h2>{t('AI機能（試作）')}</h2>
       <p className="muted small">
-        {t('スクショの文字起こし、話題・相手の提案、フォルダの整理をAI（Claude Haiku）が手伝います。APIキーがなければ「お試し表示」で画面と動きだけ確認できます。')}
+        {t('スクショの文字起こし、話題・相手の提案、フォルダの整理、プロフィールの自動入力をAI（Claude Haiku）が手伝います。APIキーがなければ「お試し表示」で画面と動きだけ確認できます。')}
       </p>
-      <label className="toggle main">
+      <label className="toggle toggle-main">
         <input type="checkbox" checked={s.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
         <span>{t('AI機能を使う')}</span>
       </label>
@@ -210,6 +219,17 @@ export function AiSettingsPanel() {
             <input type="checkbox" checked={s.ocr} onChange={(e) => update({ ocr: e.target.checked })} />
             <span>{t('スクショから文字起こし')}</span>
           </label>
+          {s.ocr && (
+            <label className="toggle nested">
+              <input type="checkbox" checked={s.ocrAttach} onChange={(e) => update({ ocrAttach: e.target.checked })} />
+              <span>
+                {t('文字起こしした画像を記録に添付する')}
+                <span className="muted small block-note">
+                  {feat.images ? t('オフにすると、文字だけを記録に入れて画像は残しません') : t('「使う機能」で画像の添付がオフのため、今は添付されません')}
+                </span>
+              </span>
+            </label>
+          )}
           <label className="toggle">
             <input type="checkbox" checked={s.suggest} onChange={(e) => update({ suggest: e.target.checked })} />
             <span>{t('話題と相手を自動で提案')}</span>
@@ -217,6 +237,10 @@ export function AiSettingsPanel() {
           <label className="toggle">
             <input type="checkbox" checked={s.organize} onChange={(e) => update({ organize: e.target.checked })} />
             <span>{t('フォルダの自動整理')}</span>
+          </label>
+          <label className="toggle">
+            <input type="checkbox" checked={s.profile} onChange={(e) => update({ profile: e.target.checked })} />
+            <span>{t('プロフィールの自動入力')}</span>
           </label>
           {s.organize && (
             <div className="ai-bar">

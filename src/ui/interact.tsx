@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { FolderScope, ID } from '../core/types';
 import type { Store } from '../core/store';
 import { foldersOf, folderDescendants, folderPath } from '../core/store';
@@ -6,6 +6,7 @@ import { folderChoices } from './folders';
 import { useData, useStore } from './hooks';
 import { t } from '../i18n';
 import { useFeatures } from './features';
+import { moveInList } from '../core/search';
 
 /** 長押し・ドラッグ・複数選択の対象 */
 export type ItemKind = 'entry' | 'person' | 'topic' | 'folder';
@@ -331,31 +332,37 @@ function ClearSheet() {
   );
 }
 
-export function Sheet({ title, onClose, children }: { title?: string; onClose: () => void; children: ReactNode }) {
+export function Sheet({ title, onClose, children, cancelLabel }: { title?: string; onClose: () => void; children: ReactNode; cancelLabel?: string }) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog">
         {title && <div className="sheet-title">{title}</div>}
         <div className="sheet-body">{children}</div>
-        <button className="sheet-item cancel" onClick={onClose}>{t('キャンセル')}</button>
+        <button className="sheet-item cancel" onClick={onClose}>{cancelLabel ?? t('キャンセル')}</button>
       </div>
     </div>
   );
 }
 
 // ---------------- ドラッグ&ドロップ ----------------
-interface Drag { item: ItemRef; x: number; y: number; over: { id: ID | null; name: string; group?: boolean } | null; overEl?: HTMLElement | null }
+/** 手動の並び順でのドロップ先: list の中の target の前(after なら後ろ) */
+interface ReorderAt { list: string; target: ID; after: boolean }
+interface Over { id: ID | null; name: string; group?: boolean; reorder?: ReorderAt }
+interface Drag { item: ItemRef; x: number; y: number; over: Over | null; overEl?: HTMLElement | null }
 let drag: Drag | null = null;
 const dragListeners = new Set<() => void>();
 let hotEl: HTMLElement | null = null;
+let hotCls = '';
 const setDrag = (d: Drag | null) => {
   drag = d;
-  // ドロップ先のハイライトはDOMで直接付け外しする
+  // ドロップ先のハイライトはDOMで直接付け外しする(並べ替えは差し込む位置に線を出す)
   const el = d?.over ? d.overEl ?? null : null;
-  if (hotEl !== el) {
-    hotEl?.classList.remove('drop-hot');
-    el?.classList.add('drop-hot');
+  const cls = d?.over?.reorder ? (d.over.reorder.after ? 'drop-after' : 'drop-before') : 'drop-hot';
+  if (hotEl !== el || hotCls !== cls) {
+    hotEl?.classList.remove(hotCls);
+    el?.classList.add(cls);
     hotEl = el;
+    hotCls = cls;
   }
   document.body.classList.toggle('dragging', !!d);
   dragListeners.forEach((l) => l());
@@ -365,12 +372,40 @@ const useDrag = () => useSyncExternalStore((l) => { dragListeners.add(l); return
 /** ドラッグ中かどうか(しまった欄をドラッグ中だけ開くため) */
 export const useDragging = () => !!useDrag();
 
+// ---- 手動の並び順 ----
+/** 画面に出ている「手動で並べ替えられる一覧」の中身(全件。まだ表示していない分も含む) */
+const reorderLists = new Map<string, ID[]>();
+
+/** 手動の並び順の一覧として登録する。ids が null なら並べ替えできない一覧 */
+export function useReorderList(ids: ID[] | null): string | undefined {
+  const key = useId();
+  if (ids) reorderLists.set(key, ids);
+  else reorderLists.delete(key);
+  useEffect(() => () => { reorderLists.delete(key); }, [key]);
+  return ids ? key : undefined;
+}
+
+/** 並べ替えできる行につける属性 */
+export const reorderProps = (list: string | undefined, kind: ItemKind, id: ID) =>
+  list ? { 'data-reorder-list': list, 'data-reorder-kind': kind, 'data-reorder-id': id } : {};
+
 /** ドロップ先を探す: data-drop(フォルダID or 'root') と data-drop-scope を持つ要素 */
-function dropTarget(x: number, y: number, item: ItemRef) {
+function dropTarget(x: number, y: number, item: ItemRef): { id: ID | null; name: string; el: HTMLElement; group?: boolean; reorder?: ReorderAt } | null {
+  const hit = document.elementFromPoint(x, y);
   // 人はグループ(data-drop-group)の上にも落とせる。グループに入る(フォルダは変わらない)
-  const g = item.kind === 'person' ? document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-group]') : null;
+  const g = item.kind === 'person' ? hit?.closest<HTMLElement>('[data-drop-group]') : null;
   if (g) return { id: g.dataset.dropGroup!, name: g.dataset.dropName ?? '', el: g, group: true };
-  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop]');
+  // 手動の並び順: 同じ種類の行の上半分なら前、下半分なら後ろに入れる。
+  // フォルダの行は真ん中あたりだと「中へ移動」、上下の端だと並べ替え
+  const r = hit?.closest<HTMLElement>('[data-reorder-id]');
+  if (r && r.dataset.reorderKind === item.kind && r.dataset.reorderId !== item.id && reorderLists.has(r.dataset.reorderList!)) {
+    const box = r.getBoundingClientRect();
+    const rel = (y - box.top) / Math.max(1, box.height);
+    if (!r.hasAttribute('data-drop') || rel < 0.3 || rel > 0.7) {
+      return { id: null, name: t('ここに並べる'), el: r, reorder: { list: r.dataset.reorderList!, target: r.dataset.reorderId!, after: rel >= 0.5 } };
+    }
+  }
+  const el = hit?.closest<HTMLElement>('[data-drop]');
   if (!el || el.dataset.dropScope !== item.scope) return null;
   const id = el.dataset.drop === 'root' ? null : el.dataset.drop!;
   if (item.kind === 'folder' && id === item.id) return null;
@@ -470,7 +505,7 @@ export function usePress(item: ItemRef, onTap: () => void) {
     if (s.dragging) {
       const it = latest.current.item;
       const t = dropTarget(x, y, it);
-      setDrag({ item: it, x, y, over: t && { id: t.id, name: t.name, group: 'group' in t }, overEl: t?.el });
+      setDrag({ item: it, x, y, over: t && { id: t.id, name: t.name, group: !!t.group, reorder: t.reorder }, overEl: t?.el });
     }
   };
   const finishNow = async (cancel: boolean) => {
@@ -488,7 +523,10 @@ export function usePress(item: ItemRef, onTap: () => void) {
       if (over && !cancel) {
         const { item: it, sel: sl } = latest.current;
         const items = sl.active && sl.selected.has(itemKey(it)) ? [...sl.selected.values()] : [it];
-        if (over.group && over.id) {
+        if (over.reorder) {
+          const ids = reorderLists.get(over.reorder.list);
+          if (ids) await store.reorder(it.kind, moveInList(ids, it.id, over.reorder.target, over.reorder.after));
+        } else if (over.group && over.id) {
           const people = items.filter((i) => i.kind === 'person').map((i) => i.id);
           await store.setGroupMembers(over.id, people, true);
           toast(t('「{name}」に追加しました', { name: over.name }));

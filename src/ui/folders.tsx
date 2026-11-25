@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Folder, FolderScope, ID } from '../core/types';
 import { folderDescendants, foldersOf } from '../core/store';
 import { go, useData, usePref, useStore } from './hooks';
-import { dropProps, SelectMark, useDragging, useInteract, usePress, type ItemRef } from './interact';
+import { dropProps, reorderProps, SelectMark, useDragging, useInteract, usePress, useReorderList, type ItemRef } from './interact';
 import { t } from '../i18n';
 import { useFeatures } from './features';
 
@@ -67,8 +67,10 @@ export function FoldHeader({ label, count, open, onToggle }: { label: string; co
   );
 }
 
-export function FolderRows({ scope, folderId, children, count, adding, setAdding, extra }: {
+export function FolderRows({ scope, folderId, children, count, adding, setAdding, extra, reorder }: {
   scope: FolderScope;
+  /** 手動の並び順のとき true(長押しして上下に動かすと並べ替え) */
+  reorder?: boolean;
   folderId: ID | null;
   children: Folder[];
   count: (id: ID) => number;
@@ -80,12 +82,16 @@ export function FolderRows({ scope, folderId, children, count, adding, setAdding
   const store = useStore();
   const [name, setName] = useState('');
   const [open, setOpen] = useFold('folders:' + scope);
+  const [justAdded, setJustAdded] = useState<ID | null>(null);
+  const list = useReorderList(reorder ? children.map((f) => f.id) : null);
   if (children.length === 0 && !adding && !extra) return null;
   const create = async () => {
     if (!name.trim()) return;
-    await store.addFolder(name, folderId, scope);
+    const f = await store.addFolder(name, folderId, scope);
     setName('');
     setAdding(false);
+    // フォルダが多いと作ったフォルダが画面の外に並ぶので、そこまで動かして目立たせる
+    setJustAdded(f.id);
   };
   const shown = open || adding;
   return (
@@ -93,9 +99,7 @@ export function FolderRows({ scope, folderId, children, count, adding, setAdding
       <FoldHeader label={t('フォルダ')} count={children.length} open={shown} onToggle={() => { if (adding) setAdding(false); setOpen(!shown); }} />
       {shown && (children.length > 0 || adding) && (
         <ul className="rows folder-rows">
-          {children.map((f) => (
-            <FolderRow key={f.id} scope={scope} folder={f} count={count(f.id)} />
-          ))}
+          {/* 入力欄は一覧の先頭に出す。末尾だとフォルダが多いときに画面の外になり、押しても何も起きないように見える */}
           {adding && (
             <li className="row-edit">
               <input
@@ -111,6 +115,9 @@ export function FolderRows({ scope, folderId, children, count, adding, setAdding
               </div>
             </li>
           )}
+          {children.map((f) => (
+            <FolderRow key={f.id} scope={scope} folder={f} count={count(f.id)} flash={f.id === justAdded} list={list} />
+          ))}
         </ul>
       )}
       {shown && extra}
@@ -197,11 +204,15 @@ export function FolderSelect({ scope, value, onChange }: { scope: FolderScope; v
   );
 }
 
-function FolderRow({ scope, folder, count }: { scope: FolderScope; folder: Folder; count: number }) {
+function FolderRow({ scope, folder, count, flash, list }: { scope: FolderScope; folder: Folder; count: number; flash?: boolean; list?: string }) {
   const item: ItemRef = { kind: 'folder', id: folder.id, label: folder.name, scope };
   const { lifted, handlers } = usePress(item, () => go(folderHref(scope, folder.id)));
+  const ref = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (flash) ref.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [flash]);
   return (
-    <li className={`row-item pressable ${lifted ? 'lifted' : ''}`} {...dropProps(scope, folder.id, folder.name)} {...handlers}>
+    <li ref={ref} className={`row-item pressable ${lifted ? 'lifted' : ''} ${flash ? 'just-added' : ''}`} {...dropProps(scope, folder.id, folder.name)} {...reorderProps(list, 'folder', folder.id)} {...handlers}>
       <span className="name"><SelectMark item={item} /><span className="folder-icon">▤</span>{folder.name}</span>
       <span className="sub">{count}</span>
       <span className="chev">›</span>

@@ -22,14 +22,64 @@ export interface Person {
   favorite?: boolean;
   /** 入っているグループ(複数可)。フォルダは1か所だけだが、グループはいくつでも */
   groupIds?: ID[];
+  /** プロフィール(年齢・仕事・趣味など)。空の項目は持たない */
+  profile?: PersonProfile;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い(新しいものが上) */
+  order?: number;
 }
 
-/** 人のグループ(「マッチングアプリ」「職場」など)。1人が複数のグループに入れる */
+/** 初めから用意しているプロフィール項目。表示名は画面側(ui/profileFields.ts)で付け、設定で変えられる */
+export const PROFILE_KEYS = ['age', 'birthday', 'area', 'hometown', 'job', 'hobbies', 'likes', 'dislikes', 'metAt'] as const;
+
+/** この人だけに足した項目(身長・血液型など) */
+export interface ProfileExtra {
+  label: string;
+  value: string;
+}
+
+/** プロフィールの中身。fields は項目ID(age や 自分で足した項目のID) → 値 */
+export interface PersonProfile {
+  fields?: Record<string, string>;
+  extra?: ProfileExtra[];
+}
+
+/** 空の項目を取り除く。何も残らなければ undefined */
+export function cleanProfile(p: PersonProfile | undefined): PersonProfile | undefined {
+  if (!p) return undefined;
+  const out: PersonProfile = {};
+  const fields: Record<string, string> = {};
+  for (const [k, v] of Object.entries(p.fields ?? {})) if (typeof v === 'string' && v.trim()) fields[k] = v.trim();
+  if (Object.keys(fields).length) out.fields = fields;
+  const extra = (p.extra ?? [])
+    .map((x) => ({ label: x.label.trim(), value: x.value.trim() }))
+    .filter((x) => x.label || x.value);
+  if (extra.length) out.extra = extra;
+  return Object.keys(out).length ? out : undefined;
+}
+
+export const hasProfile = (p: PersonProfile | undefined) => !!cleanProfile(p);
+
+/** 検索用に、プロフィールの値を全部並べる */
+export const profileValues = (p: PersonProfile | undefined): string[] =>
+  p ? [...Object.values(p.fields ?? {}), ...(p.extra ?? []).map((e) => e.value)] : [];
+
+/** 2人をまとめるとき。dst を優先し、dst が空の項目だけ src で埋める。この人だけの項目は両方残す */
+export function mergeProfiles(dst: PersonProfile | undefined, src: PersonProfile | undefined): PersonProfile | undefined {
+  const a = cleanProfile(dst) ?? {};
+  const b = cleanProfile(src) ?? {};
+  const fields = { ...(b.fields ?? {}), ...(a.fields ?? {}) };
+  const seen = new Set((a.extra ?? []).map((x) => x.label + '\u0000' + x.value));
+  const extra = [...(a.extra ?? []), ...(b.extra ?? []).filter((x) => !seen.has(x.label + '\u0000' + x.value))];
+  return cleanProfile({ fields, extra });
+}
+
 export interface Group {
   id: ID;
   name: string;
   createdAt: number;
   updatedAt: number;
+  /** 記録の相手として最後に選んだ日時(候補の並び順用) */
+  selectedAt?: number;
 }
 
 export interface Topic {
@@ -49,6 +99,8 @@ export interface Topic {
   pinned?: boolean;
   /** お気に入り(☆でワンタップ。お気に入り一覧に出る) */
   favorite?: boolean;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -66,6 +118,8 @@ export interface Entry {
   title?: string;
   text: string;
   personIds: ID[];
+  /** 話したグループ(グループ自体を相手として付ける。メンバーには展開しない) */
+  groupIds?: ID[];
   topics: TopicTag[];
   /** 話した日 (YYYY-MM-DD) */
   talkedOn: string;
@@ -81,6 +135,24 @@ export interface Entry {
   favorite?: boolean;
   /** 削除した日時。あるものは「最近削除した項目」にあり、30日で完全に消える */
   deletedAt?: number;
+  /** 添付した画像(EntryImage の id、並び順どおり)。画像そのものは別の保存場所に置く */
+  imageIds?: ID[];
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
+}
+
+/**
+ * 記録に添付した画像。一覧の読み込みを軽くするため、記録とは別の保存場所に置き、開いたときだけ読む。
+ * 端末の中だけに保存する(縮小・JPEG圧縮したもの)
+ */
+export interface EntryImage {
+  id: ID;
+  /** MIMEタイプ(通常 image/jpeg) */
+  type: string;
+  data: ArrayBuffer;
+  width: number;
+  height: number;
+  createdAt: number;
 }
 
 export type FolderScope = 'entry' | 'person' | 'topic';
@@ -96,6 +168,8 @@ export interface Folder {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
+  /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
+  order?: number;
 }
 
 export interface AppData {
@@ -134,3 +208,7 @@ export const entryPreview = (e: { title?: string; text: string }): { head: strin
   if (i < 0) return { head: '', rest: '' };
   return { head: lines[i].trim(), rest: oneLine(lines.slice(i + 1).join('\n')) };
 };
+
+/** その記録の相手に入っている人か(直接、またはグループのメンバーとして) */
+export const entryHasPerson = (e: Pick<Entry, 'personIds' | 'groupIds'>, p: Pick<Person, 'id' | 'groupIds'>): boolean =>
+  e.personIds.includes(p.id) || !!e.groupIds?.some((g) => p.groupIds?.includes(g));

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { Group, ID, Person } from '../core/types';
-import { NAME_SORTS, normalize, type NameSort } from '../core/search';
+import { NAME_SORTS, normalize, sortEntries, type NameSort } from '../core/search';
 import { back, go, useData, usePref, useStore } from './hooks';
-import { ComboPicker, Header, SortSelect } from './components';
+import { ComboPicker, EntryList, Header, SortSelect, sameNameHints } from './components';
 import { NameRows, useNameItems } from './screens';
 import { FoldHeader, useFold } from './folders';
 import { t } from '../i18n';
@@ -95,18 +95,17 @@ export function GroupScreen({ id }: { id: ID }) {
     );
   }
 
-  const options = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: p.selectedAt ?? p.createdAt }));
+  const hints = sameNameHints(data.people, data.groups);
+  const options = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: p.selectedAt ?? p.createdAt, hint: hints.get(p.id) }));
+  const told = sortEntries(data.entries.filter((e) => e.groupIds?.includes(id)));
   const memberIds = members.map((p) => p.id);
   const change = async (next: ID[], newNames: string[]) => {
     const added = next.filter((x) => !memberIds.includes(x));
     const removed = memberIds.filter((x) => !next.includes(x));
     if (added.length) await store.setGroupMembers(id, added, true);
     if (removed.length) await store.setGroupMembers(id, removed, false);
-    for (const n of newNames) {
-      const found = store.findPersonByName(n);
-      if (found) await store.setGroupMembers(id, [found.id], true);
-      else await store.addPerson(n, null, [id]);
-    }
+    // 名前を入力して追加した人は、同名の人がいても新しい人として作る(既存の人は候補から選ぶ)
+    for (const n of newNames) await store.addPerson(n, null, [id], true);
   };
 
   return (
@@ -137,7 +136,7 @@ export function GroupScreen({ id }: { id: ID }) {
         <>
           <section className="field">
             <label>{t('このグループの人')}</label>
-            <ComboPicker kind="person" options={options} selected={memberIds} newNames={[]} onChange={change} recent={20} />
+            <ComboPicker kind="person" options={options} selected={memberIds} newNames={[]} onChange={change} allowSameName />
           </section>
           {members.length > 0 ? (
             <>
@@ -145,13 +144,19 @@ export function GroupScreen({ id }: { id: ID }) {
                 <span className="count">{t('{n}人', { n: members.length })}</span>
                 <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
               </div>
-              <NameRows kind="person" items={members} sort={sort} showFolder />
+              <NameRows kind="person" items={members} sort={sort} showFolder reorder />
               <button className="btn block ghost" onClick={() => go(`/new?group=${id}`)}>
-                {t('＋ 「{name}」の人に話したことを記録', { name: group.name })}
+                {t('＋ 「{name}」に話したことを記録', { name: group.name })}
               </button>
             </>
           ) : (
             <div className="empty">{t('まだ誰もいません。')}<br />{t('上の欄から人を選ぶか、名前を入力して追加できます。')}</div>
+          )}
+          {told.length > 0 && (
+            <section className="field">
+              <label>{t('このグループに話した記録')}</label>
+              <EntryList entries={told} data={data} empty={null} />
+            </section>
           )}
         </>
       )}

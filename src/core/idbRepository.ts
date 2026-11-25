@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Repository } from './repository';
-import type { AppData, Entry, Folder, Group, Person, Topic } from './types';
+import type { AppData, Entry, EntryImage, Folder, Group, Person, Topic } from './types';
 
 interface Schema extends DBSchema {
   people: { key: string; value: Person };
@@ -8,9 +8,12 @@ interface Schema extends DBSchema {
   entries: { key: string; value: Entry };
   folders: { key: string; value: Folder };
   groups: { key: string; value: Group };
+  /** 添付画像。loadAll では読まない(一覧の読み込みを重くしないため) */
+  images: { key: string; value: EntryImage };
 }
 
 const STORES = ['people', 'topics', 'entries', 'folders', 'groups'] as const;
+const ALL_STORES = [...STORES, 'images'] as const;
 
 /**
  * 開く処理が返ってこないときに、並行して開き直すまでの待ち時間(ミリ秒)。
@@ -19,6 +22,12 @@ const STORES = ['people', 'topics', 'entries', 'folders', 'groups'] as const;
 const HEDGE_DELAYS_MS = [250, 600, 1200, 2500];
 /** これだけ待っても開けなければ失敗とする(呼び出し側で再試行) */
 const OPEN_TIMEOUT_MS = 6000;
+/**
+ * 1件の書き込みがこれだけ待っても終わらなければ、接続が切れているとみなして開き直す。
+ * iOSではアプリを裏に回して戻ると、接続が切れたまま put が返ってこないことがあり、
+ * そのままだと保存ボタンが押せないままになる
+ */
+const WRITE_TIMEOUT_MS = 3000;
 
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -38,9 +47,9 @@ export class IdbRepository implements Repository {
   constructor(private name = 'kaiwa-shisan') {}
 
   private openOnce(onLost: () => void): Promise<IDBPDatabase<Schema>> {
-    return openDB<Schema>(this.name, 3, {
+    return openDB<Schema>(this.name, 4, {
       upgrade(db) {
-        for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
+        for (const s of ALL_STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
       },
       terminated: onLost,
     });
@@ -85,6 +94,11 @@ export class IdbRepository implements Repository {
     return p;
   }
 
+  /** 1件の書き込み。返ってこなければ時間切れにして、接続を作り直して書き直す(同じ内容なので2回書いても問題ない) */
+  private write<T>(fn: (db: IDBPDatabase<Schema>) => Promise<T>): Promise<T> {
+    return this.run((db) => withTimeout(fn(db), WRITE_TIMEOUT_MS));
+  }
+
   /** 1回失敗したら接続を作り直してもう1回だけ試す */
   private async run<T>(fn: (db: IDBPDatabase<Schema>) => Promise<T>): Promise<T> {
     const first = this.open();
@@ -114,16 +128,21 @@ export class IdbRepository implements Repository {
     return { people, topics, entries: entries.map((e) => ({ ...e, folderId: e.folderId ?? null })), folders: folders.map((f) => ({ ...f, parentId: f.parentId ?? null })), groups };
   }
 
-  async putPerson(p: Person) { await this.run((db) => db.put('people', p)); }
-  async deletePerson(id: string) { await this.run((db) => db.delete('people', id)); }
-  async putTopic(t: Topic) { await this.run((db) => db.put('topics', t)); }
-  async deleteTopic(id: string) { await this.run((db) => db.delete('topics', id)); }
-  async putEntry(e: Entry) { await this.run((db) => db.put('entries', e)); }
-  async deleteEntry(id: string) { await this.run((db) => db.delete('entries', id)); }
-  async putFolder(f: Folder) { await this.run((db) => db.put('folders', f)); }
-  async deleteFolder(id: string) { await this.run((db) => db.delete('folders', id)); }
-  async putGroup(g: Group) { await this.run((db) => db.put('groups', g)); }
-  async deleteGroup(id: string) { await this.run((db) => db.delete('groups', id)); }
+  async putPerson(p: Person) { await this.write((db) => db.put('people', p)); }
+  async deletePerson(id: string) { await this.write((db) => db.delete('people', id)); }
+  async putTopic(t: Topic) { await this.write((db) => db.put('topics', t)); }
+  async deleteTopic(id: string) { await this.write((db) => db.delete('topics', id)); }
+  async putEntry(e: Entry) { await this.write((db) => db.put('entries', e)); }
+  async deleteEntry(id: string) { await this.write((db) => db.delete('entries', id)); }
+  async putFolder(f: Folder) { await this.write((db) => db.put('folders', f)); }
+  async deleteFolder(id: string) { await this.write((db) => db.delete('folders', id)); }
+  async putGroup(g: Group) { await this.write((db) => db.put('groups', g)); }
+  async deleteGroup(id: string) { await this.write((db) => db.delete('groups', id)); }
+
+  async putImage(img: EntryImage) { await this.run((db) => db.put('images', img)); }
+  getImage(id: string) { return this.run((db) => db.get('images', id)); }
+  async deleteImage(id: string) { await this.run((db) => db.delete('images', id)); }
+  imageIds() { return this.run((db) => db.getAllKeys('images')); }
 
   replaceAll(data: AppData) {
     return this.run((db) => this.writeAll(db, data));
