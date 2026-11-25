@@ -444,3 +444,33 @@ body.dragging { cursor: grabbing; }
 .fold-chev.open { transform: rotate(90deg); }
 .fold-hint { margin-left: auto; font-weight: 500; font-size: 12px; opacity: .8; }
 .group-bar .fold-header { margin-top: 0; }
+
+/* ---- 人のプロフィール ---- */
+.profile-view { display: block; width: 100%; text-align: left; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 6px 14px; margin: 0 0 4px; font: inherit; cursor: text; }
+.profile-view dl { margin: 0; }
+.profile-row { display: grid; grid-template-columns: 7.5em 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.profile-row:last-child { border-bottom: 0; }
+.profile-row dt { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.profile-row dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.profile-empty { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 10px 0 4px; }
+.profile-edit { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 12px 10px; margin: 8px 0; }
+.profile-edit .section-title { margin-top: 8px; }
+.profile-fields { display: flex; flex-direction: column; }
+.profile-field { display: grid; grid-template-columns: 7.5em 1fr; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.profile-field.extra { grid-template-columns: 7.5em 1fr auto; }
+.profile-field input { width: 100%; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink); padding: 6px 0; outline: none; }
+.profile-field input.extra-label { font-size: 13px; color: var(--muted); }
+.profile-field.ai { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 6px; }
+.profile-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 10px 2px 0; }
+.profile-ai { margin: 0 0 8px; }
+.profile-paste { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; margin-top: 8px; }
+.profile-paste .textarea { width: 100%; min-height: 0; }
+.ai-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ai-row { align-items: flex-start; font-size: 14px; }
+.ai-row input { margin-top: 1px; flex: none; }
+.field-defs { gap: 6px; }
+.field-def { display: flex; align-items: center; gap: 6px; }
+.field-def input, .field-defs .row-input input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+.field-def-name { flex: 1; }
+.btn.small.icon { padding: 8px 10px; }
+.profile-ai .ai-bar .btn.small { padding: 7px 12px; font-size: 14px; }

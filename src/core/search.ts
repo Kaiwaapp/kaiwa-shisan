@@ -1,4 +1,4 @@
-import type { AppData, Entry } from './types';
+import { profileValues, type AppData, type Entry, type PersonProfile } from './types';
 
 /** 全角半角・大文字小文字・カタカナ/ひらがなの違いを吸収 */
 export const normalize = (s: string): string =>
@@ -7,11 +7,12 @@ export const normalize = (s: string): string =>
     .toLowerCase()
     .replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
 
-/** 名前か読み仮名に検索語を含むか */
-export const nameMatches = (x: { name: string; reading?: string }, q: string): boolean => {
+/** 名前・読み仮名で探す。人はプロフィール(仕事・趣味など)でも引っかかる */
+export const nameMatches = (x: { name: string; reading?: string; profile?: PersonProfile }, q: string): boolean => {
   const n = normalize(q.trim().replace(/^#/, ''));
   if (!n) return true;
-  return normalize(x.name).includes(n) || normalize(x.reading ?? '').includes(n);
+  if (normalize(x.name).includes(n) || normalize(x.reading ?? '').includes(n)) return true;
+  return profileValues(x.profile).some((v) => normalize(v).includes(n));
 };
 
 /** スペース区切りの全語を、タイトル・本文・人の名前・話題名のどこかに含む記録を返す */

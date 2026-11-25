@@ -1,6 +1,6 @@
 import type { Repository } from './repository';
 import { mergeData } from './backup';
-import { newId, type AppData, type Entry, type Folder, type FolderScope, type Group, type ID, type Person, type Topic } from './types';
+import { newId, type AppData, type Entry, type Folder, type FolderScope, type Group, type ID, type Person, type Topic, mergeProfiles } from './types';
 import { normalize } from './search';
 
 type Listener = () => void;
@@ -258,7 +258,7 @@ export class Store {
     return p;
   }
 
-  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds'>>) {
+  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds' | 'profile'>>) {
     const p = this.data.people.find((x) => x.id === id);
     if (!p) return;
     const next = { ...p, ...patch, updatedAt: Date.now() };
@@ -402,7 +402,9 @@ export class Store {
     for (const e of touched) await this.repo.putEntry(e);
     const memo = [dst.memo, src.memo].filter((m) => m.trim()).join('\n');
     const groupIds = [...new Set([...(dst.groupIds ?? []), ...(src.groupIds ?? [])])];
-    const merged: Person = { ...dst, memo, ...(groupIds.length ? { groupIds } : {}), updatedAt: now };
+    const profile = mergeProfiles(dst.profile, src.profile);
+    const merged: Person = { ...dst, memo, ...(groupIds.length ? { groupIds } : {}), profile, updatedAt: now };
+    if (!profile) delete merged.profile;
     await this.repo.putPerson(merged);
     await this.repo.deletePerson(sourceId);
     const map = new Map(touched.map((e) => [e.id, e]));

@@ -20,12 +20,14 @@ export interface AiSettings {
   suggest: boolean;
   /** フォルダの自動整理 */
   organize: boolean;
+  /** 人のプロフィールの自動入力 */
+  profile: boolean;
   /** これまでに使った金額の概算(円) */
   spentYen: number;
 }
 
 const KEY = 'kaiwa.ai.v1';
-const DEFAULTS: AiSettings = { enabled: false, apiKey: '', ocr: true, suggest: true, organize: true, spentYen: 0 };
+const DEFAULTS: AiSettings = { enabled: false, apiKey: '', ocr: true, suggest: true, organize: true, profile: true, spentYen: 0 };
 
 export function loadAiSettings(): AiSettings {
   try {
@@ -54,10 +56,11 @@ export function onAiSettings(f: (s: AiSettings) => void) {
 export const ocrReady = (s: AiSettings) => s.enabled && s.ocr;
 export const suggestReady = (s: AiSettings) => s.enabled && s.suggest;
 export const organizeReady = (s: AiSettings) => s.enabled && s.organize;
+export const profileReady = (s: AiSettings) => s.enabled && s.profile;
 /** APIキーがないときは、APIを呼ばずにお試しの結果を返す */
 export const isDemo = (s: AiSettings) => !s.apiKey.trim();
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+export const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** お試し表示: スクショ文字起こしのサンプル */
 export async function demoTranscribe(): Promise<{ text: string; yen: number }> {
@@ -83,20 +86,20 @@ export async function demoSuggest(text: string, known: { people: string[]; topic
   return { topics: topics.slice(0, 4), people: people.slice(0, 4), yen: 0 };
 }
 
-function client(apiKey: string) {
+export function client(apiKey: string) {
   // ブラウザから直接呼ぶ(キーはこの端末の中だけ)。公開サービスにする時はサーバー経由にする
   return new Anthropic({ apiKey: apiKey.trim(), dangerouslyAllowBrowser: true, maxRetries: 1 });
 }
 
 /** 1回の呼び出しの料金(円)を足し込み、その回の金額を返す */
-function record(usage: { input_tokens: number; output_tokens: number }): number {
+export function record(usage: { input_tokens: number; output_tokens: number }): number {
   const yen = ((usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT) / 1e6) * YEN_PER_USD;
   const s = loadAiSettings();
   saveAiSettings({ ...s, spentYen: s.spentYen + yen });
   return yen;
 }
 
-function textOf(msg: Anthropic.Message): string {
+export function textOf(msg: Anthropic.Message): string {
   if (msg.stop_reason === 'refusal') throw new Error(t('AIがこの内容の処理を断りました'));
   return msg.content
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
