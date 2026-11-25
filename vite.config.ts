@@ -27,6 +27,16 @@ export default defineConfig({
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        // ホーム画面アイコンの長押しメニュー(Android・PCのChrome/Edge。iPhoneのSafariは未対応)
+        shortcuts: [
+          {
+            name: '新規記録',
+            short_name: '新規記録',
+            description: '新しい記録をすぐに書き始める',
+            url: `${base}#/new`,
+            icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
       },
       workbox: { globPatterns: ['**/*.{js,css,html,png,svg}'] },
     }),
