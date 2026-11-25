@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { FolderScope, ID } from '../core/types';
 import type { Store } from '../core/store';
@@ -342,14 +343,17 @@ function ClearSheet() {
 }
 
 export function Sheet({ title, onClose, children, cancelLabel }: { title?: string; onClose: () => void; children: ReactNode; cancelLabel?: string }) {
-  return (
+  // body 直下に出す。見出し(backdrop-filter付き)の中のボタンから開くと、position: fixed が
+  // 画面でなく見出しの枠を基準にしてしまい、シートが画面の上に切れて出ていた
+  return createPortal(
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog">
         {title && <div className="sheet-title">{title}</div>}
         <div className="sheet-body">{children}</div>
         <button className="sheet-item cancel" onClick={onClose}>{cancelLabel ?? t('キャンセル')}</button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
