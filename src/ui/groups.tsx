@@ -134,7 +134,7 @@ export function GroupScreen({ id }: { id: ID }) {
         <>
           <section className="field">
             <label>{t('このグループの人')}</label>
-            <ComboPicker kind="person" options={options} selected={memberIds} newNames={[]} onChange={change} />
+            <ComboPicker kind="person" options={options} selected={memberIds} newNames={[]} onChange={change} recent={20} />
           </section>
           {members.length > 0 ? (
             <>

@@ -319,6 +319,11 @@ const en: Record<string, string> = {
   '全員外す': 'Deselect all',
   '全員選ぶ': 'Select all',
   'グループ（いくつでも）': 'Groups (any number)',
+  'グループに追加': 'Add to group',
+  '「{name}」に追加しました': 'Added to "{name}"',
+  '「{name}」を入れるグループ': 'Groups for "{name}"',
+  '{n}人を入れるグループ': 'Groups for {n} people',
+  '「{name}」から外しました': 'Removed from "{name}"',
 };
 
 export default en;

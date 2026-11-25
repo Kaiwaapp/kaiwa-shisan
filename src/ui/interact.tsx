@@ -60,6 +60,8 @@ interface UiState {
   move: ItemRef[] | null;
   /** 中の記録をまとめて削除するフォルダ */
   clear: ID | null;
+  /** グループに入れる人 */
+  group?: ItemRef[] | null;
 }
 interface SelectState {
   active: boolean;
@@ -70,6 +72,7 @@ interface Ctx {
   openMenu: (i: ItemRef) => void;
   openMove: (items: ItemRef[]) => void;
   openClear: (folderId: ID) => void;
+  openGroup: (people: ItemRef[]) => void;
   close: () => void;
   sel: SelectState;
   setSelecting: (on: boolean) => void;
@@ -93,6 +96,7 @@ export function InteractProvider({ children }: { children: ReactNode }) {
     openMenu: (i) => setUi({ menu: i, move: null, clear: null }),
     openMove: (items) => setUi({ menu: null, move: items, clear: null }),
     openClear: (id) => setUi({ menu: null, move: null, clear: id }),
+    openGroup: (people) => setUi({ menu: null, move: null, clear: null, group: people }),
     close: () => setUi({ menu: null, move: null, clear: null }),
     sel,
     setSelecting: (on) => setSel({ active: on, selected: new Map() }),
@@ -112,6 +116,7 @@ export function InteractProvider({ children }: { children: ReactNode }) {
       <ItemMenu />
       <MoveSheet />
       <ClearSheet />
+      <GroupSheet />
       <DragLayer />
       <ToastHost />
     </InteractCtx.Provider>
@@ -161,7 +166,7 @@ export async function moveTo(store: Store, items: ItemRef[], folderId: ID | null
 }
 
 function ItemMenu() {
-  const { ui, close, openMove, openClear } = useInteract();
+  const { ui, close, openMove, openClear, openGroup } = useInteract();
   const store = useStore();
   const data = useData();
   const item = ui.menu;
@@ -200,6 +205,9 @@ function ItemMenu() {
           <span className="ic">✎</span>{t('名前を変更')}
         </button>
       )}
+      {item.kind === 'person' && (
+        <button className="sheet-item" onClick={() => openGroup([item])}><span className="ic">👥</span>{t('グループに追加')}</button>
+      )}
       <button className="sheet-item" onClick={() => openMove([item])}><span className="ic">▤</span>{t('フォルダへ移動')}</button>
       {item.kind === 'folder' && item.scope === 'entry' && (
         <button className="sheet-item danger" onClick={() => openClear(item.id)}><span className="ic">🗑</span>{t('中の記録をすべて削除')}</button>
@@ -232,6 +240,56 @@ function MoveSheet() {
         <button key={c.id} className="sheet-item" onClick={() => go(c.id, c.label)}><span className="ic">▤</span>{c.label}</button>
       ))}
       {choices.length === 0 && <p className="muted small pad">{t('移せるフォルダがありません。先にフォルダを作ってください。')}</p>}
+    </Sheet>
+  );
+}
+
+/**
+ * 人をグループに入れる・外すシート。グループをタップするたびに入れたり外したりでき、
+ * 新しいグループもその場で作れる(複数人を選んでいるときは全員まとめて)
+ */
+function GroupSheet() {
+  const { ui, close, clearSel } = useInteract();
+  const store = useStore();
+  const data = useData();
+  const [name, setName] = useState('');
+  const people = ui.group;
+  if (!people || people.length === 0) return null;
+  const ids = people.map((p) => p.id);
+  const inAll = (gid: ID) => ids.every((id) => data.people.find((p) => p.id === id)?.groupIds?.includes(gid));
+  const groups = [...data.groups].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  const done = () => { close(); clearSel(); setName(''); };
+  const create = async () => {
+    if (!name.trim()) return;
+    const g = await store.addGroup(name);
+    await store.setGroupMembers(g.id, ids, true);
+    setName('');
+    toast(t('「{name}」に追加しました', { name: g.name }));
+  };
+  return (
+    <Sheet onClose={done} title={people.length === 1 ? t('「{name}」を入れるグループ', { name: people[0].label }) : t('{n}人を入れるグループ', { n: people.length })}>
+      {groups.map((g) => {
+        const on = inAll(g.id);
+        return (
+          <button key={g.id} className="sheet-item" onClick={async () => {
+            await store.setGroupMembers(g.id, ids, !on);
+            toast(on ? t('「{name}」から外しました', { name: g.name }) : t('「{name}」に追加しました', { name: g.name }));
+          }}>
+            <span className="ic check">{on ? '✓' : ''}</span>{g.name}
+          </button>
+        );
+      })}
+      <div className="sheet-item sheet-input">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('新しいグループの名前')}
+          enterKeyHint="done"
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); create(); } }}
+        />
+        <button className="btn small" disabled={!name.trim()} onClick={create}>{t('作成')}</button>
+      </div>
+      <button className="sheet-item strong" onClick={done}>{t('完了')}</button>
     </Sheet>
   );
 }
@@ -503,7 +561,7 @@ export function SelectMark({ item }: { item: ItemRef }) {
 
 /** 選択モード中、画面下に出す操作バー */
 export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 記録のフォルダ内なら、未選択時に「すべて削除」を出す */ folderId?: ID | null }) {
-  const { sel, clearSel, openMove, toggle, openClear } = useInteract();
+  const { sel, clearSel, openMove, toggle, openClear, openGroup } = useInteract();
   const store = useStore();
   if (!sel.active) return null;
   const items = [...sel.selected.values()];
@@ -524,6 +582,9 @@ export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 記録の�
           toast('ピン留めしました');
           clearSel();
         }}>📌</button>
+        {all.some((i) => i.kind === 'person') && (
+          <button className="link" disabled={!n || items.some((i) => i.kind !== 'person')} onClick={() => openGroup(items)}>{t('グループ')}</button>
+        )}
         <button className="link" disabled={!n} onClick={() => openMove(items)}>{t('移動')}</button>
         {!n && folderId ? (
           <button className="link danger" onClick={() => openClear(folderId)}>{t('すべて削除')}</button>
