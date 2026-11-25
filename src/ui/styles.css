@@ -537,7 +537,7 @@ body.dragging { cursor: grabbing; }
 .guide-list li { display: flex; gap: 6px; align-items: flex-start; }
 .guide-list .guide-num { margin-top: 1px; }
 .field .toggle.small-toggle, .field .toggle.small-toggle span { font-weight: 400; color: var(--ink); font-size: 14px; }
-/* 設定 > 使う機能: グループの見出し(折りたたみ)とその下の欄 */
+/* 設定 > 機能とカスタマイズ: グループの見出し(折りたたみ)とその下の欄 */
 .feature-group .fold-header { margin-bottom: 4px; }
 .feature-item { display: flex; flex-direction: column; gap: 8px; }
 .feature-item .small-btn { margin-left: 30px; width: auto; }

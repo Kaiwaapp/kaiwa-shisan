@@ -88,7 +88,7 @@ export function SettingsScreen() {
 
         <ul className="rows">
           <li className="row-item" onClick={() => go('/settings/features')}>
-            <span className="name">{t('使う機能')}</span>
+            <span className="name">{t('機能とカスタマイズ')}</span>
             <span className="sub">
               {t('{n}/{total}個オン', { n: FEATURE_KEYS.filter((k) => feat[k]).length, total: FEATURE_KEYS.length })}
               {t('・AI {v}', { v: ai.enabled ? t('オン') : t('オフ') })}

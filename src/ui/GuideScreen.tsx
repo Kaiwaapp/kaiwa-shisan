@@ -61,14 +61,14 @@ const GUIDE: { img: string; title: string; lead: string; spots: Spot[] }[] = [
   {
     img: 'settings', title: '設定', lead: '機能の切り替えとバックアップ',
     spots: [
-      { x: 92, y: 33.8, text: '使う機能：機能のオンオフと読み仮名などの設定' },
+      { x: 92, y: 33.8, text: '機能とカスタマイズ：機能のオンオフと読み仮名などの設定' },
       { x: 92, y: 40, text: 'このガイド' },
       { x: 30, y: 48, text: 'メモやLINEから記録を取り込む' },
       { x: 19, y: 69.5, text: 'バックアップの書き出し・読み込み' },
     ],
   },
   {
-    img: 'features', title: '使う機能', lead: '使わない機能は隠せる（データは消えない）',
+    img: 'features', title: '機能とカスタマイズ', lead: '使わない機能は隠せる（データは消えない）',
     spots: [
       { x: 9, y: 19.4, text: '見出しをタップで折りたたむ' },
       { x: 11, y: 24.8, text: 'チェックを外すと画面に出なくなる' },

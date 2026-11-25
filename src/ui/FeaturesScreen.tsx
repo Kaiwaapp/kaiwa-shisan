@@ -5,13 +5,13 @@ import { FoldHeader, useFold } from './folders';
 import { FEATURE_GROUPS, FEATURE_LABELS, setFeature, useFeatures, type Features } from './features';
 import { t } from '../i18n';
 
-// 設定 > 使う機能。機能のオンオフと、人・話題などの設定を機能のグループごとにまとめ、グループごとに折りたためる。
+// 設定 > 機能とカスタマイズ。機能のオンオフと、人・話題などの設定を機能のグループごとにまとめ、グループごとに折りたためる。
 // 新しい設定は features.ts の FEATURE_GROUPS(と FEATURE_LABELS)に足せばここに並ぶ。
 // AIの機能は AiTools.tsx の AiSettingsPanel(AI機能を使う の下)に足す。
 export function FeaturesScreen() {
   return (
     <div className="screen">
-      <Header title={t('使う機能')} left={<button className="link" onClick={() => back('/settings')}>{t('‹ 設定')}</button>} />
+      <Header title={t('機能とカスタマイズ')} left={<button className="link" onClick={() => back('/settings')}>{t('‹ 設定')}</button>} />
       <div className="form">
         <p className="muted small">{t('使わない機能はオフにすると画面に出なくなります。オフにしてもデータは消えず、オンに戻せば元どおり出ます。')}</p>
         {FEATURE_GROUPS.map((g) => <FeatureGroup key={g.key} gkey={g.key} title={g.title} items={g.items} />)}

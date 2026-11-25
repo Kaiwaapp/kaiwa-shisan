@@ -16,7 +16,7 @@ export interface AiSettings {
   apiKey: string;
   /** スクショ文字起こし */
   ocr: boolean;
-  /** 文字起こしした画像を記録に自動で添付する(「使う機能」で画像の添付がオンのとき) */
+  /** 文字起こしした画像を記録に自動で添付する(「機能とカスタマイズ」で画像の添付がオンのとき) */
   ocrAttach: boolean;
   /** 話題・相手の自動提案 */
   suggest: boolean;

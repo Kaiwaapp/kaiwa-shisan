@@ -1,4 +1,4 @@
-// 設定 > 使う機能 のオンオフ。オフにしても画面に出さないだけで、データは消さない。
+// 設定 > 機能とカスタマイズ のオンオフ。オフにしても画面に出さないだけで、データは消さない。
 // 端末ごとの表示設定なので localStorage に置く(バックアップには含めない)。
 import { useSyncExternalStore } from 'react';
 
@@ -33,7 +33,7 @@ export interface Features {
 
 export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard'] as const;
 
-/** 設定 > 使う機能 の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
+/** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
   { key: 'entry', title: '記録', items: ['title', 'memo', 'images', 'copy', 'recent', 'confirmDiscard'] },
   { key: 'person', title: '人', items: ['readingPerson', 'groups', 'profile'] },

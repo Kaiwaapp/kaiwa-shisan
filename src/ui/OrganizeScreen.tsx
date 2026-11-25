@@ -64,7 +64,7 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
     return (
       <div className="screen">
         <Header title={t('AIでフォルダ整理')} left={<button className="link" onClick={() => back()}>{t('戻る')}</button>} />
-        <div className="empty">{t('設定の「使う機能」で「AI機能を使う」と「フォルダの自動整理」をONにしてください。')}</div>
+        <div className="empty">{t('設定の「機能とカスタマイズ」で「AI機能を使う」と「フォルダの自動整理」をONにしてください。')}</div>
       </div>
     );
   }
