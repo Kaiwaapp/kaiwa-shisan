@@ -17,23 +17,26 @@ export interface Features {
   copy: boolean;
   /** 設定の「他のアプリから取り込む」 */
   import: boolean;
+  /** 記録の編集画面で、保存せずに戻るときの確認 */
+  confirmDiscard: boolean;
 }
 
-export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'copy', 'import'] as const;
+export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'copy', 'import', 'confirmDiscard'] as const;
 
 /** 設定画面に出す名前と説明(表示時に t() を通す) */
 export const FEATURE_LABELS: Record<keyof Features, { label: string; note: string }> = {
   folders: { label: 'フォルダ', note: 'オフにすると、記録・人・話題をフォルダに分けずに全部並べます' },
   favorites: { label: 'お気に入り', note: '☆ボタンと★のお気に入り一覧' },
   groups: { label: 'グループ', note: '人のグループと、記録の相手を「グループから」選ぶ機能' },
-  recent: { label: '直近の候補', note: '記録の相手・話題の入力欄の下に出す最近の候補' },
+  recent: { label: '直近の候補', note: '記録の相手・話題の入力欄の下に、入力しなくても候補を出す' },
   title: { label: '記録のタイトル', note: '記録の編集画面のタイトル欄' },
   copy: { label: 'コピーボタン', note: '一覧と編集画面の本文コピーボタン' },
   import: { label: '他のアプリから取り込む', note: '設定の取り込みの項目' },
+  confirmDiscard: { label: '保存せずに戻るときの確認', note: '記録を入力したままキャンセルしたとき、保存されないことを確認する' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, copy: true, import: true };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, copy: true, import: true, confirmDiscard: true };
 
 const load = (): Features => {
   try {

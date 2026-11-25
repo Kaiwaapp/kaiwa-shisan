@@ -30,6 +30,8 @@ export interface Group {
   name: string;
   createdAt: number;
   updatedAt: number;
+  /** 記録の相手として最後に選んだ日時(候補の並び順用) */
+  selectedAt?: number;
 }
 
 export interface Topic {
@@ -66,6 +68,8 @@ export interface Entry {
   title?: string;
   text: string;
   personIds: ID[];
+  /** 話したグループ(グループ自体を相手として付ける。メンバーには展開しない) */
+  groupIds?: ID[];
   topics: TopicTag[];
   /** 話した日 (YYYY-MM-DD) */
   talkedOn: string;
@@ -134,3 +138,7 @@ export const entryPreview = (e: { title?: string; text: string }): { head: strin
   if (i < 0) return { head: '', rest: '' };
   return { head: lines[i].trim(), rest: oneLine(lines.slice(i + 1).join('\n')) };
 };
+
+/** その記録の相手に入っている人か(直接、またはグループのメンバーとして) */
+export const entryHasPerson = (e: Pick<Entry, 'personIds' | 'groupIds'>, p: Pick<Person, 'id' | 'groupIds'>): boolean =>
+  e.personIds.includes(p.id) || !!e.groupIds?.some((g) => p.groupIds?.includes(g));

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { entryLabel, type ID } from '../core/types';
+import { entryHasPerson, entryLabel, type ID } from '../core/types';
 import {
   ENTRY_SORTS, NAME_SORTS, lastSeen, nameMatches, normalize, searchEntries, sortEntriesBy, sortNames, statsBy,
   type EntrySort, type NameSort,
@@ -517,7 +517,8 @@ export function PersonScreen({ id }: { id: ID }) {
   const [pfolder, setPfolder] = useState<ID | null>(null);
   const [pgroups, setPgroups] = useState<ID[]>([]);
 
-  const mine = useMemo(() => data.entries.filter((e) => e.personIds.includes(id)), [data, id]);
+  // グループに話した記録も、そのグループの人の記録として出す
+  const mine = useMemo(() => (person ? data.entries.filter((e) => entryHasPerson(e, person)) : []), [data, person]);
   const topicCounts = useMemo(() => {
     const m = new Map<ID, number>();
     for (const e of mine) for (const t of e.topics) m.set(t.topicId, (m.get(t.topicId) ?? 0) + 1);

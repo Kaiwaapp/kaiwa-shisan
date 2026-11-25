@@ -21,12 +21,14 @@ export function searchEntries(data: AppData, query: string): Entry[] {
   if (words.length === 0) return sorted;
   const pName = new Map(data.people.map((p) => [p.id, `${p.name} ${p.reading ?? ''}`]));
   const tName = new Map(data.topics.map((t) => [t.id, `${t.name} ${t.reading ?? ''}`]));
+  const gName = new Map((data.groups ?? []).map((g) => [g.id, g.name]));
   return sorted.filter((e) => {
     const hay = normalize(
       [
         e.title ?? '',
         e.text,
         ...e.personIds.map((id) => pName.get(id) ?? ''),
+        ...(e.groupIds ?? []).map((id) => gName.get(id) ?? ''),
         ...e.topics.map((t) => tName.get(t.topicId) ?? ''),
       ].join('\n'),
     );
@@ -74,8 +76,13 @@ export interface NameStat { count: number; first: string; last: string }
 /** 人または話題ごとの 記録数・最初/最後に話した日 */
 export function statsBy(data: AppData, key: 'person' | 'topic'): Map<string, NameStat> {
   const m = new Map<string, NameStat>();
+  // グループに話した記録は、そのグループの人みんなに話したものとして数える
+  const members = new Map<string, string[]>();
+  if (key === 'person') for (const p of data.people) for (const g of p.groupIds ?? []) members.set(g, [...(members.get(g) ?? []), p.id]);
   for (const e of data.entries) {
-    const ids = key === 'person' ? e.personIds : e.topics.map((t) => t.topicId);
+    const ids = key === 'person'
+      ? [...new Set([...e.personIds, ...(e.groupIds ?? []).flatMap((g) => members.get(g) ?? [])])]
+      : e.topics.map((t) => t.topicId);
     for (const id of ids) {
       const s = m.get(id) ?? { count: 0, first: '', last: '' };
       s.count++;

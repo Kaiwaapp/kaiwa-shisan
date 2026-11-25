@@ -4,7 +4,7 @@ import { Store, folderPath } from './store';
 import { IdbRepository } from './idbRepository';
 import { nameMatches, searchEntries, sortEntriesBy, sortNames, statsBy } from './search';
 import { parseBackup, toBackup } from './backup';
-import { entryLabel, entryPreview } from './types';
+import { entryHasPerson, entryLabel, entryPreview } from './types';
 
 let n = 0;
 const fresh = async () => {
@@ -360,5 +360,33 @@ describe('起動時の読み込み', () => {
     await s.init();
     expect(s.loaded).toBe(true);
     expect(s.loadFailed).toBe(false);
+  });
+  it('記録にグループ自体を付けられ、メンバーの記録・検索・回数にも出る。グループを消すと外れる', async () => {
+    const s = await fresh();
+    const g = await s.addGroup('職場');
+    const a = await s.addPerson('佐藤', null, [g.id]);
+    const b = await s.addPerson('鈴木');
+    const e = await s.saveEntry({ text: '会議の話', personIds: [], groupIds: [g.id], topicIds: [], talkedOn: '2026-11-20' });
+    expect(e.groupIds).toEqual([g.id]);
+    expect(e.personIds).toEqual([]);
+    expect(entryHasPerson(e, a)).toBe(true);
+    expect(entryHasPerson(e, b)).toBe(false);
+    expect(statsBy(s.snapshot, 'person').get(a.id)?.count).toBe(1);
+    expect(searchEntries(s.snapshot, '職場').map((x) => x.id)).toEqual([e.id]);
+    // 編集で groupIds を渡さなければそのまま
+    const e2 = await s.saveEntry({ text: '会議の話2', personIds: [], topicIds: [], talkedOn: '2026-11-20' }, e.id);
+    expect(e2.groupIds).toEqual([g.id]);
+    await s.deleteGroup(g.id);
+    expect(s.snapshot.entries[0].groupIds).toBeUndefined();
+  });
+
+  it('記録の新しい相手は、同じ名前の人がいても別の人として作る', async () => {
+    const s = await fresh();
+    const a = await s.addPerson('田中');
+    const e = await s.saveEntry({ text: 'x', personIds: [a.id], newPeople: ['田中'], topicIds: [], talkedOn: '2026-11-20' });
+    expect(s.snapshot.people.filter((p) => p.name === '田中')).toHaveLength(2);
+    expect(e.personIds).toHaveLength(2);
+    // 人の追加画面などは今までどおり同名の人を返す
+    expect((await s.addPerson('田中')).id).toBe(a.id);
   });
 });

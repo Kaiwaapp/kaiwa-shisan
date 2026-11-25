@@ -331,13 +331,13 @@ function ClearSheet() {
   );
 }
 
-export function Sheet({ title, onClose, children }: { title?: string; onClose: () => void; children: ReactNode }) {
+export function Sheet({ title, onClose, children, cancelLabel }: { title?: string; onClose: () => void; children: ReactNode; cancelLabel?: string }) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog">
         {title && <div className="sheet-title">{title}</div>}
         <div className="sheet-body">{children}</div>
-        <button className="sheet-item cancel" onClick={onClose}>{t('キャンセル')}</button>
+        <button className="sheet-item cancel" onClick={onClose}>{cancelLabel ?? t('キャンセル')}</button>
       </div>
     </div>
   );

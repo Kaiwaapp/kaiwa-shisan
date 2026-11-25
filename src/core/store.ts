@@ -10,8 +10,10 @@ export interface EntryInput {
   title?: string;
   text: string;
   personIds: ID[];
+  /** 話したグループ(グループ自体を付ける) */
+  groupIds?: ID[];
   topicIds: ID[];
-  /** 保存時に新しく作る人・話題の名前 */
+  /** 保存時に新しく作る人・話題の名前。人は同名の人がいても別の人として作る */
   newPeople?: string[];
   newTopics?: string[];
   /** AIの提案から付けた話題(既存のid・新規の名前)。source を 'ai' にする */
@@ -107,7 +109,9 @@ export class Store {
     const prevSource = new Map(prev?.topics.map((t) => [t.topicId, t.source]));
     // 新規の人・話題は記録の保存時にはじめて作る(キャンセルしたらゴミが残らない)
     const personIds = [...input.personIds];
-    for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name)).id);
+    for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name, null, [], true)).id);
+    const alive = new Set(this.data.groups.map((g) => g.id));
+    const groupIds = [...new Set(input.groupIds ?? prev?.groupIds ?? [])].filter((g) => alive.has(g));
     const topicIds = [...input.topicIds];
     const aiIds = new Set(input.aiTopicIds ?? []);
     const aiNew = new Set((input.aiNewTopics ?? []).map((n) => normalize(n.trim())));
@@ -122,6 +126,7 @@ export class Store {
       ...(input.title?.trim() ? { title: input.title.trim() } : {}),
       text: input.text.trim(),
       personIds: [...new Set(personIds)],
+      ...(groupIds.length ? { groupIds } : {}),
       folderId: input.folderId === undefined ? (prev?.folderId ?? null) : input.folderId,
       topics: [...new Set(topicIds)].map((topicId) => ({
         topicId,
@@ -248,8 +253,9 @@ export class Store {
     return this.data.people.find((p) => normalize(p.name) === n);
   }
 
-  async addPerson(name: string, folderId: ID | null = null, groupIds: ID[] = []): Promise<Person> {
-    const existing = this.findPersonByName(name);
+  /** 人を追加。同名の人がいればその人を返す。allowSame なら同名でも別の人として作る */
+  async addPerson(name: string, folderId: ID | null = null, groupIds: ID[] = [], allowSame = false): Promise<Person> {
+    const existing = allowSame ? undefined : this.findPersonByName(name);
     if (existing) return existing;
     const now = Date.now();
     const p: Person = { id: newId(), name: name.trim(), memo: '', folderId, ...(groupIds.length ? { groupIds } : {}), createdAt: now, updatedAt: now, selectedAt: now };
@@ -306,19 +312,29 @@ export class Store {
     this.set({ ...this.data, groups: this.data.groups.map((x) => (x.id === id ? next : x)) });
   }
 
-  /** グループを削除。人は消さず、グループへの紐づけだけ外す */
+  /** グループを削除。人や記録は消さず、グループへの紐づけだけ外す */
   async deleteGroup(id: ID) {
     const now = Date.now();
     const touched = this.data.people
       .filter((p) => p.groupIds?.includes(id))
       .map((p) => ({ ...p, groupIds: p.groupIds!.filter((x) => x !== id), updatedAt: now }));
     for (const p of touched) await this.repo.putPerson(p);
+    const touchedE = this.data.entries
+      .filter((e) => e.groupIds?.includes(id))
+      .map((e) => {
+        const groupIds = e.groupIds!.filter((x) => x !== id);
+        const { groupIds: _, ...rest } = e;
+        return { ...rest, ...(groupIds.length ? { groupIds } : {}) } as Entry;
+      });
+    for (const e of touchedE) await this.repo.putEntry(e);
     await this.repo.deleteGroup(id);
     const m = new Map(touched.map((p) => [p.id, p]));
+    const me = new Map(touchedE.map((e) => [e.id, e]));
     this.set({
       ...this.data,
       groups: this.data.groups.filter((g) => g.id !== id),
       people: this.data.people.map((p) => m.get(p.id) ?? p),
+      entries: this.data.entries.map((e) => me.get(e.id) ?? e),
     });
   }
 
@@ -531,9 +547,15 @@ export class Store {
   }
 
   /** 記録の編集で人・話題を選んだ日時を残す(ドロップダウンの並び順用) */
-  async markSelected(kind: 'person' | 'topic', id: ID) {
+  async markSelected(kind: 'person' | 'topic' | 'group', id: ID) {
     const now = Date.now();
-    if (kind === 'person') {
+    if (kind === 'group') {
+      const g = this.data.groups.find((x) => x.id === id);
+      if (!g) return;
+      const next = { ...g, selectedAt: now };
+      await this.repo.putGroup(next);
+      this.set({ ...this.data, groups: this.data.groups.map((x) => (x.id === id ? next : x)) });
+    } else if (kind === 'person') {
       const p = this.data.people.find((x) => x.id === id);
       if (!p) return;
       const next = { ...p, selectedAt: now };

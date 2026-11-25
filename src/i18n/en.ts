@@ -352,6 +352,23 @@ const en: Record<string, string> = {
   'コピーボタン': 'Copy buttons',
   '一覧と編集画面の本文コピーボタン': 'Buttons that copy the note text, in lists and the editor',
   '設定の取り込みの項目': 'The import section in Settings',
+  '保存されていません': 'Not saved',
+  '編集を続ける': 'Keep editing',
+  'このまま戻ると、入力した内容は保存されません。': "If you go back now, what you typed won't be saved.",
+  '今後表示しない': "Don't show this again",
+  '設定の「使う機能」でまた表示するようにできます': 'You can turn it back on in Settings > Features',
+  '保存して戻る': 'Save and go back',
+  '保存せずに戻る': 'Go back without saving',
+  '{m}/{d}に追加': 'added {m}/{d}',
+  '🔍 名前で絞り込む／新しい人を入力': '🔍 Filter by name / type a new person',
+  '🔍 話題で絞り込む／新しい話題を入力': '🔍 Filter topics / type a new topic',
+  '入力を消す': 'Clear',
+  '＋「{name}」を別の人として追加': '+ Add "{name}" as a different person',
+  '記録の相手・話題の入力欄の下に、入力しなくても候補を出す': 'Show suggestions under the people and topic fields of a note, even before you type',
+  '保存せずに戻るときの確認': 'Confirm before leaving without saving',
+  '記録を入力したままキャンセルしたとき、保存されないことを確認する': "When you cancel a note you've typed in, warn that it won't be saved",
+  '＋ 「{name}」に話したことを記録': '+ Note something you told "{name}"',
+  'このグループに話した記録': 'Notes told to this group',
 };
 
 export default en;
