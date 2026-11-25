@@ -18,6 +18,16 @@ export interface Person {
   folderId?: ID | null;
   /** ピン留め(一覧の上に固定) */
   pinned?: boolean;
+  /** 入っているグループ(複数可)。フォルダは1か所だけだが、グループはいくつでも */
+  groupIds?: ID[];
+}
+
+/** 人のグループ(「マッチングアプリ」「職場」など)。1人が複数のグループに入れる */
+export interface Group {
+  id: ID;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Topic {
@@ -87,6 +97,7 @@ export interface AppData {
   topics: Topic[];
   entries: Entry[];
   folders: Folder[];
+  groups: Group[];
 }
 
 export const newId = (): ID =>

@@ -8,11 +8,13 @@ import { useEntryAi } from './AiTools';
 import { t } from '../i18n';
 
 
-export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: {
+export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
   id?: ID;
   initialPerson?: ID;
   initialTopic?: ID;
   initialFolder?: ID;
+  /** グループの画面から開いたとき、そのグループの人を最初から相手に入れる */
+  initialGroup?: ID;
 }) {
   const store = useStore();
   const data = useData();
@@ -20,7 +22,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [text, setText] = useState(existing?.text ?? '');
-  const [personIds, setPersonIds] = useState<ID[]>(existing?.personIds ?? (initialPerson ? [initialPerson] : []));
+  const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (
+    initialPerson ? [initialPerson]
+      : initialGroup ? data.people.filter((p) => p.groupIds?.includes(initialGroup)).map((p) => p.id)
+        : []));
   const [newPeople, setNewPeople] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<ID[]>(existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : []));
   const [newTopics, setNewTopics] = useState<string[]>([]);
@@ -40,6 +45,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
   }, [data.entries]);
   const rankOf = (x: { id: ID; createdAt: number; selectedAt?: number }) => x.selectedAt ?? used.get(x.id) ?? x.createdAt;
   const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: rankOf(p) }));
+  const groupOpts = useMemo(
+    () => data.groups.map((g) => ({ id: g.id, name: g.name, memberIds: data.people.filter((p) => p.groupIds?.includes(g.id)).map((p) => p.id) })),
+    [data.groups, data.people],
+  );
   const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, reading: t.reading, rank: rankOf(t) }));
   const pick = (kind: 'person' | 'topic', prev: ID[], next: ID[]) => {
     for (const x of next) if (!prev.includes(x)) store.markSelected(kind, x);
@@ -138,6 +147,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           <ComboPicker
             kind="person"
             options={personOpts}
+            groups={groupOpts}
+            recent={5}
             selected={personIds}
             newNames={newPeople}
             onChange={(s, n) => { pick('person', personIds, s); setPersonIds(s); setNewPeople(n); }}
@@ -148,6 +159,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder }: 
           <ComboPicker
             kind="topic"
             options={topicOpts}
+            recent={5}
             selected={topicIds}
             newNames={newTopics}
             onChange={(s, n) => { pick('topic', topicIds, s); setTopicIds(s); setNewTopics(n); }}

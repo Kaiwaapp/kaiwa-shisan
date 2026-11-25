@@ -1,4 +1,4 @@
-import type { AppData, Entry, Folder, Person, Topic, ID } from './types';
+import type { AppData, Entry, Folder, Group, Person, Topic, ID } from './types';
 
 /**
  * 保存先の抽象。Webは IndexedDB、将来のネイティブ版は SQLite 実装に差し替える。
@@ -13,6 +13,8 @@ export interface Repository {
   putEntry(e: Entry): Promise<void>;
   putFolder(f: Folder): Promise<void>;
   deleteFolder(id: ID): Promise<void>;
+  putGroup(g: Group): Promise<void>;
+  deleteGroup(id: ID): Promise<void>;
   deleteEntry(id: ID): Promise<void>;
   /** 全データを置き換える(インポート用) */
   replaceAll(data: AppData): Promise<void>;

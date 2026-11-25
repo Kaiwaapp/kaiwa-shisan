@@ -1,6 +1,6 @@
 import type { Repository } from './repository';
 import { mergeData } from './backup';
-import { newId, type AppData, type Entry, type Folder, type FolderScope, type ID, type Person, type Topic } from './types';
+import { newId, type AppData, type Entry, type Folder, type FolderScope, type Group, type ID, type Person, type Topic } from './types';
 import { normalize } from './search';
 
 type Listener = () => void;
@@ -26,7 +26,7 @@ export interface ImportResult { entryIds: ID[]; personIds: ID[]; topicIds: ID[];
 /** アプリの状態と操作。React非依存なのでネイティブ版でも使い回せる */
 export class Store {
   /** 削除済み(ゴミ箱)の記録も含む全データ */
-  private data: AppData = { people: [], topics: [], entries: [], folders: [] };
+  private data: AppData = { people: [], topics: [], entries: [], folders: [], groups: [] };
   /** 画面に出すデータ(削除済みの記録を除く) */
   private snap: AppData = this.data;
   private trashSnap: Entry[] = [];
@@ -82,6 +82,7 @@ export class Store {
   private emit() { for (const l of this.listeners) l(); }
 
   private set(next: AppData) {
+    if (!next.groups) next = { ...next, groups: [] };
     this.data = next;
     const live: Entry[] = [];
     const dead: Entry[] = [];
@@ -233,17 +234,17 @@ export class Store {
     return this.data.people.find((p) => normalize(p.name) === n);
   }
 
-  async addPerson(name: string, folderId: ID | null = null): Promise<Person> {
+  async addPerson(name: string, folderId: ID | null = null, groupIds: ID[] = []): Promise<Person> {
     const existing = this.findPersonByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const p: Person = { id: newId(), name: name.trim(), memo: '', folderId, createdAt: now, updatedAt: now, selectedAt: now };
+    const p: Person = { id: newId(), name: name.trim(), memo: '', folderId, ...(groupIds.length ? { groupIds } : {}), createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putPerson(p);
     this.set({ ...this.data, people: [...this.data.people, p] });
     return p;
   }
 
-  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId'>>) {
+  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds'>>) {
     const p = this.data.people.find((x) => x.id === id);
     if (!p) return;
     const next = { ...p, ...patch, updatedAt: Date.now() };
@@ -265,6 +266,62 @@ export class Store {
       people: this.data.people.filter((p) => p.id !== id),
       entries: this.data.entries.map((e) => map.get(e.id) ?? e),
     });
+  }
+
+  // ---- 人のグループ(1人が複数に入れる) ----
+  findGroupByName(name: string) {
+    const n = normalize(name.trim());
+    return this.data.groups.find((g) => normalize(g.name) === n);
+  }
+
+  async addGroup(name: string): Promise<Group> {
+    const existing = this.findGroupByName(name);
+    if (existing) return existing;
+    const now = Date.now();
+    const g: Group = { id: newId(), name: name.trim(), createdAt: now, updatedAt: now };
+    await this.repo.putGroup(g);
+    this.set({ ...this.data, groups: [...this.data.groups, g] });
+    return g;
+  }
+
+  async renameGroup(id: ID, name: string) {
+    const g = this.data.groups.find((x) => x.id === id);
+    if (!g || !name.trim()) return;
+    const next = { ...g, name: name.trim(), updatedAt: Date.now() };
+    await this.repo.putGroup(next);
+    this.set({ ...this.data, groups: this.data.groups.map((x) => (x.id === id ? next : x)) });
+  }
+
+  /** グループを削除。人は消さず、グループへの紐づけだけ外す */
+  async deleteGroup(id: ID) {
+    const now = Date.now();
+    const touched = this.data.people
+      .filter((p) => p.groupIds?.includes(id))
+      .map((p) => ({ ...p, groupIds: p.groupIds!.filter((x) => x !== id), updatedAt: now }));
+    for (const p of touched) await this.repo.putPerson(p);
+    await this.repo.deleteGroup(id);
+    const m = new Map(touched.map((p) => [p.id, p]));
+    this.set({
+      ...this.data,
+      groups: this.data.groups.filter((g) => g.id !== id),
+      people: this.data.people.map((p) => m.get(p.id) ?? p),
+    });
+  }
+
+  /** 人をまとめてグループに入れる・外す */
+  async setGroupMembers(groupId: ID, personIds: ID[], member: boolean) {
+    const set = new Set(personIds);
+    const now = Date.now();
+    const list = this.data.people
+      .filter((p) => set.has(p.id) && (p.groupIds?.includes(groupId) ?? false) !== member)
+      .map((p) => ({
+        ...p,
+        groupIds: member ? [...(p.groupIds ?? []), groupId] : (p.groupIds ?? []).filter((x) => x !== groupId),
+        updatedAt: now,
+      }));
+    for (const x of list) await this.repo.putPerson(x);
+    const m = new Map(list.map((x) => [x.id, x]));
+    this.set({ ...this.data, people: this.data.people.map((x) => m.get(x.id) ?? x) });
   }
 
   // ---- 話題 ----
@@ -330,7 +387,8 @@ export class Store {
       }));
     for (const e of touched) await this.repo.putEntry(e);
     const memo = [dst.memo, src.memo].filter((m) => m.trim()).join('\n');
-    const merged: Person = { ...dst, memo, updatedAt: now };
+    const groupIds = [...new Set([...(dst.groupIds ?? []), ...(src.groupIds ?? [])])];
+    const merged: Person = { ...dst, memo, ...(groupIds.length ? { groupIds } : {}), updatedAt: now };
     await this.repo.putPerson(merged);
     await this.repo.deletePerson(sourceId);
     const map = new Map(touched.map((e) => [e.id, e]));
@@ -489,7 +547,7 @@ export class Store {
     const people = new Map(this.data.people.map((p) => [normalize(p.name), p]));
     const topics = new Map(this.data.topics.map((t) => [normalize(t.name), t]));
     const created: ImportResult = { entryIds: [], personIds: [], topicIds: [], folderIds: [] };
-    const incoming: AppData = { people: [], topics: [], entries: [], folders: [] };
+    const incoming: AppData = { people: [], topics: [], entries: [], folders: [], groups: [] };
     let folderId: ID | null;
     if ('newName' in folder) {
       const f: Folder = { id: newId(), name: folder.newName.trim() || '取り込み', parentId: folder.parentId, scope: 'entry', createdAt: now, updatedAt: now };
@@ -547,6 +605,7 @@ export class Store {
       topics: drop(this.data.topics, r.topicIds),
       entries: drop(this.data.entries, r.entryIds),
       folders: drop(this.data.folders, r.folderIds),
+      groups: this.data.groups,
     }, 'replace');
   }
 

@@ -1,7 +1,7 @@
-import type { AppData, Entry, Folder, Person, Topic } from './types';
+import type { AppData, Entry, Folder, Group, Person, Topic } from './types';
 
 export const BACKUP_FORMAT = 'kaiwa-shisan-backup';
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
 export interface BackupFile extends AppData {
   format: typeof BACKUP_FORMAT;
@@ -17,6 +17,7 @@ export const toBackup = (data: AppData): BackupFile => ({
   topics: data.topics,
   entries: data.entries,
   folders: data.folders,
+  groups: data.groups,
 });
 
 export function parseBackup(json: string): AppData {
@@ -35,6 +36,8 @@ export function parseBackup(json: string): AppData {
     topics: r.topics as Topic[],
     entries: (r.entries as Entry[]).map((e) => ({ ...e, folderId: e.folderId ?? null })),
     folders: Array.isArray(r.folders) ? (r.folders as Folder[]).map((f) => ({ ...f, parentId: f.parentId ?? null })) : [],
+    // v2までのバックアップにはグループがない
+    groups: Array.isArray(r.groups) ? (r.groups as Group[]) : [],
   };
 }
 
@@ -53,5 +56,6 @@ export function mergeData(current: AppData, incoming: AppData): AppData {
     topics: merge(current.topics, incoming.topics),
     entries: merge(current.entries, incoming.entries),
     folders: merge(current.folders, incoming.folders),
+    groups: merge(current.groups ?? [], incoming.groups ?? []),
   };
 }
