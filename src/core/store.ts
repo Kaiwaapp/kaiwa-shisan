@@ -421,6 +421,23 @@ export class Store {
     return t;
   }
 
+  /** 話題をまとめて登録する(用意した話題リストから)。同じ名前の話題があるものは登録しない。登録した件数を返す */
+  async addTopicsBulk(items: { name: string; reading?: string }[], folderId: ID | null = null): Promise<number> {
+    const now = Date.now();
+    const seen = new Set(this.data.topics.map((t) => normalize(t.name)));
+    const added: Topic[] = [];
+    for (const it of items) {
+      const name = it.name.trim().replace(/^#/, '');
+      if (!name || seen.has(normalize(name))) continue;
+      seen.add(normalize(name));
+      const t: Topic = { id: newId(), name, ...(it.reading ? { reading: it.reading } : {}), folderId, createdAt: now, updatedAt: now };
+      await this.repo.putTopic(t);
+      added.push(t);
+    }
+    if (added.length) this.set({ ...this.data, topics: [...this.data.topics, ...added] });
+    return added.length;
+  }
+
   async updateTopic(id: ID, patch: Partial<Pick<Topic, 'name' | 'reading' | 'folderId'>>) {
     const t = this.data.topics.find((x) => x.id === id);
     if (!t) return;
