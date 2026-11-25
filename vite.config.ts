@@ -38,7 +38,7 @@ export default defineConfig({
           },
         ],
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,png,svg}'] },
+      workbox: { globPatterns: ['**/*.{js,css,html,png,svg,webp}'] },
     }),
   ],
   test: { environment: 'node' },

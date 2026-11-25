@@ -4,7 +4,7 @@ import { go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup, getManifest } from './backupUi';
 import { useAiSettings } from './AiTools';
-import { FEATURE_KEYS, setFeature, useFeatures, type CategoryKey } from './features';
+import { FEATURE_KEYS, useFeatures } from './features';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
 export function SettingsScreen() {
@@ -88,7 +88,7 @@ export function SettingsScreen() {
 
         <ul className="rows">
           <li className="row-item" onClick={() => go('/settings/features')}>
-            <span className="name">{t('使う機能')}</span>
+            <span className="name">{t('機能とカスタマイズ')}</span>
             <span className="sub">
               {t('{n}/{total}個オン', { n: FEATURE_KEYS.filter((k) => feat[k]).length, total: FEATURE_KEYS.length })}
               {t('・AI {v}', { v: ai.enabled ? t('オン') : t('オフ') })}
@@ -101,24 +101,6 @@ export function SettingsScreen() {
             <span className="chev">›</span>
           </li>
         </ul>
-
-        {/* 人・話題それぞれの設定はカテゴリごとの欄にまとめる。今後の設定もここに足す */}
-        <section className="panel">
-          <h2>{t('人')}</h2>
-          <h3 className="panel-sub">{t('読み仮名')}</h3>
-          <CategoryToggle k="readingPerson" label={t('人の名前に入力した文字から読み仮名を作る')} />
-          {feat.profile && <>
-            <h3 className="panel-sub">{t('プロフィールの項目')}</h3>
-            <p className="muted small">{t('人のプロフィールに出す項目（年齢・仕事・趣味など）を、変えたり足したりできます。')}</p>
-            <button className="btn block" onClick={() => go('/settings/profile')}>{t('項目を編集')}</button>
-          </>}
-        </section>
-
-        <section className="panel">
-          <h2>{t('話題')}</h2>
-          <h3 className="panel-sub">{t('読み仮名')}</h3>
-          <CategoryToggle k="readingTopic" label={t('話題に入力した文字から読み仮名を作る')} />
-        </section>
 
         {feat.import && <section className="panel">
           <h2>{t('他のアプリから取り込む')}</h2>
@@ -204,16 +186,3 @@ export function SettingsScreen() {
   );
 }
 
-/** 設定の人・話題の欄に並べるチェック */
-function CategoryToggle({ k, label }: { k: CategoryKey; label: string }) {
-  const feat = useFeatures();
-  return (
-    <label className="toggle feature">
-      <input type="checkbox" checked={feat[k]} onChange={(e) => setFeature(k, e.target.checked)} />
-      <span>
-        {label}
-        <span className="muted small block-note">{t('日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。')}</span>
-      </span>
-    </label>
-  );
-}

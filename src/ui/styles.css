@@ -522,5 +522,22 @@ body.dragging { cursor: grabbing; }
 /* 設定のカテゴリ(人・話題)の欄の小見出し */
 .panel-sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); font-weight: 600; }
 .toggle.small-toggle { font-size: 14px; margin: 2px 0 4px; }
-.guide-list { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.6; }
+/* 使い方ガイド: 画面の画像に番号、右に番号ごとの説明 */
+.panel.guide-card { flex-direction: row; align-items: flex-start; gap: 14px; }
+.guide-shot { position: relative; flex: none; width: 42%; max-width: 200px; }
+.guide-shot img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.guide-pin, .guide-num {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; line-height: 1; flex: none;
+}
+.guide-pin { position: absolute; transform: translate(-50%, -50%); box-shadow: 0 0 0 2px #fff; }
+.guide-text { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.guide-text p { margin: 0; }
+.guide-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; }
+.guide-list li { display: flex; gap: 6px; align-items: flex-start; }
+.guide-list .guide-num { margin-top: 1px; }
 .field .toggle.small-toggle, .field .toggle.small-toggle span { font-weight: 400; color: var(--ink); font-size: 14px; }
+/* 設定 > 機能とカスタマイズ: グループの見出し(折りたたみ)とその下の欄 */
+.feature-group .fold-header { margin-bottom: 4px; }
+.feature-item { display: flex; flex-direction: column; gap: 8px; }
+.feature-item .small-btn { margin-left: 30px; width: auto; }
