@@ -45,11 +45,16 @@ button:disabled { opacity: .4; cursor: default; }
 
 .loading { padding: 40vh 0; text-align: center; color: var(--muted); }
 .app { max-width: 680px; margin: 0 auto; min-height: 100dvh; }
-.main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 88px); }
+.main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 16px); }
+/* 右下の＋がある画面だけ、最後の行が＋に隠れない分の余白を足す */
+.app:has(.fab) .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 88px); }
+/* 中身が画面に収まるときに、iPhoneで引っぱって画面ごと動く(バウンス)のを止める */
+html, body { overscroll-behavior-y: none; }
 .screen { padding: 0 16px; }
 .screen.editor { padding-bottom: 40px; }
 /* 下の方の入力欄も上までスクロールでき、候補がキーボードに隠れないように */
-@media (pointer: coarse) { .screen.editor { padding-bottom: 60vh; } }
+/* キーボードが出ている間だけ付ける(中身が画面に収まるときに、下の何もないところまでスクロールできないように)。kb-open は main.tsx */
+@media (pointer: coarse) { html.kb-open .screen.editor { padding-bottom: 60vh; } }
 
 .header {
   position: sticky; top: 0; z-index: 30; /* 人・話題の候補のドロップダウン(20)より上に。下に潜ると保存ボタンが押せなくなる */
@@ -507,3 +512,15 @@ body.dragging { cursor: grabbing; }
 .img-count { font-size: 12px; color: var(--muted); }
 .toggle.nested { align-items: flex-start; padding-left: 30px; }
 .toggle.nested input { margin-top: 1px; flex: none; }
+/* 件数と「＋ フォルダ」・並べ替えが重ならないように: 幅が足りなければ右側を次の行へ回す。
+   iPhoneでは並べ替えのselectが16px固定になり、一番長い選択肢の幅まで広がるので幅の上限も付ける */
+.toolbar { flex-wrap: wrap; row-gap: 2px; }
+.toolbar .count { flex: none; overflow: visible; }
+.toolbar-right { margin-left: auto; max-width: 100%; min-width: 0; }
+.sort { min-width: 0; }
+.sort select { max-width: 11em; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* 設定のカテゴリ(人・話題)の欄の小見出し */
+.panel-sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); font-weight: 600; }
+.toggle.small-toggle { font-size: 14px; margin: 2px 0 4px; }
+.guide-list { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.6; }
+.field .toggle.small-toggle, .field .toggle.small-toggle span { font-weight: 400; color: var(--ink); font-size: 14px; }

@@ -25,12 +25,19 @@ export interface Features {
   profile: boolean;
   /** 記録の編集画面で、保存せずに戻るときの確認 */
   confirmDiscard: boolean;
+  /** 人: 名前に入力した文字(変換前のかな)から読み仮名を作る。設定画面の「人」の欄に出す */
+  readingPerson: boolean;
+  /** 話題: 名前に入力した文字から読み仮名を作る。設定画面の「話題」の欄に出す */
+  readingTopic: boolean;
 }
 
 export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard'] as const;
 
+/** 使う機能の一覧には出さず、設定画面のカテゴリ(人・話題)の欄に出すもの */
+export type CategoryKey = 'readingPerson' | 'readingTopic';
+
 /** 設定画面に出す名前と説明(表示時に t() を通す) */
-export const FEATURE_LABELS: Record<keyof Features, { label: string; note: string }> = {
+export const FEATURE_LABELS: Record<(typeof FEATURE_KEYS)[number], { label: string; note: string }> = {
   folders: { label: 'フォルダ', note: 'オフにすると、記録・人・話題をフォルダに分けずに全部並べます' },
   favorites: { label: 'お気に入り', note: '☆ボタンと★のお気に入り一覧' },
   groups: { label: 'グループ', note: '人のグループと、記録の相手を「グループから」選ぶ機能' },
@@ -45,7 +52,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false };
 
 const load = (): Features => {
   try {

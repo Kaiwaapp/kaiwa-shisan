@@ -48,7 +48,7 @@ export class Store {
   private loading: Promise<void> | null = null;
 
   /** 新しく作る人・話題の読み仮名を名前から推測する(画面側が入力から拾ったもの) */
-  readingGuess: ((name: string) => string) | null = null;
+  readingGuess: ((name: string, kind: 'person' | 'topic') => string) | null = null;
 
   constructor(private repo: Repository) {}
 
@@ -307,7 +307,7 @@ export class Store {
     const existing = allowSame ? undefined : this.findPersonByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const reading = this.readingGuess?.(name.trim()) || undefined;
+    const reading = this.readingGuess?.(name.trim(), 'person') || undefined;
     const p: Person = { id: newId(), name: name.trim(), memo: '', ...(reading ? { reading } : {}), folderId, ...(groupIds.length ? { groupIds } : {}), createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putPerson(p);
     this.set({ ...this.data, people: [...this.data.people, p] });
@@ -414,7 +414,7 @@ export class Store {
     const existing = this.findTopicByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const tr = this.readingGuess?.(name.trim().replace(/^#/, '')) || undefined;
+    const tr = this.readingGuess?.(name.trim().replace(/^#/, ''), 'topic') || undefined;
     const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), ...(tr ? { reading: tr } : {}), folderId, createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putTopic(t);
     this.set({ ...this.data, topics: [...this.data.topics, t] });

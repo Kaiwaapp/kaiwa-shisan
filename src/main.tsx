@@ -6,6 +6,7 @@ import { Store } from './core/store';
 import { IdbRepository } from './core/idbRepository';
 import './ui/styles.css';
 import { guessReading, installReadingCapture } from './ui/reading';
+import { getFeatures } from './ui/features';
 
 registerSW({ immediate: true });
 
@@ -14,13 +15,20 @@ navigator.storage?.persist?.().catch(() => {});
 
 const store = new Store(new IdbRepository());
 store.init();
-// 入力から読み仮名を拾い、新しく作る人・話題に付ける(無料)
+// 入力から読み仮名を拾い、新しく作る人・話題に付ける(無料。設定の人・話題の欄でそれぞれオフにできる)
 installReadingCapture();
-store.readingGuess = guessReading;
+store.readingGuess = (name, kind) => (getFeatures()[kind === 'person' ? 'readingPerson' : 'readingTopic'] ? guessReading(name) : '');
 // 読み込みに失敗したままアプリを閉じて開き直した(復帰した)ときは、もう一度読む
 const retry = () => { if (!store.loaded && document.visibilityState === 'visible') store.init(); };
 document.addEventListener('visibilitychange', retry);
 addEventListener('pageshow', retry);
+
+// キーボードが出ているか(見えている高さが大きく減ったら出ている)。編集画面の下の余白をこの間だけ付ける
+const vv = window.visualViewport;
+if (vv) {
+  const onVv = () => document.documentElement.classList.toggle('kb-open', vv.height < window.innerHeight - 120);
+  vv.addEventListener('resize', onVv);
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
