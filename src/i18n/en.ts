@@ -303,6 +303,7 @@ const en: Record<string, string> = {
   '取り込みを始める': "Start import",
   // 人のグループ
   'グループ': 'Groups',
+  'タップで表示': 'Tap to show',
   '例：マッチングアプリ、職場、大学の友達': 'e.g. Dating app, Work, College friends',
   '＋ グループ': '+ Group',
   'このグループは見つかりませんでした。': "This group couldn't be found.",

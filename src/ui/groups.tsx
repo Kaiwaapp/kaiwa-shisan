@@ -5,6 +5,7 @@ import { back, go, useData, usePref, useStore } from './hooks';
 import { ComboPicker, Header, SortSelect } from './components';
 import { NameRows, useNameItems } from './screens';
 import { groupDropProps } from './interact';
+import { FoldHeader, useFold } from './folders';
 import { t } from '../i18n';
 
 // 人のグループ。フォルダ(1人1か所・入れ子)と違い、タグのように1人を複数のグループに入れられる。
@@ -35,6 +36,7 @@ export function GroupBar() {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const groups = [...data.groups].sort(byName);
+  const [open, setOpen] = useFold('groups');
   const create = async () => {
     if (!name.trim()) return;
     const g = await store.addGroup(name);
@@ -44,8 +46,8 @@ export function GroupBar() {
   };
   return (
     <div className="group-bar">
-      <div className="section-title">{t('グループ')}</div>
-      {adding ? (
+      <FoldHeader label={t('グループ')} count={groups.length} open={open || adding} onToggle={() => { if (adding) { setAdding(false); setName(''); } setOpen(!(open || adding)); }} />
+      {!(open || adding) ? null : adding ? (
         <div className="picker-input">
           <input
             autoFocus

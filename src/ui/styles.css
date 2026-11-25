@@ -421,3 +421,16 @@ body.dragging { cursor: grabbing; }
 .toggle.feature { align-items: flex-start; }
 .toggle.feature input { margin-top: 1px; flex: none; }
 .block-note { display: block; margin-top: 2px; }
+
+/* しまえるフォルダ欄・グループ欄の見出し */
+.fold-header {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: 0; padding: 6px 2px; margin: 2px 0 6px;
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.fold-header .n { font-weight: 600; opacity: .8; }
+.fold-chev { display: inline-block; font-size: 16px; line-height: 1; transform: rotate(0deg); transition: transform .15s; }
+.fold-chev.open { transform: rotate(90deg); }
+.fold-hint { margin-left: auto; font-weight: 500; font-size: 12px; opacity: .8; }
+.group-bar .fold-header { margin-top: 0; }

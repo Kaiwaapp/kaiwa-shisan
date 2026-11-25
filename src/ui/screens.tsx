@@ -109,16 +109,18 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                   <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
                 </span>
               </div>
-              <FolderRows scope="entry" folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding} />
-              {!folderId && trash.length > 0 && !selecting && (
-                <ul className="rows folder-rows">
-                  <li className="row-item" onClick={() => go('/trash')}>
-                    <span className="name"><span className="folder-icon">🗑</span>{t('最近削除した項目')}</span>
-                    <span className="sub">{trash.length}</span>
-                    <span className="chev">›</span>
-                  </li>
-                </ul>
-              )}
+              <FolderRows
+                scope="entry" folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding}
+                extra={!folderId && trash.length > 0 && !selecting && (
+                  <ul className="rows folder-rows">
+                    <li className="row-item" onClick={() => go('/trash')}>
+                      <span className="name"><span className="folder-icon">🗑</span>{t('最近削除した項目')}</span>
+                      <span className="sub">{trash.length}</span>
+                      <span className="chev">›</span>
+                    </li>
+                  </ul>
+                )}
+              />
               <EntryList
                 entries={memos}
                 data={data}
