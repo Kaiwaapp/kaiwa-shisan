@@ -18,6 +18,8 @@ export interface Person {
   folderId?: ID | null;
   /** ピン留め(一覧の上に固定) */
   pinned?: boolean;
+  /** お気に入り(☆でワンタップ。お気に入り一覧に出る) */
+  favorite?: boolean;
   /** 入っているグループ(複数可)。フォルダは1か所だけだが、グループはいくつでも */
   groupIds?: ID[];
 }
@@ -45,6 +47,8 @@ export interface Topic {
   folderId?: ID | null;
   /** ピン留め(一覧の上に固定) */
   pinned?: boolean;
+  /** お気に入り(☆でワンタップ。お気に入り一覧に出る) */
+  favorite?: boolean;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -73,6 +77,8 @@ export interface Entry {
   viewedAt?: number;
   /** ピン留め(一覧の上に固定) */
   pinned?: boolean;
+  /** お気に入り(☆でワンタップ。お気に入り一覧に出る) */
+  favorite?: boolean;
   /** 削除した日時。あるものは「最近削除した項目」にあり、30日で完全に消える */
   deletedAt?: number;
 }

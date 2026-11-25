@@ -2,17 +2,52 @@ import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'rea
 import { entryLabel, entryPreview, type AppData, type Entry, type ID } from '../core/types';
 import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
-import { formatDate, go } from './hooks';
-import { copyText, SelectMark, useInteract, usePress, type ItemRef } from './interact';
+import { formatDate, go, useStore } from './hooks';
+import { copyText, SelectMark, toast, useInteract, usePress, type ItemRef } from './interact';
 import { t } from '../i18n';
 
-export function Header({ title, left, right }: { title: ReactNode; left?: ReactNode; right?: ReactNode }) {
+/** lead: タイトルの左に並べるアイコン(お気に入り・すべて など) */
+export function Header({ title, left, right, lead }: { title: ReactNode; left?: ReactNode; right?: ReactNode; lead?: ReactNode }) {
   return (
     <header className="header">
       <div className="header-side">{left}</div>
-      <h1 className="header-title">{title}</h1>
+      <div className="header-center">
+        {lead}
+        <h1 className="header-title">{title}</h1>
+      </div>
       <div className="header-side right">{right}</div>
     </header>
+  );
+}
+
+/** お気に入りの☆/★。ワンタップで入れる・外す。一覧の行の中でも押せる(長押し・タップの判定に渡さない) */
+export function FavButton({ on, onToggle, className = '' }: { on: boolean; onToggle: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      className={`fav-btn ${on ? 'on' : ''} ${className}`}
+      aria-label={on ? t('お気に入りから外す') : t('お気に入りに追加')}
+      aria-pressed={on}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+    >
+      {on ? '★' : '☆'}
+    </button>
+  );
+}
+
+/** 保存済みの記録・人・話題のお気に入りを切り替えるボタン */
+export function FavToggle({ kind, id, on, className }: { kind: 'entry' | 'person' | 'topic'; id: ID; on: boolean; className?: string }) {
+  const store = useStore();
+  return (
+    <FavButton
+      on={on}
+      className={className}
+      onToggle={async () => {
+        await store.setFavorite(kind, [id], !on);
+        toast(on ? t('お気に入りから外しました') : t('お気に入りに追加しました'));
+      }}
+    />
   );
 }
 
@@ -72,6 +107,7 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
     <article className={`card ${lifted ? 'lifted' : ''} ${sel.active ? 'selecting' : ''}`} {...handlers}>
       <SelectMark item={item} />
       <EntryPreview entry={entry} pinned={entry.pinned} />
+      {!sel.active && <FavToggle kind="entry" id={entry.id} on={!!entry.favorite} />}
       {!sel.active && (
         <button
           className="copy-btn"
