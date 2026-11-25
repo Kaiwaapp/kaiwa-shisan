@@ -552,6 +552,8 @@ const en: Record<string, string> = {
   '休日・レジャー': 'Days off & leisure',
   '生活': 'Everyday life',
   '自分のこと・価値観': 'About me & values',
+  '仕事・学生時代': 'Work & school',
+  '話のタイプ': 'Kinds of stories',
 };
 
 export default en;
