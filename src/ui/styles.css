@@ -41,6 +41,8 @@ body {
 }
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: none; padding: 0; }
+/* ボタンとタブバーの文字は長押ししても選択しない(iPhoneで＋の長押しから下のタブまで範囲選択されていた) */
+button, .tabbar { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 button:disabled { opacity: .4; cursor: default; }
 
 .loading { padding: 40vh 0; text-align: center; color: var(--muted); }
