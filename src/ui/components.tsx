@@ -117,7 +117,7 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder, 
           className="copy-btn"
           aria-label={t('本文をコピー')}
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); copyText(entry.text); }}
+          onClick={(e) => { e.stopPropagation(); copyText(entry.text, e.currentTarget); }}
         >
           ⧉
         </button>

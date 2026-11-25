@@ -3,7 +3,7 @@ import { lazy, Suspense, useMemo, useState } from 'react';
 import { cleanProfile, hasProfile, type Entry, type Person, type PersonProfile, type ProfileExtra } from '../core/types';
 import { profileReady } from '../core/ai';
 import { useAiSettings } from './AiTools';
-import { useStore, go } from './hooks';
+import { useStore, go, back } from './hooks';
 import { FoldHeader, useFold } from './folders';
 import { fieldLabel, fieldPlaceholder, profileFieldsApi, useProfileFields, visibleFields } from './profileFields';
 import { Header } from './components';
@@ -146,7 +146,7 @@ export function ProfileFieldsScreen() {
   const [adding, setAdding] = useState('');
   return (
     <div className="screen">
-      <Header title={t('プロフィールの項目')} left={<button className="link" onClick={() => go('/settings')}>{t('‹ 設定')}</button>} />
+      <Header title={t('プロフィールの項目')} left={<button className="link" onClick={() => back('/settings')}>{t('‹ 戻る')}</button>} />
       <div className="form">
         <p className="muted small">{t('人のプロフィールに出す項目です。名前を変えたり、並べ替えたり、自分で足したりできます。消した項目は「使わない項目」に移るだけで、入れた内容は消えません。')}</p>
         <div className="panel field-defs">

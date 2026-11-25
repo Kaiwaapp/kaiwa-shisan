@@ -39,7 +39,16 @@ export function ToastHost() {
 }
 
 // ---------------- クリップボード ----------------
-export async function copyText(text: string) {
+const copiedTimers = new WeakMap<Element, number>();
+/** el を渡すと、押したボタンを少しの間「コピーした」見た目にする */
+export async function copyText(text: string, el?: Element | null) {
+  if (el) {
+    el.classList.remove('copied');
+    void (el as HTMLElement).offsetWidth; // 連打でもアニメーションをやり直す
+    el.classList.add('copied');
+    clearTimeout(copiedTimers.get(el));
+    copiedTimers.set(el, window.setTimeout(() => el.classList.remove('copied'), 1200));
+  }
   try {
     await navigator.clipboard.writeText(text);
   } catch {

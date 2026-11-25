@@ -166,7 +166,7 @@ export function TrashScreen() {
   const targets = picked.size ? [...picked] : trash.map((e) => e.id);
   return (
     <div className="screen">
-      <Header title={t('最近削除した項目')} left={<button className="link" onClick={() => location.replace('#/')}>{t('‹ 記録')}</button>} />
+      <Header title={t('最近削除した項目')} left={<button className="link" onClick={() => back('/')}>{t('‹ 戻る')}</button>} />
       <p className="muted small pad">{t('削除した記録は30日間ここに残り、その後完全に消えます。タップで選んで、復元か完全に削除ができます。')}</p>
       {trash.length === 0 ? (
         <div className="empty">{t('最近削除した項目はありません')}</div>
@@ -210,7 +210,7 @@ export function AllEntriesScreen({ fav }: { fav?: boolean }) {
   }, [data, q, sort, fav]);
   return (
     <div className="screen">
-      <Header title={fav ? t('★ お気に入りの記録') : t('すべての記録')} left={<button className="link" onClick={() => location.replace('#/')}>{t('‹ 記録')}</button>} />
+      <Header title={fav ? t('★ お気に入りの記録') : t('すべての記録')} left={<button className="link" onClick={() => back('/')}>{t('‹ 戻る')}</button>} />
       <SearchBox value={q} onChange={setQ} placeholder={fav ? t('お気に入りの記録を検索') : t('本文・人・話題で検索（読み仮名も可）')} />
       <div className="toolbar">
         <span className="count">{t('{n}件', { n: list.length })}</span>
@@ -459,7 +459,7 @@ export function NameAllScreen({ kind, fav }: { kind: NameKind; fav?: boolean }) 
       : t('まだありません');
   return (
     <div className="screen">
-      <Header title={title} left={<button className="link" onClick={() => location.replace('#' + rootHref(kind))}>‹ {label}</button>} />
+      <Header title={title} left={<button className="link" onClick={() => back(rootHref(kind))}>{t('‹ 戻る')}</button>} />
       <SearchBox value={q} onChange={setQ} placeholder={t(kind === 'person' ? '人を探す' : '話題を探す')} />
       <div className="toolbar">
         <span className="count">{t(kind === 'person' ? '{n}人' : '{n}件', { n: list.length })}</span>
@@ -744,7 +744,7 @@ function PersonMemo({ id, memo }: { id: ID; memo: string }) {
     const save = async () => { if (draft !== memo) await store.updatePerson(id, { memo: draft }); setOpen(false); };
     return (
       <div className="memo-edit">
-        <textarea className="textarea" rows={3} autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('メモ（関係・好きなものなど）')} />
+        <textarea className="textarea" rows={5} autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('メモ（関係・好きなものなど）')} />
         <div className="memo-actions">
           <button className="link" onClick={() => { setDraft(memo); setOpen(false); }}>{t('キャンセル')}</button>
           <button className="link strong" onClick={save}>{t('保存')}</button>

@@ -226,10 +226,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           rows={6}
         />
         {feat.copy && text.trim() && (
-          <button type="button" className="link small-link copy-line" onClick={() => copyText(text)}>{t('⧉ 本文をコピー')}</button>
+          <button type="button" className="link small-link copy-line" onClick={(e) => copyText(text, e.currentTarget)}>{t('⧉ 本文をコピー')}</button>
         )}
         {feat.memo && (memoOpen
-          ? <textarea className="textarea memo-field" rows={2} autoFocus={!memo} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t('メモ（相手の反応など）')} aria-label={t('メモ')} />
+          ? <textarea className="textarea memo-field" rows={4} autoFocus={!memo} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t('メモ（相手の反応など）')} aria-label={t('メモ')} />
           : <button type="button" className="link small-link memo-add" onClick={() => setMemoOpen(true)}>{t('＋ メモを書く')}</button>)}
         {feat.images && (
           <div className="img-field">
