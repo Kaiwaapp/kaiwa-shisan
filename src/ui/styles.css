@@ -48,6 +48,8 @@ button:disabled { opacity: .4; cursor: default; }
 .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + 88px); }
 .screen { padding: 0 16px; }
 .screen.editor { padding-bottom: 40px; }
+/* 下の方の入力欄も上までスクロールでき、候補がキーボードに隠れないように */
+@media (pointer: coarse) { .screen.editor { padding-bottom: 60vh; } }
 
 .header {
   position: sticky; top: 0; z-index: 30; /* 人・話題の候補のドロップダウン(20)より上に。下に潜ると保存ボタンが押せなくなる */
