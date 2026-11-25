@@ -87,7 +87,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
         title={folder ? folder.name : t('記録')}
         lead={<TitleIcons scope="entry" />}
         left={folder && <UpButton scope="entry" parent={parent} />}
-        right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
+        right={<span className="header-actions">{!editing && !adding && !selecting && !flat && <FolderAddButton onClick={() => setAdding(true)} />}{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
       <Crumbs scope="entry" path={path} />
       {editing && folder ? (
@@ -109,10 +109,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t('{n}件', { n: memos.length })}
                 </span>
-                <span className="toolbar-right">
-                  {!adding && !selecting && !flat && <button className="link small-link" onClick={() => setAdding(true)}>{t('＋ フォルダ')}</button>}
-                  <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
-                </span>
+                <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
               </div>
               <FolderRows
                 scope="entry" folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding} reorder={sort === 'manual'}
@@ -137,7 +134,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                 reorder={sort === 'manual'}
                 empty={
                   folder
-                    ? <>{t('このフォルダはまだ空です。')}<br />{t('右下の＋で記録を、「＋ フォルダ」でフォルダを作れます。')}</>
+                    ? <>{t('このフォルダはまだ空です。')}<br />{t('右下の＋で記録を、右上のフォルダのアイコンでフォルダを作れます。')}</>
                     : children.length ? t('フォルダに入っていない記録はありません') : <>{t('まだ記録がありません。')}<br />{t('右下の＋から、話したことを書いてみましょう。')}</>
                 }
              />}
@@ -389,7 +386,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
         title={folder ? folder.name : label}
         lead={<TitleIcons scope={kind} />}
         left={folder && <UpButton scope={kind} parent={parent} />}
-        right={<span className="header-actions">{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
+        right={<span className="header-actions">{!editing && !adding && !selecting && !flat && <FolderAddButton onClick={() => setAdding(true)} />}{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
       <Crumbs scope={kind} path={path} />
       {editing && folder ? (
@@ -418,10 +415,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t(unit, { n: here.length })}
                 </span>
-                <span className="toolbar-right">
-                  {!adding && !selecting && !flat && <button className="link small-link" onClick={() => setAdding(true)}>{t('＋ フォルダ')}</button>}
-                  <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
-                </span>
+                <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
               </div>
               <FolderRows scope={kind} folderId={folderId} children={children} count={deepCount} adding={adding} setAdding={setAdding} reorder={sort === 'manual'} />
               <PinnedSplit kind={kind} items={here} sort={sort} restTitle={label} />
@@ -767,5 +761,17 @@ function Missing() {
       <Header title="" left={<button className="link" onClick={() => back()}>{t('‹ 戻る')}</button>} />
       <div className="empty">{t('見つかりませんでした（削除された可能性があります）')}</div>
     </div>
+  );
+}
+
+// iPhoneのメモと同じく、見出しの右上のアイコンでフォルダを作る
+function FolderAddButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="icon-btn folder-add" onClick={onClick} aria-label={t('新しいフォルダ')} title={t('新しいフォルダ')}>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.2l2 2h8.8A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z" />
+        <path d="M12 11v5M9.5 13.5h5" />
+      </svg>
+    </button>
   );
 }
