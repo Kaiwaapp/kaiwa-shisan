@@ -598,7 +598,16 @@ export function PersonScreen({ id }: { id: ID }) {
           {feat.profile && <PersonProfileSection person={person} entries={mine} />}
           <FoldHeader label={t('{name}に話したこと', { name: person.name })} count={mine.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
           {entriesOpen && <>
-          {topicCounts.length > 0 && (
+          {mine.length > 3 && <SearchBox value={q} onChange={setQ} placeholder={t('{name}に話したことを検索', { name: person.name })} />}
+          {mine.length > 1 && (
+            <div className="toolbar">
+              <span className="count">{t('{n}件', { n: shown.length })}</span>
+              <SortSelect value={sort} options={DETAIL_SORTS} onChange={setSort} />
+            </div>
+          )}
+          <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? t('該当なし') : t('まだ記録がありません')} />
+          {topicCounts.length > 0 && (<>
+            <div className="section-title">{t('話題')}</div>
             <div className="chips filter">
               {topicCounts.map(([tid, n]) => {
                 const t = data.topics.find((x) => x.id === tid);
@@ -610,15 +619,7 @@ export function PersonScreen({ id }: { id: ID }) {
                 );
               })}
             </div>
-          )}
-          {mine.length > 3 && <SearchBox value={q} onChange={setQ} placeholder={t('{name}に話したことを検索', { name: person.name })} />}
-          {mine.length > 1 && (
-            <div className="toolbar">
-              <span className="count">{t('{n}件', { n: shown.length })}</span>
-              <SortSelect value={sort} options={DETAIL_SORTS} onChange={setSort} />
-            </div>
-          )}
-          <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? t('該当なし') : t('まだ記録がありません')} />
+          </>)}
           </>}
           <div className="section-title">{t('メモ')}</div>
           <PersonMemo id={id} memo={person.memo} />
