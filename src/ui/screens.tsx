@@ -278,11 +278,12 @@ function NameRow({ kind, x, sort, showFolder }: {
           <span className="reading">{groupsOf(data.groups, x as { groupIds?: ID[] }).map((g) => g.name).join('・')}</span>
         ) : null}
       </span>
-      {selecting ? <span /> : <FavToggle kind={kind} id={x.id} on={!!x.favorite} />}
       <span className="sub">
         {t('{n}件', { n: x.stat.count })}
         {x.stat.count > 0 && (sort === 'first' ? t(' ・ 最初 {d}', { d: formatDate(x.stat.first) }) : t(' ・ 最終 {d}', { d: formatDate(x.stat.last) }))}
       </span>
+      {/* ☆は右端の›の手前に置き、件数・日付の長さで位置がずれないようにする */}
+      {selecting ? <span className="fav-slot" /> : <FavToggle kind={kind} id={x.id} on={!!x.favorite} />}
       <span className="chev">›</span>
     </li>
   );

@@ -294,7 +294,8 @@ button:disabled { opacity: .4; cursor: default; }
 .card .fav-btn { position: absolute; right: 6px; top: 6px; }
 .card .fav-btn + .copy-btn { top: 40px; }
 .fav-btn.in-header { width: 34px; height: 34px; font-size: 20px; }
-.row-item.with-fav { grid-template-columns: 1fr auto auto auto; padding-top: 7px; padding-bottom: 7px; min-height: 48px; }
+.fav-slot { width: 32px; }
+.row-item.with-fav { grid-template-columns: 1fr auto 32px auto; column-gap: 4px; padding-top: 7px; padding-bottom: 7px; min-height: 48px; }
 
 
 .toast {
