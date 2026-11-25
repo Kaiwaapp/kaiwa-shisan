@@ -5,6 +5,7 @@ import { back, useData, useStore } from './hooks';
 import { Header } from './components';
 import { currentLang, t } from '../i18n';
 import { useAutoReading } from './reading';
+import { useFeatures } from './features';
 
 /** 人タブ・話題タブの右下「＋」から開く、人／話題の新規追加画面 */
 export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; folderId: ID | null }) {
@@ -14,7 +15,7 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
   const clean = name.trim().replace(kind === 'topic' ? /^#/ : /^$/, '');
-  const { reading, setReading, isAuto } = useAutoReading(clean);
+  const { reading, setReading, isAuto } = useAutoReading(clean, '', useFeatures()[kind === 'person' ? 'readingPerson' : 'readingTopic']);
   const list = kind === 'person' ? data.people : data.topics;
   const dup = clean ? list.find((x) => normalize(x.name) === normalize(clean)) : undefined;
   const base = kind === 'person' ? '#/people/' : '#/topics/';

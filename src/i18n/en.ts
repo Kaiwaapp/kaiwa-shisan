@@ -480,6 +480,10 @@ const en: Record<string, string> = {
   '今のデータに反映する': 'Apply to current data',
   'ここに並べる': 'Place here',
   '手動（長押しで並べ替え）': 'Manual (long-press to reorder)',
+  '読み仮名': "Reading",
+  '人の名前に入力した文字から読み仮名を作る': "Make a reading from what you type for a person's name",
+  '話題に入力した文字から読み仮名を作る': "Make a reading from what you type for a topic",
+  '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。': "When typing Japanese, the kana before conversion is saved as the reading of new names (used for search).",
 };
 
 export default en;

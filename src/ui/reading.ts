@@ -38,11 +38,11 @@ export const guessReading = (name: string) => (currentLang() === 'ja' ? readingD
  * 読み仮名の入力欄用。自分で読み仮名を書き換えるまでは、名前の入力から自動で埋める。
  * initial があれば(すでに登録済みなら)それを使い、自動では変えない
  */
-export function useAutoReading(name: string, initial = '') {
+export function useAutoReading(name: string, initial = '', enabled = true) {
   const v = useDictVersion();
   const [own, setOwn] = useState<string | null>(initial || null);
   useEffect(() => { setOwn(initial || null); }, [initial]);
-  const auto = own === null ? guessReading(name) : '';
+  const auto = own === null && enabled ? guessReading(name) : '';
   void v;
   return {
     reading: own ?? auto,
