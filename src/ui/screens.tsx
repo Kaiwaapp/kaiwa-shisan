@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { autoFocusRef } from './focus';
 import { PersonProfileSection } from './profile';
 import { entryHasPerson, entryLabel, type ID } from '../core/types';
 import {
@@ -750,7 +751,7 @@ function PersonMemo({ id, memo }: { id: ID; memo: string }) {
     const save = async () => { if (draft !== memo) await store.updatePerson(id, { memo: draft }); setOpen(false); };
     return (
       <div className="memo-edit">
-        <textarea className="textarea" rows={5} autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('メモ（関係・好きなものなど）')} />
+        <textarea className="textarea" rows={5} ref={autoFocusRef} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('メモ（関係・好きなものなど）')} />
         <div className="memo-actions">
           <button className="link" onClick={() => { setDraft(memo); setOpen(false); }}>{t('キャンセル')}</button>
           <button className="link strong" onClick={save}>{t('保存')}</button>

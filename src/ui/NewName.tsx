@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { autoFocusRef } from './focus';
 import type { ID } from '../core/types';
 import { normalize } from '../core/search';
 import { back, useData, useStore } from './hooks';
@@ -54,7 +55,7 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
           <label>{kind === 'person' ? t('名前') : t('話題の名前')}</label>
           <input
             value={name}
-            autoFocus
+            ref={autoFocusRef}
             enterKeyHint="done"
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); save(); } }}

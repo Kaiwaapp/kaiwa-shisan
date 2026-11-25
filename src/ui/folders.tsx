@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { autoFocusRef } from './focus';
 import type { Folder, FolderScope, ID } from '../core/types';
 import { folderDescendants, foldersOf } from '../core/store';
 import { go, useData, usePref, useStore } from './hooks';
@@ -106,7 +107,7 @@ export function FolderRows({ scope, folderId, children, count, adding, setAdding
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('新しいフォルダの名前')}
-                autoFocus
+                ref={autoFocusRef}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) create(); }}
               />
               <div className="row-actions">

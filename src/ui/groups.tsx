@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { autoFocusRef } from './focus';
 import { useAddRequest } from './fab';
 import type { Group, ID, Person } from '../core/types';
 import { NAME_SORTS, normalize, sortEntries, type NameSort } from '../core/search';
@@ -52,7 +53,7 @@ export function GroupBar() {
       {!(open || adding) ? null : adding ? (
         <div className="picker-input">
           <input
-            autoFocus
+            ref={autoFocusRef}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('例：マッチングアプリ、職場、大学の友達')}
