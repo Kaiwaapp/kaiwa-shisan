@@ -546,11 +546,13 @@ const en: Record<string, string> = {
   'おすすめの話題から登録': 'Add from suggested topics',
   'おすすめの話題の案内': 'Suggested topics tip',
   '話題タブに、用意した話題リストから登録する案内を出す': 'Show a tip on the Topics tab to add from a ready-made list',
-  '食べ物': 'Food',
-  '休日・おでかけ': 'Days off & outings',
-  '仕事・学生時代': 'Work & school',
-  '暮らし': 'Daily life',
-  '恋愛・価値観': 'Dating & values',
+  '好きなもの・ハマっていること': 'Favorites & interests',
+  'グルメ': 'Food & drink',
+  '休みの日': 'Days off',
+  '日常・生活': 'Everyday life',
+  '自分のこと': 'About me',
+  '価値観・これから': 'Values & the future',
+  '恋愛': 'Love',
 };
 
 export default en;
