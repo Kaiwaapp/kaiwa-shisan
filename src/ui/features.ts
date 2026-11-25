@@ -17,11 +17,9 @@ export interface Features {
   copy: boolean;
   /** 設定の「他のアプリから取り込む」 */
   import: boolean;
-  /** しばらくバックアップしていないときの上部のお知らせ */
-  backupReminder: boolean;
 }
 
-export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'copy', 'import', 'backupReminder'] as const;
+export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'copy', 'import'] as const;
 
 /** 設定画面に出す名前と説明(表示時に t() を通す) */
 export const FEATURE_LABELS: Record<keyof Features, { label: string; note: string }> = {
@@ -32,11 +30,10 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   title: { label: '記録のタイトル', note: '記録の編集画面のタイトル欄' },
   copy: { label: 'コピーボタン', note: '一覧と編集画面の本文コピーボタン' },
   import: { label: '他のアプリから取り込む', note: '設定の取り込みの項目' },
-  backupReminder: { label: 'バックアップのお知らせ', note: 'しばらく書き出していないときに上に出るお知らせ' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, copy: true, import: true, backupReminder: true };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, copy: true, import: true };
 
 const load = (): Features => {
   try {
