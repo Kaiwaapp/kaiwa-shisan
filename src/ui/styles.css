@@ -222,19 +222,6 @@ button:disabled { opacity: .4; cursor: default; }
 .combo { position: relative; }
 .combo input { width: 100%; padding: 10px 32px 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); font-size: 16px; outline: none; }
 .combo input:focus { border-color: var(--accent); }
-.combo-caret { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; font-size: 12px; }
-.dropdown {
-  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20;
-  list-style: none; margin: 0; padding: 4px 0; max-height: 260px; overflow-y: auto;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-  box-shadow: 0 10px 28px rgba(0,0,0,.14);
-}
-.dd-item { display: flex; align-items: center; gap: 6px; padding: 11px 14px; cursor: pointer; }
-.dd-item:active, .dd-item:hover { background: var(--bg); }
-.dd-item .check { width: 16px; color: var(--accent); font-weight: 700; }
-.dd-item.on { font-weight: 600; }
-.dd-item.add { color: var(--accent); font-weight: 600; border-bottom: 1px solid var(--line); }
-.dd-empty { padding: 11px 14px; color: var(--muted); font-size: 14px; }
 
 .row-edit { padding: 12px 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
 .row-edit:first-child { border-top: none; }
@@ -254,7 +241,6 @@ button:disabled { opacity: .4; cursor: default; }
 .crumbs .here { color: var(--muted); font-weight: 600; }
 .sort { flex-direction: row-reverse; }
 .sort select { text-align-last: right; }
-.dd-head { padding: 6px 14px 4px; font-size: 11px; font-weight: 700; color: var(--muted); }
 .reading { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--muted); }
 .load-more { text-align: center; padding: 14px 0 4px; }
 .load-more .link { font-size: 14px; }
@@ -421,8 +407,6 @@ body.dragging { cursor: grabbing; }
 .chips.quick::-webkit-scrollbar { display: none; }
 .chips.quick .chip { flex: none; white-space: nowrap; }
 .chips.quick .chip { padding: 4px 11px; font-size: 13.5px; }
-.group-members { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 12px; align-items: center; }
-.dd-group .group-mark { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: var(--ink); color: var(--bg); }
 .sheet-item .check { color: var(--accent); font-weight: 700; }
 .sheet-item.strong { justify-content: center; font-weight: 700; color: var(--accent); }
 .sheet-input { gap: 8px; }
@@ -478,3 +462,16 @@ body.dragging { cursor: grabbing; }
 /* 作ったばかりのフォルダを少しの間目立たせる */
 .row-item.just-added { animation: just-added 2.2s ease-out; }
 @keyframes just-added { 0%, 40% { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); } 100% { background: transparent; } }
+/* ---- 記録の相手・話題: ドロップダウンなしの候補 ---- */
+.combo input { padding-right: 36px; }
+.combo-clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 16px; }
+.chip .hint { font-size: 11px; font-weight: 400; opacity: .75; margin-left: 2px; }
+.chip.add { border-style: dashed; font-weight: 600; background: transparent; }
+.chip .group-mark { font-size: 10px; font-weight: 700; padding: 1px 5px; margin-right: 4px; border-radius: 5px; background: var(--ink); color: var(--bg); }
+.chip.group.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip.group.on .group-mark { background: var(--bg); color: var(--ink); }
+.chip.group.small { background: var(--line); border: none; }
+.pick-more { flex: none; align-self: center; color: var(--muted); padding: 0 6px; }
+.pick-empty { margin: 8px 2px 0; }
+.sheet-check { justify-content: center; padding: 4px 18px 12px; font-size: 14px; }
+.chips.quick.wrap { flex-wrap: wrap; overflow-x: hidden; overflow-y: auto; max-height: 8.5rem; margin-left: 0; margin-right: 0; padding: 0; }

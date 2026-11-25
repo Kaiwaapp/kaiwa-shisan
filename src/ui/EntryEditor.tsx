@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { today, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
-import { ComboPicker, FavButton, FavToggle, Header } from './components';
-import { copyText, toast } from './interact';
+import { ComboPicker, FavButton, FavToggle, Header, sameNameHints } from './components';
+import { copyText, Sheet, toast } from './interact';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
 import { t } from '../i18n';
-import { useFeatures } from './features';
+import { setFeature, useFeatures } from './features';
 
 
 export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
@@ -14,7 +14,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   initialPerson?: ID;
   initialTopic?: ID;
   initialFolder?: ID;
-  /** グループの画面から開いたとき、そのグループの人を最初から相手に入れる */
+  /** グループの画面から開いたとき、そのグループを最初から相手に入れる */
   initialGroup?: ID;
 }) {
   const store = useStore();
@@ -24,10 +24,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [text, setText] = useState(existing?.text ?? '');
-  const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (
-    initialPerson ? [initialPerson]
-      : initialGroup ? data.people.filter((p) => p.groupIds?.includes(initialGroup)).map((p) => p.id)
-        : []));
+  const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (initialPerson ? [initialPerson] : []));
+  const [groupIds, setGroupIds] = useState<ID[]>(() => existing?.groupIds ?? (initialGroup ? [initialGroup] : []));
   const [newPeople, setNewPeople] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<ID[]>(existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : []));
   const [newTopics, setNewTopics] = useState<string[]>([]);
@@ -48,11 +46,15 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     return r;
   }, [data.entries]);
   const rankOf = (x: { id: ID; createdAt: number; selectedAt?: number }) => x.selectedAt ?? used.get(x.id) ?? x.createdAt;
-  const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: rankOf(p) }));
-  const groupOpts = useMemo(
-    () => data.groups.map((g) => ({ id: g.id, name: g.name, memberIds: data.people.filter((p) => p.groupIds?.includes(g.id)).map((p) => p.id) })),
-    [data.groups, data.people],
-  );
+  const hints = sameNameHints(data.people, data.groups);
+  const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: rankOf(p), hint: hints.get(p.id) }));
+  const groupOpts = useMemo(() => {
+    const count = new Map<ID, number>();
+    for (const p of data.people) for (const g of p.groupIds ?? []) count.set(g, (count.get(g) ?? 0) + 1);
+    const usedG = new Map<ID, number>();
+    for (const e of data.entries) for (const g of e.groupIds ?? []) usedG.set(g, Math.max(usedG.get(g) ?? 0, e.updatedAt));
+    return data.groups.map((g) => ({ id: g.id, name: g.name, count: count.get(g.id) ?? 0, rank: g.selectedAt ?? usedG.get(g.id) ?? g.createdAt }));
+  }, [data.groups, data.people, data.entries]);
   const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, reading: t.reading, rank: rankOf(t) }));
   const pick = (kind: 'person' | 'topic', prev: ID[], next: ID[]) => {
     for (const x of next) if (!prev.includes(x)) store.markSelected(kind, x);
@@ -86,6 +88,28 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     },
   });
 
+  // 開いた時点の内容。これと違えば「入力した」とみなし、キャンセル時に確認する
+  const [initial] = useState(() => JSON.stringify([title, text, personIds, groupIds, topicIds, talkedOn]));
+  const dirty = !saving && (
+    JSON.stringify([title, text, personIds, groupIds, topicIds, talkedOn]) !== initial || newPeople.length > 0 || newTopics.length > 0 || newFav
+  );
+  const [asking, setAsking] = useState(false);
+  const [dontAsk, setDontAsk] = useState(false);
+  const saved = useRef(false);
+  const leave = () => { saved.current = true; setAsking(false); back(); };
+  const cancel = () => {
+    if (dirty && feat.confirmDiscard) setAsking(true);
+    else leave();
+  };
+  // ページを閉じる・再読み込みするときもブラウザの確認を出す
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    const on = (e: BeforeUnloadEvent) => { if (dirtyRef.current && !saved.current) e.preventDefault(); };
+    addEventListener('beforeunload', on);
+    return () => removeEventListener('beforeunload', on);
+  }, []);
+
   if (id && !existing) {
     return (
       <div className="screen">
@@ -104,12 +128,14 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
       return;
     }
     setSaving(true);
+    saved.current = true;
     // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
     try {
-      await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, ...(existing ? {} : { favorite: newFav }) }, id);
+      await store.saveEntry({ title, text, personIds, groupIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, ...(existing ? {} : { favorite: newFav }) }, id);
     } catch {
       // 保存に失敗したら入力はそのまま残して、もう一度押せるようにする
+      saved.current = false;
       setSaving(false);
       toast(t('保存できませんでした。もう一度押してください'));
       return;
@@ -126,7 +152,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     <div className="screen editor">
       <Header
         title={existing ? t('記録を編集') : t('新しい記録')}
-        left={<button className="link" onClick={() => back()}>{t('キャンセル')}</button>}
+        left={<button className="link" onClick={cancel}>{t('キャンセル')}</button>}
         right={
           <span className="header-actions">
             {existing
@@ -171,7 +197,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
             kind="person"
             options={personOpts}
             groups={feat.groups ? groupOpts : []}
-            recent={feat.recent ? 5 : 0}
+            selectedGroups={groupIds}
+            onGroupsChange={(g) => { for (const x of g) if (!groupIds.includes(x)) store.markSelected('group', x); setGroupIds(g); }}
+            suggest={feat.recent}
+            allowSameName
             selected={personIds}
             newNames={newPeople}
             onChange={(s, n) => { pick('person', personIds, s); setPersonIds(s); setNewPeople(n); }}
@@ -182,7 +211,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           <ComboPicker
             kind="topic"
             options={topicOpts}
-            recent={feat.recent ? 5 : 0}
+            suggest={feat.recent}
             selected={topicIds}
             newNames={newTopics}
             onChange={(s, n) => { pick('topic', topicIds, s); setTopicIds(s); setNewTopics(n); }}
@@ -198,6 +227,18 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           </button>
         )}
       </div>
+      {asking && (
+        <Sheet title={t('保存されていません')} onClose={() => setAsking(false)} cancelLabel={t('編集を続ける')}>
+          <p className="muted small sheet-note">{t('このまま戻ると、入力した内容は保存されません。')}</p>
+          <label className="toggle sheet-check">
+            <input type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} />
+            <span>{t('今後表示しない')}</span>
+          </label>
+          {dontAsk && <p className="muted small sheet-note">{t('設定の「使う機能」でまた表示するようにできます')}</p>}
+          {hasContent && !saving && <button className="sheet-item" onClick={() => { setAsking(false); if (dontAsk) setFeature('confirmDiscard', false); save(); }}><span className="ic">✓</span>{t('保存して戻る')}</button>}
+          <button className="sheet-item danger" onClick={() => { if (dontAsk) setFeature('confirmDiscard', false); leave(); }}><span className="ic">✕</span>{t('保存せずに戻る')}</button>
+        </Sheet>
+      )}
     </div>
   );
 }

@@ -18,13 +18,14 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
   const dup = clean ? list.find((x) => normalize(x.name) === normalize(clean)) : undefined;
   const base = kind === 'person' ? '#/people/' : '#/topics/';
 
-  const save = async () => {
+  /** asNew: 同名の人がいても別の人として追加する */
+  const save = async (asNew = false) => {
     if (!clean || saving) return;
-    if (dup) { location.replace(base + dup.id); return; }
+    if (dup && !asNew) { location.replace(base + dup.id); return; }
     setSaving(true);
     let id: ID;
     if (kind === 'person') {
-      const p = await store.addPerson(clean, folderId);
+      const p = await store.addPerson(clean, folderId, [], asNew);
       if (reading.trim() || memo.trim()) await store.updatePerson(p.id, { reading: reading.trim(), memo });
       id = p.id;
     } else {
@@ -41,7 +42,7 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
       <Header
         title={kind === 'person' ? t('新しい人') : t('新しい話題')}
         left={<button className="link" onClick={() => back(kind === 'person' ? '/people' : '/topics')}>{t('キャンセル')}</button>}
-        right={<button className="link strong" disabled={!clean || saving} onClick={save}>{dup ? t('開く') : t('追加')}</button>}
+        right={<button className="link strong" disabled={!clean || saving} onClick={() => save()}>{dup ? t('開く') : t('追加')}</button>}
       />
       <div className="form">
         <section className="field">
@@ -55,6 +56,9 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
             placeholder={kind === 'person' ? t('例：田中さん') : t('例：旅行')}
           />
           {dup && <p className="muted small">{kind === 'person' ? t('「{name}」はもういます', { name: dup.name }) : t('「{name}」はもうあります', { name: '#' + dup.name })}</p>}
+          {dup && kind === 'person' && (
+            <button type="button" className="link small-link" disabled={saving} onClick={() => save(true)}>{t('＋「{name}」を別の人として追加', { name: clean })}</button>
+          )}
         </section>
         {currentLang() === 'ja' && (
           <section className="field">

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { entryLabel, entryPreview, type AppData, type Entry, type ID } from '../core/types';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { entryLabel, entryPreview, type AppData, type Entry, type Group, type ID, type Person } from '../core/types';
 import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
 import { formatDate, go, useStore } from './hooks';
@@ -99,6 +99,8 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
     .map((t) => data.topics.find((x) => x.id === t.topicId))
     .filter(Boolean);
   const feat = useFeatures();
+  const groups = feat.groups ? (entry.groupIds ?? []).map((id) => data.groups.find((g) => g.id === id)).filter(Boolean) : [];
+  const hints = sameNameHints(data.people, data.groups);
   const folder = !hideFolder && feat.folders && entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
   const item: ItemRef = { kind: 'entry', id: entry.id, label: entryLabel(entry, 24) || t('（本文なし）'), scope: 'entry' };
   const { lifted, handlers } = usePress(item, () => go(`/edit/${entry.id}`));
@@ -121,8 +123,11 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
       <div className="card-meta">
         <span className="date">{formatDate(entry.talkedOn)}</span>
         {folder && <span className="chip folder small">▤ {folderPath(data.folders, folder.id).map((f) => f.name).join(' / ')}</span>}
+        {groups.map((g) => (
+          <span key={g!.id} className="chip group small">{g!.name}</span>
+        ))}
         {people.map((p) => (
-          <span key={p!.id} className="chip person small">{p!.name}</span>
+          <span key={p!.id} className="chip person small">{p!.name}{hints.get(p!.id) && <span className="hint">（{hints.get(p!.id)}）</span>}</span>
         ))}
         {topics.map((t) => (
           <span key={t!.id} className="chip topic small">#{t!.name}</span>
@@ -214,94 +219,154 @@ export function SortSelect<K extends string>({ value, options, onChange }: {
     </label>
   );
 }
+/** 記録の相手に出す人のグループ。選ぶとグループそのものが記録に付く(メンバーには展開しない) */
+export interface PickGroup { id: ID; name: string; rank: number; count: number }
 
-/** 選択肢に混ぜて出す人のグループ。選ぶとメンバー全員が相手に入る */
-export interface PickGroup { id: ID; name: string; memberIds: ID[] }
+/** 候補の最初の表示数。横にスクロールして端まで行くと、同じ数ずつ追加で出す */
+export const PICK_PAGE = 15;
+
+const hintCache = new WeakMap<Person[], Map<ID, string>>();
+/**
+ * 同じ名前の人が複数いるとき、見分けるための補足(グループ名・メモの先頭・追加した日)。
+ * 同名の人がいない人は入らない。
+ */
+export function sameNameHints(people: Person[], groups: Group[]): Map<ID, string> {
+  const cached = hintCache.get(people);
+  if (cached) return cached;
+  const byName = new Map<string, Person[]>();
+  for (const p of people) {
+    const k = normalize(p.name.trim());
+    byName.set(k, [...(byName.get(k) ?? []), p]);
+  }
+  const gName = new Map(groups.map((g) => [g.id, g.name]));
+  const out = new Map<ID, string>();
+  for (const list of byName.values()) {
+    if (list.length < 2) continue;
+    for (const p of list) {
+      const gs = (p.groupIds ?? []).map((g) => gName.get(g)).filter(Boolean).join('・');
+      const memo = p.memo.trim().split('\n')[0].slice(0, 12);
+      const d = new Date(p.createdAt);
+      out.set(p.id, gs || memo || t('{m}/{d}に追加', { m: d.getMonth() + 1, d: d.getDate() }));
+    }
+  }
+  hintCache.set(people, out);
+  return out;
+}
+
+/** 横スクロールの候補の列。端の目印が見えたら onMore で追加表示する */
+/** wrap: 絞り込み中は折り返して全部見えるように(多いときは縦にスクロール) */
+function PickRow({ children, more, onMore, resetKey, wrap }: { children: ReactNode; more: boolean; onMore: () => void; resetKey: string; wrap?: boolean }) {
+  const row = useRef<HTMLDivElement>(null);
+  const end = useRef<HTMLSpanElement>(null);
+  const cb = useRef(onMore);
+  cb.current = onMore;
+  useEffect(() => { row.current?.scrollTo?.({ left: 0, top: 0 }); }, [resetKey]);
+  useEffect(() => {
+    if (!more || !end.current || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) cb.current(); }, { root: row.current, rootMargin: '0px 120px 60px 0px' });
+    io.observe(end.current);
+    return () => io.disconnect();
+  });
+  return (
+    <div className={`chips quick ${wrap ? 'wrap' : ''}`} ref={row}>
+      {children}
+      {more && <span ref={end} className="pick-more" aria-hidden>…</span>}
+    </div>
+  );
+}
 
 /**
- * 人・話題の選択。入力欄の下に直近の人・話題(とグループ)が並び、ドロップダウンを開かずに選べる。
- * 入力欄をタップすると既存の候補がドロップダウンで出る(人のときはグループも混ぜて出す)。
- * 候補にない名前は「新しく追加」で仮登録し、記録の保存時に作られる。
+ * 人・話題の選択。ドロップダウンは出さず、入力欄の下に候補を並べてタップで選ぶ。
+ * 候補は最後に選んだ順に {PICK_PAGE} 件ずつ。横にスクロールすると追加で出る。
+ * 入力すると候補が絞り込まれ、先頭に「新しく追加」が出る(新規は記録の保存時に作られる)。
+ * 人のときはグループの列も出し、グループを選ぶとグループ自体が付く。
  */
-export function ComboPicker({ kind, options, selected, newNames, onChange, groups = [], recent = 0 }: {
+export function ComboPicker({ kind, options, selected, newNames, onChange, groups = [], selectedGroups = [], onGroupsChange, suggest = true, allowSameName = false }: {
   kind: 'person' | 'topic';
-  options: { id: ID; name: string; reading?: string; rank: number }[];
+  options: { id: ID; name: string; reading?: string; rank: number; hint?: string }[];
   selected: ID[];
   newNames: string[];
   onChange: (selected: ID[], newNames: string[]) => void;
-  /** 人のグループ。ドロップダウン・検索・直近の列に人と混ぜて出す */
+  /** 人のグループ。候補の2列目に出す */
   groups?: PickGroup[];
-  /** 入力欄の下に出す直近の候補の数(0なら出さない) */
-  recent?: number;
+  selectedGroups?: ID[];
+  onGroupsChange?: (ids: ID[]) => void;
+  /** 何も入力していないときも候補を出すか(オフなら入力したときだけ) */
+  suggest?: boolean;
+  /** 同じ名前がすでにあっても「別の人として追加」できるようにする */
+  allowSameName?: boolean;
 }) {
   const [q, setQ] = useState('');
-  const [open, setOpen] = useState(false);
-  const [openGroup, setOpenGroup] = useState<ID | null>(null);
   const prefix = kind === 'topic' ? '#' : '';
   const clean = q.trim().replace(/^#/, '');
   const nq = normalize(clean);
-  const rankOf = useMemo(() => new Map(options.map((o) => [o.id, o.rank])), [options]);
-  // グループの並び順は、メンバーのうち一番最近の人に合わせる(人と混ぜて並べるため)
-  const groupRank = (g: PickGroup) => Math.max(0, ...g.memberIds.map((m) => rankOf.get(m) ?? 0));
-  // 開いている間は並び順を固定(選んだ瞬間に項目が飛ばないように)
-  const [frozen, setFrozen] = useState<Map<ID, number> | null>(null);
-  const openList = () => {
-    if (!open) setFrozen(new Map([...options.map((o) => [o.id, o.rank] as const), ...groups.map((g) => [g.id, groupRank(g)] as const)]));
-    setOpen(true);
-  };
-  type Row = { type: 'item'; o: (typeof options)[number]; rank: number } | { type: 'group'; g: PickGroup; rank: number };
-  const list = useMemo(() => {
-    const r = (id: ID, cur: number) => frozen?.get(id) ?? cur;
-    const rows: Row[] = [
-      ...(nq ? options.filter((o) => nameMatches(o, clean)) : options).map((o) => ({ type: 'item' as const, o, rank: r(o.id, o.rank) })),
-      ...groups
-        .filter((g) => g.memberIds.length && (!nq || normalize(g.name).includes(nq)))
-        .map((g) => ({ type: 'group' as const, g, rank: r(g.id, groupRank(g)) })),
-    ];
-    return rows.sort((a, b) => b.rank - a.rank);
-  }, [options, groups, nq, frozen]);
-  // 直近の候補は画面を開いた時点の順で固定(選ぶたびに並びが変わらないように)
-  // 最初から選ばれているもの(グループのメンバーなど)は除き、それ以外の直近から出す
-  const [recentIds] = useState(() => options.filter((o) => !selected.includes(o.id)).sort((a, b) => b.rank - a.rank).slice(0, recent).map((o) => o.id));
-  const recentOpts = recentIds.map((id) => options.find((o) => o.id === id)).filter((o): o is (typeof options)[number] => !!o);
-  const quickGroups = [...groups].filter((g) => g.memberIds.length).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-  const exact =
-    options.some((o) => normalize(o.name) === nq) || newNames.some((n) => normalize(n) === nq);
+  // 並び順は画面を開いた時点で固定(選ぶたびに並びが変わらないように)
+  const [rank0] = useState(() => new Map([...options.map((o) => [o.id, o.rank] as const), ...groups.map((g) => [g.id, g.rank] as const)]));
+  const rankOf = (x: { id: ID; rank: number }) => rank0.get(x.id) ?? x.rank;
+  const [limit, setLimit] = useState(PICK_PAGE);
+  const [glimit, setGlimit] = useState(PICK_PAGE);
+  useEffect(() => { setLimit(PICK_PAGE); setGlimit(PICK_PAGE); }, [nq]);
+
+  const items = useMemo(
+    () => options.filter((o) => !selected.includes(o.id) && (!nq || nameMatches(o, clean))).sort((a, b) => rankOf(b) - rankOf(a)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [options, selected, nq],
+  );
+  const groupItems = useMemo(
+    () => groups.filter((g) => !selectedGroups.includes(g.id) && (!nq || normalize(g.name).includes(nq))).sort((a, b) => rankOf(b) - rankOf(a)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groups, selectedGroups, nq],
+  );
+  const sameExists = options.some((o) => normalize(o.name) === nq);
+  const sameNew = newNames.some((n) => normalize(n) === nq);
+  const canAdd = !!clean && (allowSameName ? true : !sameExists && !sameNew);
+  const showRows = suggest || !!clean;
 
   const toggle = (id: ID) =>
     onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id], newNames);
-  const allIn = (g: PickGroup) => g.memberIds.every((m) => selected.includes(m));
-  /** グループを選ぶ: 全員入っていれば全員外し、そうでなければ全員入れる */
-  const toggleGroup = (g: PickGroup) =>
-    onChange(allIn(g) ? selected.filter((x) => !g.memberIds.includes(x)) : [...new Set([...selected, ...g.memberIds])], newNames);
+  const toggleGroup = (id: ID) =>
+    onGroupsChange?.(selectedGroups.includes(id) ? selectedGroups.filter((x) => x !== id) : [...selectedGroups, id]);
   const addNew = () => {
     if (!clean) return;
-    const found = options.find((o) => normalize(o.name) === nq);
-    if (found) {
-      if (!selected.includes(found.id)) onChange([...selected, found.id], newNames);
-    } else if (!newNames.some((n) => normalize(n) === nq)) {
-      onChange(selected, [...newNames, clean]);
-    }
+    onChange(selected, [...newNames, clean]);
     setQ('');
   };
-  // ドロップダウン内のタップで入力欄のフォーカスが外れないように
-  const keep = (e: React.MouseEvent | React.TouchEvent) => e.preventDefault();
-  const shownGroup = openGroup ? groups.find((g) => g.id === openGroup) : undefined;
+  /** Enter: 同じ名前の候補があればそれを選び、なければ新しく追加 */
+  const enter = () => {
+    if (!clean) return;
+    const found = items.find((o) => normalize(o.name) === nq);
+    if (found) { toggle(found.id); setQ(''); return; }
+    if (options.some((o) => normalize(o.name) === nq && selected.includes(o.id)) || sameNew) { setQ(''); return; }
+    addNew();
+  };
+  const addChip = (
+    <button type="button" className={`chip ${kind} add`} onClick={addNew}>
+      {sameExists || sameNew
+        ? t('＋「{name}」を別の人として追加', { name: clean })
+        : t('＋「{name}」を新しく追加', { name: prefix + clean })}
+    </button>
+  );
+  const groupName = (id: ID) => groups.find((g) => g.id === id)?.name ?? '?';
 
   return (
     <div className="picker">
-      {(selected.length > 0 || newNames.length > 0) && (
+      {(selected.length > 0 || newNames.length > 0 || selectedGroups.length > 0) && (
         <div className="chips">
+          {selectedGroups.map((id) => (
+            <button key={'g:' + id} type="button" className="chip group on" onClick={() => toggleGroup(id)}>
+              <span className="group-mark">{t('グループ')}</span>{groupName(id)} <span className="x">×</span>
+            </button>
+          ))}
           {selected.map((id) => {
             const o = options.find((x) => x.id === id);
             return (
               <button key={id} type="button" className={`chip ${kind} on`} onClick={() => toggle(id)}>
-                {prefix}{o?.name ?? '?'} <span className="x">×</span>
+                {prefix}{o?.name ?? '?'}{o?.hint && <span className="hint">（{o.hint}）</span>} <span className="x">×</span>
               </button>
             );
           })}
-          {newNames.map((n) => (
-            <button key={'new:' + n} type="button" className={`chip ${kind} on`} onClick={() => onChange(selected, newNames.filter((x) => x !== n))}>
+          {newNames.map((n, i) => (
+            <button key={'new:' + i + n} type="button" className={`chip ${kind} on`} onClick={() => onChange(selected, newNames.filter((_, j) => j !== i))}>
               {prefix}{n} <span className="new">{t('新規')}</span> <span className="x">×</span>
             </button>
           ))}
@@ -310,94 +375,41 @@ export function ComboPicker({ kind, options, selected, newNames, onChange, group
       <div className="combo">
         <input
           value={q}
-          onChange={(e) => { setQ(e.target.value); openList(); }}
-          onFocus={openList}
-          onClick={openList}
-          onBlur={() => setTimeout(() => setOpen(false), 200)}
-          placeholder={kind === 'person' ? t('🔍 名前で検索して選ぶ／新規入力') : t('🔍 話題で検索して選ぶ／新規入力')}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={kind === 'person' ? t('🔍 名前で絞り込む／新しい人を入力') : t('🔍 話題で絞り込む／新しい話題を入力')}
           enterKeyHint="done"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
               e.preventDefault();
-              addNew();
+              enter();
             }
           }}
         />
-        <span className="combo-caret" aria-hidden>▾</span>
-        {open && (
-          <ul className="dropdown" onMouseDown={keep}>
-            {!clean && list.length > 0 && <li className="dd-head">{t('最後に選んだ順')}</li>}
-            {clean && !exact && (
-              <li className="dd-item add" onClick={addNew}>
-                {t('＋「{name}」を新しく追加', { name: prefix + clean })}
-              </li>
-            )}
-            {list.map((row) => {
-              if (row.type === 'group') {
-                const g = row.g;
-                const on = allIn(g);
-                return (
-                  <li key={'g:' + g.id} className={`dd-item dd-group ${on ? 'on' : ''}`} onClick={() => { toggleGroup(g); setQ(''); }}>
-                    <span className="check">{on ? '✓' : ''}</span>
-                    <span className="group-mark">{t('グループ')}</span>
-                    {g.name}
-                    <span className="reading">{t('{n}人', { n: g.memberIds.length })}</span>
-                  </li>
-                );
-              }
-              const o = row.o;
-              const on = selected.includes(o.id);
-              return (
-                <li key={o.id} className={`dd-item ${on ? 'on' : ''}`} onClick={() => { toggle(o.id); setQ(''); }}>
-                  <span className="check">{on ? '✓' : ''}</span>
-                  {prefix}{o.name}
-                  {o.reading && <span className="reading">{o.reading}</span>}
-                </li>
-              );
-            })}
-            {list.length === 0 && !clean && (
-              <li className="dd-empty">{t('まだありません。名前を入力すると追加できます')}</li>
-            )}
-          </ul>
-        )}
+        {q && <button type="button" className="combo-clear" aria-label={t('入力を消す')} onClick={() => setQ('')}>×</button>}
       </div>
-      {recentOpts.some((o) => !selected.includes(o.id)) && (
-        <div className="chips quick">
-          {/* 選んだものは上の選択済みに移る */}
-          {recentOpts.filter((o) => !selected.includes(o.id)).map((o) => (
-            <button key={o.id} type="button" className={`chip ${kind}`} onClick={() => toggle(o.id)}>
-              ＋ {prefix}{o.name}
+      {showRows && (canAdd || items.length > 0) && (
+        <PickRow more={items.length > limit} onMore={() => setLimit((l) => l + PICK_PAGE)} resetKey={nq} wrap={!!nq}>
+          {canAdd && !(sameExists || sameNew) && addChip}
+          {items.slice(0, limit).map((o) => (
+            <button key={o.id} type="button" className={`chip ${kind}`} onClick={() => { toggle(o.id); setQ(''); }}>
+              ＋ {prefix}{o.name}{o.hint && <span className="hint">（{o.hint}）</span>}
             </button>
           ))}
-        </div>
+          {/* 同じ名前の人がいるときは、まず既存の人を出し、「別の人として追加」は後ろに */}
+          {canAdd && (sameExists || sameNew) && addChip}
+        </PickRow>
       )}
-      {recent > 0 && quickGroups.length > 0 && (
-        <div className="chips quick">
-          {quickGroups.map((g) => (
-            <button key={'g:' + g.id} type="button" className={`chip group ${openGroup === g.id ? 'on' : ''}`} onClick={() => setOpenGroup(openGroup === g.id ? null : g.id)}>
-              {g.name} {openGroup === g.id ? '▴' : '▾'}
+      {showRows && groupItems.length > 0 && (
+        <PickRow more={groupItems.length > glimit} onMore={() => setGlimit((l) => l + PICK_PAGE)} resetKey={nq} wrap={!!nq}>
+          {groupItems.slice(0, glimit).map((g) => (
+            <button key={'g:' + g.id} type="button" className="chip group" onClick={() => { toggleGroup(g.id); setQ(''); }}>
+              ＋ <span className="group-mark">{t('グループ')}</span>{g.name} <span className="n">{t('{n}人', { n: g.count })}</span>
             </button>
           ))}
-        </div>
+        </PickRow>
       )}
-      {shownGroup && (
-        <div className="chips group-members">
-          {shownGroup.memberIds
-            .map((id) => options.find((o) => o.id === id))
-            .filter((o): o is (typeof options)[number] => !!o)
-            .sort((a, b) => a.name.localeCompare(b.name, 'ja'))
-            .map((o) => {
-              const on = selected.includes(o.id);
-              return (
-                <button key={o.id} type="button" className={`chip person ${on ? 'on' : ''}`} onClick={() => toggle(o.id)}>
-                  {on ? '✓ ' : ''}{o.name}
-                </button>
-              );
-            })}
-          <button type="button" className="link small-link" onClick={() => toggleGroup(shownGroup)}>
-            {allIn(shownGroup) ? t('全員外す') : t('全員選ぶ')}
-          </button>
-        </div>
+      {!clean && suggest && options.length === 0 && groups.length === 0 && (
+        <p className="muted small pick-empty">{t('まだありません。名前を入力すると追加できます')}</p>
       )}
     </div>
   );
