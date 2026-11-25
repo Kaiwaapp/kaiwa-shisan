@@ -1,5 +1,5 @@
-// 右下の「＋」。タップはその画面の既定の追加、長押しで「何を作るか」を選ぶメニューを出す。
-import { useEffect, useRef, useState } from 'react';
+// 長押しでメニューを出すボタン。右下の「＋」(長押しで何を作るか選ぶ)と記録の保存ボタン(長押しで保存後の動きを選ぶ)で使う。
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { go } from './hooks';
 import { Sheet } from './interact';
 import { t } from '../i18n';
@@ -44,18 +44,29 @@ export function createItems(o: {
 
 const HOLD_MS = 450;
 
-export function Fab({ label, onTap, items }: { label: string; onTap: () => void; items: CreateItem[] }) {
+/**
+ * タップで onTap、長押し(PCは右クリックも)で items のメニューを出すボタン。＋ボタン・保存ボタンで共通。
+ * disabled の間は長押ししてもメニューを出さない(タップは onTap に任せる)。
+ */
+export function HoldButton({ onTap, items, menuTitle, holdDisabled, children, ...rest }: {
+  onTap: () => void;
+  items: CreateItem[];
+  menuTitle: string;
+  holdDisabled?: boolean;
+  children: ReactNode;
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'onClick' | 'children'>) {
   const [open, setOpen] = useState(false);
   const st = useRef({ timer: 0, x: 0, y: 0, fired: false, guard: false });
   const clear = () => clearTimeout(st.current.timer);
   const btn = useRef<HTMLButtonElement>(null);
-  const tap = useRef(onTap);
-  tap.current = onTap;
+  const latest = useRef({ onTap, holdDisabled });
+  latest.current = { onTap, holdDisabled };
+  const openMenu = () => { const s = st.current; s.fired = true; s.guard = true; setOpen(true); };
   const hold = (x: number, y: number) => {
     const s = st.current;
     s.fired = false; s.x = x; s.y = y;
     clear();
-    s.timer = window.setTimeout(() => { s.fired = true; s.guard = true; setOpen(true); }, HOLD_MS);
+    if (!latest.current.holdDisabled) s.timer = window.setTimeout(openMenu, HOLD_MS);
   };
   // iPhoneでは CSS の user-select / touch-callout だけでは長押しの文字選択が止まらないことがある。
   // 指のときは touchstart を preventDefault して文字選択・長押しメニュー・クリックを全部止め、タップも自分で判定する
@@ -71,7 +82,7 @@ export function Fab({ label, onTap, items }: { label: string; onTap: () => void;
       if (s.fired || !p) return;
       // ボタンの外で離したらタップにしない
       const r = el.getBoundingClientRect();
-      if (p.clientX >= r.left && p.clientX <= r.right && p.clientY >= r.top && p.clientY <= r.bottom) tap.current();
+      if (p.clientX >= r.left && p.clientX <= r.right && p.clientY >= r.top && p.clientY <= r.bottom) latest.current.onTap();
     };
     el.addEventListener('touchstart', start, { passive: false });
     el.addEventListener('touchmove', move, { passive: true });
@@ -90,24 +101,22 @@ export function Fab({ label, onTap, items }: { label: string; onTap: () => void;
   return (
     <>
       <button
+        {...rest}
         ref={btn}
-        className="fab"
-        aria-label={label}
         aria-haspopup="menu"
-        title={t('{label}(長押しで他のものを作成)', { label })}
         onPointerDown={(e) => { if (!isTouch(e)) hold(e.clientX, e.clientY); }}
         onPointerMove={(e) => { if (!isTouch(e) && Math.hypot(e.clientX - st.current.x, e.clientY - st.current.y) > 10) clear(); }}
         onPointerUp={(e) => { if (!isTouch(e)) clear(); }}
         onPointerCancel={(e) => { if (!isTouch(e)) clear(); }}
         onPointerLeave={(e) => { if (!isTouch(e)) clear(); }}
         // iPhone・PCの長押し／右クリックで出るメニューは出さず、こちらのメニューを出す
-        onContextMenu={(e) => { e.preventDefault(); if (!st.current.fired) { clear(); st.current.fired = true; st.current.guard = true; setOpen(true); } }}
+        onContextMenu={(e) => { e.preventDefault(); if (!st.current.fired && !holdDisabled) { clear(); openMenu(); } }}
         onClick={() => {
           if (st.current.fired) { st.current.fired = false; return; }
           onTap();
         }}
       >
-        ＋
+        {children}
       </button>
       {open && (
         // 指を離したときのクリックが、開いたメニューの項目に当たって勝手に選ばれないようにする。
@@ -116,15 +125,24 @@ export function Fab({ label, onTap, items }: { label: string; onTap: () => void;
           onPointerDownCapture={() => { st.current.guard = false; }}
           onClickCapture={(e) => { if (st.current.guard) { e.stopPropagation(); e.preventDefault(); } }}
         >
-        <Sheet title={t('何を作りますか')} onClose={() => setOpen(false)}>
-          {items.map((it) => (
-            <button key={it.label} className="sheet-item" role="menuitem" onClick={() => { setOpen(false); it.run(); }}>
-              <span className="sheet-icon" aria-hidden>{it.icon}</span>{it.label}
-            </button>
-          ))}
-        </Sheet>
+          <Sheet title={menuTitle} onClose={() => setOpen(false)}>
+            {items.map((it) => (
+              <button key={it.label} className="sheet-item" role="menuitem" onClick={() => { setOpen(false); it.run(); }}>
+                <span className="sheet-icon" aria-hidden>{it.icon}</span>{it.label}
+              </button>
+            ))}
+          </Sheet>
         </div>
       )}
     </>
+  );
+}
+
+/** 右下の＋ */
+export function Fab({ label, onTap, items }: { label: string; onTap: () => void; items: CreateItem[] }) {
+  return (
+    <HoldButton className="fab" aria-label={label} title={t('{label}(長押しで他のものを作成)', { label })} onTap={onTap} items={items} menuTitle={t('何を作りますか')}>
+      ＋
+    </HoldButton>
   );
 }
