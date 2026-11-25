@@ -30,6 +30,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
   const feat = useFeatures();
   // フォルダ機能オフ: 一番上でフォルダを出さず、全部の記録を並べる
   const flat = !feat.folders && !folderId;
+  const [memosOpen, setMemosOpen] = useFold('entries');
 
   useEffect(() => { if (folderId) store.markViewed('folder', folderId); }, [store, folderId]);
   // フォルダも同じ並べ替えで並べる(話した日は中の記録から)
@@ -121,7 +122,10 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                   </ul>
                 )}
               />
-              <EntryList
+              {memos.length > 0 && (
+                <FoldHeader label={t('記録')} count={memos.length} open={memosOpen} onToggle={() => setMemosOpen(!memosOpen)} />
+              )}
+              {(memosOpen || memos.length === 0) && <EntryList
                 entries={memos}
                 data={data}
                 pinSplit
@@ -131,7 +135,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                     ? <>{t('このフォルダはまだ空です。')}<br />{t('右下の＋で記録を、「＋ フォルダ」でフォルダを作れます。')}</>
                     : children.length ? t('フォルダに入っていない記録はありません') : <>{t('まだ記録がありません。')}<br />{t('右下の＋から、話したことを書いてみましょう。')}</>
                 }
-              />
+             />}
               <SelectionBar folderId={folderId} all={[
                 ...children.map((f) => ({ kind: 'folder' as const, id: f.id, label: f.name, scope: 'entry' as const })),
                 ...memos.map((e) => ({ kind: 'entry' as const, id: e.id, label: entryLabel(e, 24), scope: 'entry' as const })),
