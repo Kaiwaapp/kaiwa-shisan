@@ -5,7 +5,6 @@ import { ComboPicker, Header } from './components';
 import { copyText } from './interact';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
-import { GroupQuickPick } from './groups';
 import { t } from '../i18n';
 
 
@@ -46,6 +45,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   }, [data.entries]);
   const rankOf = (x: { id: ID; createdAt: number; selectedAt?: number }) => x.selectedAt ?? used.get(x.id) ?? x.createdAt;
   const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: rankOf(p) }));
+  const groupOpts = useMemo(
+    () => data.groups.map((g) => ({ id: g.id, name: g.name, memberIds: data.people.filter((p) => p.groupIds?.includes(g.id)).map((p) => p.id) })),
+    [data.groups, data.people],
+  );
   const topicOpts = data.topics.map((t) => ({ id: t.id, name: t.name, reading: t.reading, rank: rankOf(t) }));
   const pick = (kind: 'person' | 'topic', prev: ID[], next: ID[]) => {
     for (const x of next) if (!prev.includes(x)) store.markSelected(kind, x);
@@ -144,17 +147,19 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           <ComboPicker
             kind="person"
             options={personOpts}
+            groups={groupOpts}
+            recent={5}
             selected={personIds}
             newNames={newPeople}
             onChange={(s, n) => { pick('person', personIds, s); setPersonIds(s); setNewPeople(n); }}
           />
-          <GroupQuickPick selected={personIds} onChange={(s) => { pick('person', personIds, s); setPersonIds(s); }} />
         </section>
         <section className="field">
           <label>{t('話題')}</label>
           <ComboPicker
             kind="topic"
             options={topicOpts}
+            recent={5}
             selected={topicIds}
             newNames={newTopics}
             onChange={(s, n) => { pick('topic', topicIds, s); setTopicIds(s); setNewTopics(n); }}
