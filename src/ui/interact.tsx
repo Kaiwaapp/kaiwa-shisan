@@ -5,6 +5,7 @@ import { foldersOf, folderDescendants, folderPath } from '../core/store';
 import { folderChoices } from './folders';
 import { useData, useStore } from './hooks';
 import { t } from '../i18n';
+import { useFeatures } from './features';
 
 /** 長押し・ドラッグ・複数選択の対象 */
 export type ItemKind = 'entry' | 'person' | 'topic' | 'folder';
@@ -169,6 +170,7 @@ function ItemMenu() {
   const { ui, close, openMove, openClear, openGroup } = useInteract();
   const store = useStore();
   const data = useData();
+  const feat = useFeatures();
   const item = ui.menu;
   if (!item) return null;
   const entry = item.kind === 'entry' ? data.entries.find((e) => e.id === item.id) : undefined;
@@ -205,10 +207,10 @@ function ItemMenu() {
           <span className="ic">✎</span>{t('名前を変更')}
         </button>
       )}
-      {item.kind === 'person' && (
+      {item.kind === 'person' && feat.groups && (
         <button className="sheet-item" onClick={() => openGroup([item])}><span className="ic">👥</span>{t('グループに追加')}</button>
       )}
-      <button className="sheet-item" onClick={() => openMove([item])}><span className="ic">▤</span>{t('フォルダへ移動')}</button>
+      {feat.folders && <button className="sheet-item" onClick={() => openMove([item])}><span className="ic">▤</span>{t('フォルダへ移動')}</button>}
       {item.kind === 'folder' && item.scope === 'entry' && (
         <button className="sheet-item danger" onClick={() => openClear(item.id)}><span className="ic">🗑</span>{t('中の記録をすべて削除')}</button>
       )}
@@ -563,6 +565,7 @@ export function SelectMark({ item }: { item: ItemRef }) {
 export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 記録のフォルダ内なら、未選択時に「すべて削除」を出す */ folderId?: ID | null }) {
   const { sel, clearSel, openMove, toggle, openClear, openGroup } = useInteract();
   const store = useStore();
+  const feat = useFeatures();
   if (!sel.active) return null;
   const items = [...sel.selected.values()];
   const n = items.length;
@@ -582,10 +585,10 @@ export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 記録の�
           toast('ピン留めしました');
           clearSel();
         }}>📌</button>
-        {all.some((i) => i.kind === 'person') && (
+        {feat.groups && all.some((i) => i.kind === 'person') && (
           <button className="link" disabled={!n || items.some((i) => i.kind !== 'person')} onClick={() => openGroup(items)}>{t('グループ')}</button>
         )}
-        <button className="link" disabled={!n} onClick={() => openMove(items)}>{t('移動')}</button>
+        {feat.folders && <button className="link" disabled={!n} onClick={() => openMove(items)}>{t('移動')}</button>}
         {!n && folderId ? (
           <button className="link danger" onClick={() => openClear(folderId)}>{t('すべて削除')}</button>
         ) : (

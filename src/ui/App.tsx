@@ -9,6 +9,7 @@ import { GroupScreen } from './groups';
 import { SettingsScreen } from './SettingsScreen';
 import { needsBackupReminder } from './backupUi';
 import { t, useLang } from '../i18n';
+import { useFeatures } from './features';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
@@ -37,6 +38,7 @@ function Shell() {
   const data = useData();
   const { path, query } = useRoute();
   const selecting = useInteract().sel.active;
+  const feat = useFeatures();
   const [head, sub] = path;
 
   if (!loaded) return <Loading />;
@@ -78,7 +80,7 @@ function Shell() {
 
   const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : (head ?? '');
   const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
-  const remind = head !== 'settings' && head !== 'import' && needsBackupReminder(data);
+  const remind = head !== 'settings' && head !== 'import' && feat.backupReminder && needsBackupReminder(data);
 
   return (
     <div className="app">

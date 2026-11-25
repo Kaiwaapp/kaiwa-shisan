@@ -3,6 +3,7 @@ import { entryLabel, entryPreview, type AppData, type Entry, type ID } from '../
 import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
 import { formatDate, go, useStore } from './hooks';
+import { useFeatures } from './features';
 import { copyText, SelectMark, toast, useInteract, usePress, type ItemRef } from './interact';
 import { t } from '../i18n';
 
@@ -22,6 +23,7 @@ export function Header({ title, left, right, lead }: { title: ReactNode; left?: 
 
 /** お気に入りの☆/★。ワンタップで入れる・外す。一覧の行の中でも押せる(長押し・タップの判定に渡さない) */
 export function FavButton({ on, onToggle, className = '' }: { on: boolean; onToggle: () => void; className?: string }) {
+  if (!useFeatures().favorites) return null;
   return (
     <button
       type="button"
@@ -99,7 +101,8 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
     .filter((t) => t.topicId !== hideTopicId)
     .map((t) => data.topics.find((x) => x.id === t.topicId))
     .filter(Boolean);
-  const folder = !hideFolder && entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
+  const feat = useFeatures();
+  const folder = !hideFolder && feat.folders && entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
   const item: ItemRef = { kind: 'entry', id: entry.id, label: entryLabel(entry, 24) || t('（本文なし）'), scope: 'entry' };
   const { lifted, handlers } = usePress(item, () => go(`/edit/${entry.id}`));
   const { sel } = useInteract();
@@ -108,7 +111,7 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder }
       <SelectMark item={item} />
       <EntryPreview entry={entry} pinned={entry.pinned} />
       {!sel.active && <FavToggle kind="entry" id={entry.id} on={!!entry.favorite} />}
-      {!sel.active && (
+      {!sel.active && feat.copy && (
         <button
           className="copy-btn"
           aria-label={t('本文をコピー')}

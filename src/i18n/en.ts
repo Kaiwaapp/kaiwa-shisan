@@ -324,6 +324,22 @@ const en: Record<string, string> = {
   '「{name}」を入れるグループ': 'Groups for "{name}"',
   '{n}人を入れるグループ': 'Groups for {n} people',
   '「{name}」から外しました': 'Removed from "{name}"',
+  // 設定 > 使う機能
+  '使う機能': 'Features',
+  '使わない機能はオフにすると画面に出なくなります。オフにしてもデータは消えず、オンに戻せば元どおり出ます。': "Turn off features you don't use to hide them. Your data stays, and everything comes back when you turn them on again.",
+  'AI機能のオンオフは下の「AI機能（試作）」にあります。': 'AI features are turned on or off under "AI features (prototype)" below.',
+  'オフにすると、記録・人・話題をフォルダに分けずに全部並べます': 'When off, notes, people and topics are listed together without folders',
+  '☆ボタンと★のお気に入り一覧': 'The ☆ button and the ★ favorites list',
+  '人のグループと、記録の相手を「グループから」選ぶ機能': 'Groups of people, and picking who you talked to from a group',
+  '直近の候補': 'Recent suggestions',
+  '記録の相手・話題の入力欄の下に出す最近の候補': 'Recent people and topics shown under the inputs in a note',
+  '記録のタイトル': 'Note titles',
+  '記録の編集画面のタイトル欄': 'The title field when editing a note',
+  'コピーボタン': 'Copy buttons',
+  '一覧と編集画面の本文コピーボタン': 'Buttons that copy the note text, in lists and the editor',
+  '設定の取り込みの項目': 'The import section in Settings',
+  'バックアップのお知らせ': 'Backup reminder',
+  'しばらく書き出していないときに上に出るお知らせ': "The notice at the top when you haven't exported in a while",
 };
 
 export default en;

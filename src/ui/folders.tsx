@@ -4,6 +4,7 @@ import { folderDescendants, foldersOf } from '../core/store';
 import { go, useData, useStore } from './hooks';
 import { dropProps, SelectMark, useInteract, usePress, type ItemRef } from './interact';
 import { t } from '../i18n';
+import { useFeatures } from './features';
 
 /** 各タブのフォルダのURL。記録は '' 、人は '/people'、話題は '/topics' */
 export const SCOPE_BASE: Record<FolderScope, string> = { entry: '', person: '/people', topic: '/topics' };
@@ -17,9 +18,10 @@ export const favHref = (scope: FolderScope) => `${SCOPE_BASE[scope]}/fav`;
 
 /** 見出しの左に出すアイコン: お気に入り一覧と「すべての記録/人/話題」へ */
 export function TitleIcons({ scope }: { scope: FolderScope }) {
+  const fav = useFeatures().favorites;
   return (
     <span className="title-icons">
-      <button className="icon-btn fav" aria-label={t('お気に入り')} title={t('お気に入り')} onClick={() => go(favHref(scope))}>★</button>
+      {fav && <button className="icon-btn fav" aria-label={t('お気に入り')} title={t('お気に入り')} onClick={() => go(favHref(scope))}>★</button>}
       <button className="icon-btn" aria-label={t(ALL_LABEL[scope])} title={t(ALL_LABEL[scope])} onClick={() => go(allHref(scope))}>▦</button>
     </span>
   );

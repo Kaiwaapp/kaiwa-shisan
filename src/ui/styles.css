@@ -420,3 +420,7 @@ body.dragging { cursor: grabbing; }
 .sheet-item.strong { justify-content: center; font-weight: 700; color: var(--accent); }
 .sheet-input { gap: 8px; }
 .sheet-input input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-size: 16px; outline: none; }
+.feature-toggles { display: flex; flex-direction: column; gap: 12px; }
+.toggle.feature { align-items: flex-start; }
+.toggle.feature input { margin-top: 1px; flex: none; }
+.block-note { display: block; margin-top: 2px; }

@@ -5,6 +5,7 @@ import { go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup } from './backupUi';
 import { AiSettingsPanel } from './AiTools';
+import { FEATURE_KEYS, FEATURE_LABELS, setFeature, useFeatures } from './features';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
 export function SettingsScreen() {
@@ -15,6 +16,7 @@ export function SettingsScreen() {
   const [msg, setMsg] = useState('');
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [last, setLast] = useState(getLastBackup());
+  const feat = useFeatures();
 
   useEffect(() => {
     navigator.storage?.persisted?.().then(setPersisted).catch(() => setPersisted(null));
@@ -70,10 +72,27 @@ export function SettingsScreen() {
         </section>
 
         <section className="panel">
+          <h2>{t('使う機能')}</h2>
+          <p className="muted small">{t('使わない機能はオフにすると画面に出なくなります。オフにしてもデータは消えず、オンに戻せば元どおり出ます。')}</p>
+          <div className="feature-toggles">
+            {FEATURE_KEYS.map((k) => (
+              <label key={k} className="toggle feature">
+                <input type="checkbox" checked={feat[k]} onChange={(e) => setFeature(k, e.target.checked)} />
+                <span>
+                  {t(FEATURE_LABELS[k].label)}
+                  <span className="muted small block-note">{t(FEATURE_LABELS[k].note)}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <p className="muted small">{t('AI機能のオンオフは下の「AI機能（試作）」にあります。')}</p>
+        </section>
+
+        {feat.import && <section className="panel">
           <h2>{t('他のアプリから取り込む')}</h2>
           <p className="muted small">{t('iPhoneのメモ・テキストやLINEのトーク履歴を、記録としてまとめて取り込めます。')}</p>
           <button className="btn block" onClick={() => go('/import')}>{t('取り込みを始める')}</button>
-        </section>
+        </section>}
 
         <section className="panel">
           <h2>{t('バックアップ')}</h2>
