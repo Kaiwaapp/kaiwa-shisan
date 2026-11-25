@@ -68,7 +68,7 @@ export async function fillProfile(apiKey: string, src: ProfileSource, specs: Fie
     (currentLang() === 'en' ? '- 値は材料の言語のまま書き、extra の label は英語にする。\n' : '') +
     '\n項目:\n' + fields;
 
-  let content: Parameters<ReturnType<typeof client>['messages']['create']>[0]['messages'][0]['content'];
+  let content: Parameters<Awaited<ReturnType<typeof client>>['messages']['create']>[0]['messages'][0]['content'];
   if (src.kind === 'image') {
     const img = await imageToBase64(src.image);
     content = [
@@ -84,7 +84,7 @@ export async function fillProfile(apiKey: string, src: ProfileSource, specs: Fie
       `話した内容のメモ(新しい順):\n${recordsText(src.texts)}`;
   }
 
-  const msg = await client(apiKey).messages.create({
+  const msg = await (await client(apiKey)).messages.create({
     model: 'claude-haiku-5-5',
     max_tokens: 2000,
     output_config: {
