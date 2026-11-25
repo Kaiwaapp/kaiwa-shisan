@@ -4,9 +4,9 @@ import { NAME_SORTS, normalize, type NameSort } from '../core/search';
 import { back, go, useData, usePref, useStore } from './hooks';
 import { ComboPicker, Header, SortSelect } from './components';
 import { NameRows, useNameItems } from './screens';
-import { groupDropProps } from './interact';
 import { FoldHeader, useFold } from './folders';
 import { t } from '../i18n';
+import { groupDropProps } from './interact';
 
 // 人のグループ。フォルダ(1人1か所・入れ子)と違い、タグのように1人を複数のグループに入れられる。
 

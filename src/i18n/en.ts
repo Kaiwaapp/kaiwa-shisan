@@ -15,6 +15,7 @@ const en: Record<string, string> = {
   'データを読み込めませんでした': "Couldn't load your data",
   'もう一度読み込む': 'Try again',
   'アプリを再読み込み': 'Reload app',
+  'しばらくバックアップしていません。設定から書き出しておきましょう ›': "You haven't backed up in a while. Export one from Settings ›",
   '記録を追加': 'Add note',
   '戻る': 'Back',
   '‹ 戻る': '‹ Back',

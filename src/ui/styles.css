@@ -162,6 +162,9 @@ button:disabled { opacity: .4; cursor: default; }
 .stats b { font-size: 22px; }
 .stats span { font-size: 12px; color: var(--muted); }
 
+.reminder { display: block; width: calc(100% - 32px); margin: calc(var(--safe-t) + 8px) 16px 0; padding: 8px 12px; border-radius: 10px; background: var(--topic-soft); color: var(--topic); font-size: 13px; text-align: left; }
+.reminder + .main .header { padding-top: 10px; }
+
 .fab {
   position: fixed; z-index: 10;
   right: max(18px, calc(50vw - 340px + 18px));
@@ -373,6 +376,7 @@ body.dragging { cursor: grabbing; }
   .fab { right: max(32px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); bottom: 32px; }
   .select-bar { left: var(--rail); bottom: 0; padding-left: max(24px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); padding-right: max(24px, calc((100vw - var(--rail) - 760px) / 2 + 24px)); }
   .toast { bottom: 110px; margin-left: calc(var(--rail) / 2); }
+  .reminder { width: auto; margin: 16px 0 0; }
 
   .card:hover, .row-item:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
   .row-item:hover { background: color-mix(in srgb, var(--bg) 60%, var(--surface)); }

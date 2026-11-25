@@ -367,9 +367,10 @@ export const useDragging = () => !!useDrag();
 
 /** ドロップ先を探す: data-drop(フォルダID or 'root') と data-drop-scope を持つ要素 */
 function dropTarget(x: number, y: number, item: ItemRef) {
-  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop],[data-drop-group]');
-  // 人はグループのチップにも落とせる(グループに追加。フォルダは変わらない)
-  if (el?.dataset.dropGroup) return item.kind === 'person' ? { id: el.dataset.dropGroup, name: el.dataset.dropName ?? '', el, group: true } : null;
+  // 人はグループ(data-drop-group)の上にも落とせる。グループに入る(フォルダは変わらない)
+  const g = item.kind === 'person' ? document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-group]') : null;
+  if (g) return { id: g.dataset.dropGroup!, name: g.dataset.dropName ?? '', el: g, group: true };
+  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop]');
   if (!el || el.dataset.dropScope !== item.scope) return null;
   const id = el.dataset.drop === 'root' ? null : el.dataset.drop!;
   if (item.kind === 'folder' && id === item.id) return null;
@@ -404,13 +405,13 @@ function DragLayer() {
   return (
     <div className="drag-ghost" style={{ left: d.x, top: d.y }}>
       {d.item.kind === 'folder' ? '▤ ' : ''}{d.item.label}
-      {d.over && <span className="drag-to">{d.over.group ? '＋' : '→'} {d.over.name}</span>}
+      {d.over && <span className="drag-to">→ {d.over.name}</span>}
     </div>
   );
 }
 
 /** ドロップ先の要素につける属性 */
-/** 人を落とせるグループのチップにつける属性 */
+/** 人をドラッグで入れられるグループ */
 export const groupDropProps = (id: ID, name: string) => ({ 'data-drop-group': id, 'data-drop-name': name });
 
 export const dropProps = (scope: FolderScope, id: ID | null, name: string) => ({
