@@ -4,7 +4,8 @@ import { go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup, getManifest } from './backupUi';
 import { useAiSettings } from './AiTools';
-import { FEATURE_KEYS, useFeatures } from './features';
+import { FEATURE_KEYS, FEATURE_LABELS, setFeature, useFeatures } from './features';
+import { REWARD_CREDITS, RewardAd, useCredits } from './ads';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
 export function SettingsScreen() {
@@ -19,6 +20,8 @@ export function SettingsScreen() {
   const [manifest, setManifest] = useState(getManifest());
   const changes = useMemo(() => diffSince(data, manifest).count, [data, manifest]);
   const feat = useFeatures();
+  const credits = useCredits();
+  const [watching, setWatching] = useState(false);
   const [ai] = useAiSettings();
   const [withImages, setWithImages] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -101,6 +104,24 @@ export function SettingsScreen() {
             <span className="chev">›</span>
           </li>
         </ul>
+
+        <section className="panel" id="premium">
+          <h2>{t('有料機能（プレミアム）')}</h2>
+          <p className="muted small">{t('将来は月額課金で使える予定の機能です。今はお試しで誰でも切り替えられます。')}</p>
+          <label className="toggle feature">
+            <input type="checkbox" checked={feat.noAds} onChange={(e) => setFeature('noAds', e.target.checked)} />
+            <span>
+              {t(FEATURE_LABELS.noAds.label)}
+              <span className="muted small block-note">{t(FEATURE_LABELS.noAds.note)}</span>
+            </span>
+          </label>
+          <div className="credit-row">
+            <span>{t('AIクレジット')} <b>{credits}</b></span>
+            <button className="btn small-btn" onClick={() => setWatching(true)}>{t('動画広告を見て{n}クレジットもらう', { n: REWARD_CREDITS })}</button>
+          </div>
+          <p className="muted small">{t('クレジットは今後のAI機能で使う予定です（今はまだ減りません）。')}</p>
+          {watching && <RewardAd onClose={() => setWatching(false)} />}
+        </section>
 
         {feat.import && <section className="panel">
           <h2>{t('他のアプリから取り込む')}</h2>

@@ -15,6 +15,7 @@ import { ProfileFieldsScreen } from './profile';
 import { t, useLang } from '../i18n';
 import { Fab, createItems } from './fab';
 import { useFeatures } from './features';
+import { AdBanner } from './ads';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
@@ -122,8 +123,9 @@ function Shell() {
   });
 
   return (
-    <div className="app">
+    <div className={`app${feat.noAds ? '' : ' with-ad'}`}>
       <main className="main">{screen}</main>
+      {!feat.noAds && <AdBanner />}
       {showFab && <Fab label={fabLabel} onTap={fabTap} items={fabItems} />}
       <nav className="tabbar">
         {TABS.map((tb) => (
