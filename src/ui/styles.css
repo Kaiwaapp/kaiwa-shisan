@@ -414,4 +414,3 @@ body.dragging { cursor: grabbing; }
 .chips.quick .chip { padding: 4px 11px; font-size: 13.5px; }
 .group-members { margin-top: 8px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 12px; align-items: center; }
 .dd-group .group-mark { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: var(--ink); color: var(--bg); }
-
