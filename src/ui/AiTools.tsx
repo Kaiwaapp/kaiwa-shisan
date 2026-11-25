@@ -200,7 +200,7 @@ export function AiSettingsPanel() {
       <p className="muted small">
         {t('スクショの文字起こし、話題・相手の提案、フォルダの整理をAI（Claude Haiku）が手伝います。APIキーがなければ「お試し表示」で画面と動きだけ確認できます。')}
       </p>
-      <label className="toggle main">
+      <label className="toggle toggle-main">
         <input type="checkbox" checked={s.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
         <span>{t('AI機能を使う')}</span>
       </label>

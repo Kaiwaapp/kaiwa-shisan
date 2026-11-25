@@ -4,8 +4,8 @@ import type { AppData } from '../core/types';
 import { go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup } from './backupUi';
-import { AiSettingsPanel } from './AiTools';
-import { FEATURE_KEYS, FEATURE_LABELS, setFeature, useFeatures } from './features';
+import { useAiSettings } from './AiTools';
+import { FEATURE_KEYS, useFeatures } from './features';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
 export function SettingsScreen() {
@@ -17,6 +17,7 @@ export function SettingsScreen() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [last, setLast] = useState(getLastBackup());
   const feat = useFeatures();
+  const [ai] = useAiSettings();
 
   useEffect(() => {
     navigator.storage?.persisted?.().then(setPersisted).catch(() => setPersisted(null));
@@ -71,22 +72,16 @@ export function SettingsScreen() {
           </select>
         </section>
 
-        <section className="panel">
-          <h2>{t('使う機能')}</h2>
-          <p className="muted small">{t('使わない機能はオフにすると画面に出なくなります。オフにしてもデータは消えず、オンに戻せば元どおり出ます。')}</p>
-          <div className="feature-toggles">
-            {FEATURE_KEYS.map((k) => (
-              <label key={k} className="toggle feature">
-                <input type="checkbox" checked={feat[k]} onChange={(e) => setFeature(k, e.target.checked)} />
-                <span>
-                  {t(FEATURE_LABELS[k].label)}
-                  <span className="muted small block-note">{t(FEATURE_LABELS[k].note)}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-          <p className="muted small">{t('AI機能のオンオフは下の「AI機能（試作）」にあります。')}</p>
-        </section>
+        <ul className="rows">
+          <li className="row-item" onClick={() => go('/settings/features')}>
+            <span className="name">{t('使う機能')}</span>
+            <span className="sub">
+              {t('{n}/{total}個オン', { n: FEATURE_KEYS.filter((k) => feat[k]).length, total: FEATURE_KEYS.length })}
+              {t('・AI {v}', { v: ai.enabled ? t('オン') : t('オフ') })}
+            </span>
+            <span className="chev">›</span>
+          </li>
+        </ul>
 
         {feat.import && <section className="panel">
           <h2>{t('他のアプリから取り込む')}</h2>
@@ -117,8 +112,6 @@ export function SettingsScreen() {
           )}
           {msg && <p className="notice">{msg}</p>}
         </section>
-
-        <AiSettingsPanel />
 
         <section className="panel">
           <h2>{t('保存の状態')}</h2>

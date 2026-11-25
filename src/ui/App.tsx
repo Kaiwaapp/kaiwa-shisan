@@ -8,6 +8,7 @@ import { EntryEditor } from './EntryEditor';
 import { NewNameScreen } from './NewName';
 import { GroupScreen } from './groups';
 import { SettingsScreen } from './SettingsScreen';
+import { FeaturesScreen } from './FeaturesScreen';
 import { t, useLang } from '../i18n';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
@@ -74,7 +75,7 @@ function Shell() {
     else if (sub) screen = kind === 'person' ? <PersonScreen key={sub} id={sub} /> : <TopicScreen key={sub} id={sub} />;
     else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;
   }
-  else if (head === 'settings') screen = <SettingsScreen />;
+  else if (head === 'settings') screen = sub === 'features' ? <FeaturesScreen /> : <SettingsScreen />;
   else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen /></Suspense>;
   else if (head === 'organize') screen = <OrganizeScreen key={sub} scope={sub === 'person' || sub === 'topic' ? sub : 'entry'} />;
   else if (head === 'all') screen = <AllEntriesScreen key="all" />;

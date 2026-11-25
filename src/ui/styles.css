@@ -403,7 +403,7 @@ body.dragging { cursor: grabbing; }
 .toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
 .row-input { display: flex; gap: 8px; }
 .row-input input { flex: 1; min-width: 0; }
-.toggle.main { font-weight: 700; }
+.toggle.toggle-main { font-weight: 700; }
 .sub-toggles { display: flex; flex-direction: column; gap: 10px; padding-left: 30px; }
 .organize-group h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .badge-new { font-size: 11px; font-weight: 700; color: var(--topic); background: var(--topic-soft); border-radius: 999px; padding: 2px 8px; }
