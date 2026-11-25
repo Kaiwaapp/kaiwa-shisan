@@ -5,6 +5,7 @@ import { back, go, useData, usePref, useStore } from './hooks';
 import { ComboPicker, Header, SortSelect } from './components';
 import { NameRows, useNameItems } from './screens';
 import { t } from '../i18n';
+import { groupDropProps } from './interact';
 
 // 人のグループ。フォルダ(1人1か所・入れ子)と違い、タグのように1人を複数のグループに入れられる。
 
@@ -60,7 +61,7 @@ export function GroupBar() {
       ) : (
         <div className="chips folders">
           {groups.map((g) => (
-            <button key={g.id} className="chip group" onClick={() => go(groupHref(g.id))}>
+            <button key={g.id} className="chip group" {...groupDropProps(g.id, g.name)} onClick={() => go(groupHref(g.id))}>
               {g.name} <span className="n">{counts.get(g.id) ?? 0}</span>
             </button>
           ))}
