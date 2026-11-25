@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Repository } from './repository';
-import type { AppData, Entry, Folder, Group, Person, Topic } from './types';
+import type { AppData, Entry, EntryImage, Folder, Group, Person, Topic } from './types';
 
 interface Schema extends DBSchema {
   people: { key: string; value: Person };
@@ -8,9 +8,12 @@ interface Schema extends DBSchema {
   entries: { key: string; value: Entry };
   folders: { key: string; value: Folder };
   groups: { key: string; value: Group };
+  /** 添付画像。loadAll では読まない(一覧の読み込みを重くしないため) */
+  images: { key: string; value: EntryImage };
 }
 
 const STORES = ['people', 'topics', 'entries', 'folders', 'groups'] as const;
+const ALL_STORES = [...STORES, 'images'] as const;
 
 /**
  * 開く処理が返ってこないときに、並行して開き直すまでの待ち時間(ミリ秒)。
@@ -38,9 +41,9 @@ export class IdbRepository implements Repository {
   constructor(private name = 'kaiwa-shisan') {}
 
   private openOnce(onLost: () => void): Promise<IDBPDatabase<Schema>> {
-    return openDB<Schema>(this.name, 3, {
+    return openDB<Schema>(this.name, 4, {
       upgrade(db) {
-        for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
+        for (const s of ALL_STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
       },
       terminated: onLost,
     });
@@ -124,6 +127,11 @@ export class IdbRepository implements Repository {
   async deleteFolder(id: string) { await this.run((db) => db.delete('folders', id)); }
   async putGroup(g: Group) { await this.run((db) => db.put('groups', g)); }
   async deleteGroup(id: string) { await this.run((db) => db.delete('groups', id)); }
+
+  async putImage(img: EntryImage) { await this.run((db) => db.put('images', img)); }
+  getImage(id: string) { return this.run((db) => db.get('images', id)); }
+  async deleteImage(id: string) { await this.run((db) => db.delete('images', id)); }
+  imageIds() { return this.run((db) => db.getAllKeys('images')); }
 
   replaceAll(data: AppData) {
     return this.run((db) => this.writeAll(db, data));

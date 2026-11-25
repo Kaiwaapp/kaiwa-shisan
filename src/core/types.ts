@@ -81,6 +81,22 @@ export interface Entry {
   favorite?: boolean;
   /** 削除した日時。あるものは「最近削除した項目」にあり、30日で完全に消える */
   deletedAt?: number;
+  /** 添付した画像(EntryImage の id、並び順どおり)。画像そのものは別の保存場所に置く */
+  imageIds?: ID[];
+}
+
+/**
+ * 記録に添付した画像。一覧の読み込みを軽くするため、記録とは別の保存場所に置き、開いたときだけ読む。
+ * 端末の中だけに保存する(縮小・JPEG圧縮したもの)
+ */
+export interface EntryImage {
+  id: ID;
+  /** MIMEタイプ(通常 image/jpeg) */
+  type: string;
+  data: ArrayBuffer;
+  width: number;
+  height: number;
+  createdAt: number;
 }
 
 export type FolderScope = 'entry' | 'person' | 'topic';

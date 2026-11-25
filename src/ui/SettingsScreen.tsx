@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { parseBackup } from '../core/backup';
-import type { AppData } from '../core/types';
+import type { BackupData } from '../core/backup';
 import { go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup } from './backupUi';
@@ -12,11 +12,14 @@ export function SettingsScreen() {
   const data = useData();
   const store = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState<AppData | null>(null);
+  const [pending, setPending] = useState<BackupData | null>(null);
   const [msg, setMsg] = useState('');
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [last, setLast] = useState(getLastBackup());
   const feat = useFeatures();
+  const [withImages, setWithImages] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const imageCount = data.entries.reduce((n, e) => n + (e.imageIds?.length ?? 0), 0);
 
   useEffect(() => {
     navigator.storage?.persisted?.().then(setPersisted).catch(() => setPersisted(null));
@@ -26,7 +29,13 @@ export function SettingsScreen() {
     matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
 
   const onExport = async () => {
-    const r = await exportBackup(data);
+    setExporting(true);
+    let r: Awaited<ReturnType<typeof exportBackup>>;
+    try {
+      r = await exportBackup(data, withImages && imageCount ? await store.imagesOf(data.entries) : undefined);
+    } finally {
+      setExporting(false);
+    }
     if (r !== 'cancelled') {
       setLast(getLastBackup());
       setMsg(t('バックアップを書き出しました'));
@@ -102,13 +111,23 @@ export function SettingsScreen() {
           <p className="muted small">
             {t('最終バックアップ: {d}', { d: last ? new Date(last).toLocaleString(locale()) : t('まだありません') })}
           </p>
-          <button className="btn primary block" onClick={onExport}>{t('バックアップを書き出す')}</button>
+          {imageCount > 0 && (
+            <label className="toggle">
+              <input type="checkbox" checked={withImages} onChange={(e) => setWithImages(e.target.checked)} />
+              <span>
+                {t('添付画像も含める（{n}枚）', { n: imageCount })}
+                <span className="muted small block-note">{t('画像を含めるとファイルが大きくなります')}</span>
+              </span>
+            </label>
+          )}
+          <button className="btn primary block" disabled={exporting} onClick={onExport}>{exporting ? t('書き出し中…') : t('バックアップを書き出す')}</button>
           <button className="btn block" onClick={() => fileRef.current?.click()}>{t('バックアップから読み込む')}</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => onFile(e.target.files?.[0])} />
           {pending && (
             <div className="confirm">
               <p>
                 {t('読み込むファイル: 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個', { e: pending.entries.length, p: pending.people.length, t: pending.topics.length, f: pending.folders.length })}
+                {!!pending.images?.length && <>{t('・画像{n}枚', { n: pending.images.length })}</>}
               </p>
               <button className="btn primary block" onClick={() => apply('merge')}>{t('今のデータに統合する')}</button>
               <button className="btn danger block" onClick={() => apply('replace')}>{t('今のデータを置き換える')}</button>

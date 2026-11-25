@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { today, type ID } from '../core/types';
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react';
+import { today, type EntryImage, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
 import { ComboPicker, FavButton, FavToggle, Header } from './components';
 import { copyText } from './interact';
@@ -7,6 +7,7 @@ import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
 import { t } from '../i18n';
 import { useFeatures } from './features';
+import { compressImage, ImageStrip } from './images';
 
 
 export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
@@ -37,6 +38,27 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   const [newFav, setNewFav] = useState(false);
   const [aiTopicIds, setAiTopicIds] = useState<ID[]>([]);
   const [aiNewTopics, setAiNewTopics] = useState<string[]>([]);
+  // 添付画像。新しく付けた画像は保存するまで端末に書き込まない(キャンセルしたら残らない)
+  const [imageIds, setImageIds] = useState<ID[]>(existing?.imageIds ?? []);
+  const [pendingImages, setPendingImages] = useState<Map<ID, EntryImage>>(() => new Map());
+  const [imgBusy, setImgBusy] = useState(0);
+  const [imgErr, setImgErr] = useState('');
+  const imgInput = useRef<HTMLInputElement>(null);
+  const attachImages = async (files: Blob[]) => {
+    setImgErr('');
+    setImgBusy((n) => n + files.length);
+    for (const f of files) {
+      try {
+        const img = await compressImage(f);
+        setPendingImages((m) => new Map(m).set(img.id, img));
+        setImageIds((xs) => [...xs, img.id]);
+      } catch (e) {
+        setImgErr((e as Error).message || t('画像を読み込めませんでした'));
+      } finally {
+        setImgBusy((n) => n - 1);
+      }
+    }
+  };
 
   // 候補は「最後に選択した順」。まだ選んだことがなければ、最後に記録で使った日時
   const used = useMemo(() => {
@@ -73,6 +95,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
         store.markSelected('person', found.id);
       } else setNewPeople((xs) => (xs.some((x) => nameIs(x, name)) ? xs : [...xs, name]));
     },
+    attachImage: feat.images ? (img) => { void attachImages([img]); } : undefined,
     addTopic: (name) => {
       const found = data.topics.find((t) => nameIs(t.name, name));
       if (found) {
@@ -95,13 +118,22 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     );
   }
 
-  const canSave = (text.trim().length > 0 || title.trim().length > 0) && !saving;
+  const canSave = (text.trim().length > 0 || title.trim().length > 0) && !saving && imgBusy === 0;
+  // 画像の貼り付け: AIの文字起こしがオンならそちら(設定により画像も添付)、オフなら画像として添付
+  const onPaste = (e: ClipboardEvent) => {
+    ai.onPaste(e);
+    if (e.isDefaultPrevented() || !feat.images) return;
+    const files = [...e.clipboardData.items].filter((i) => i.type.startsWith('image/')).map((i) => i.getAsFile()).filter((f): f is File => !!f);
+    if (!files.length) return;
+    e.preventDefault();
+    void attachImages(files);
+  };
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
     // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
-    await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, ...(existing ? {} : { favorite: newFav }) }, id);
+    await store.saveEntry({ title, text, personIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, imageIds, newImages: [...pendingImages.values()], ...(existing ? {} : { favorite: newFav }) }, id);
     back();
   };
   const remove = async () => {
@@ -144,13 +176,37 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           className="textarea"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onPaste={ai.onPaste}
+          onPaste={onPaste}
           placeholder={t('話した内容を自由に書く')}
           autoFocus={!existing}
           rows={6}
         />
         {feat.copy && text.trim() && (
           <button type="button" className="link small-link copy-line" onClick={() => copyText(text)}>{t('⧉ 本文をコピー')}</button>
+        )}
+        {feat.images && (
+          <div className="img-field">
+            <ImageStrip ids={imageIds} pending={pendingImages} onRemove={(x) => setImageIds((xs) => xs.filter((y) => y !== x))} />
+            <button type="button" className="btn small" disabled={imgBusy > 0} onClick={() => imgInput.current?.click()}>
+              {imgBusy > 0 ? t('画像を準備中…') : t('🖼 画像を添付')}
+            </button>
+            <input
+              ref={imgInput}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                const files = [...(e.target.files ?? [])];
+                e.target.value = '';
+                if (files.length) void attachImages(files);
+              }}
+            />
+            {imgErr && <p className="ai-msg error">{imgErr}</p>}
+          </div>
+        )}
+        {!feat.images && imageIds.length > 0 && (
+          <p className="muted small">{t('画像{n}枚が付いています（「使う機能」で画像の添付をオンにすると表示されます）', { n: imageIds.length })}</p>
         )}
         {ai.panel}
         <section className="field">

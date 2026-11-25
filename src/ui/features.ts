@@ -15,11 +15,13 @@ export interface Features {
   title: boolean;
   /** 一覧・編集画面のコピーボタン */
   copy: boolean;
+  /** 記録への画像の添付 */
+  images: boolean;
   /** 設定の「他のアプリから取り込む」 */
   import: boolean;
 }
 
-export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'copy', 'import'] as const;
+export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'copy', 'images', 'import'] as const;
 
 /** 設定画面に出す名前と説明(表示時に t() を通す) */
 export const FEATURE_LABELS: Record<keyof Features, { label: string; note: string }> = {
@@ -29,11 +31,12 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   recent: { label: '直近の候補', note: '記録の相手・話題の入力欄の下に出す最近の候補' },
   title: { label: '記録のタイトル', note: '記録の編集画面のタイトル欄' },
   copy: { label: 'コピーボタン', note: '一覧と編集画面の本文コピーボタン' },
+  images: { label: '画像の添付', note: '記録に写真やスクショを添付する機能' },
   import: { label: '他のアプリから取り込む', note: '設定の取り込みの項目' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, copy: true, import: true };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, copy: true, images: true, import: true };
 
 const load = (): Features => {
   try {
