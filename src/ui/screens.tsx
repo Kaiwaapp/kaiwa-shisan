@@ -12,6 +12,7 @@ import type { Folder } from '../core/types';
 import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
+import { useFeatures } from './features';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
@@ -26,10 +27,14 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
   const folder = folderId ? folders.find((f) => f.id === folderId) : undefined;
   const selecting = useInteract().sel.active;
   const trash = useTrash();
+  const feat = useFeatures();
+  // フォルダ機能オフ: 一番上でフォルダを出さず、全部の記録を並べる
+  const flat = !feat.folders && !folderId;
 
   useEffect(() => { if (folderId) store.markViewed('folder', folderId); }, [store, folderId]);
   // フォルダも同じ並べ替えで並べる(話した日は中の記録から)
   const children = useMemo(() => {
+    if (flat) return [];
     const kids = folders.filter((f) => f.parentId === folderId);
     const span = new Map<ID, { first: string; last: string; edited: number }>();
     for (const k of kids) {
@@ -53,12 +58,12 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
         default: return sb.last.localeCompare(sa.last) || byName(a, b);
       }
     });
-  }, [data.entries, folders, folderId, sort]);
+  }, [data.entries, folders, folderId, sort, flat]);
   const path = useMemo(() => folderPath(folders, folderId), [folders, folderId]);
   const deepCount = useMemo(() => makeDeepCount(folders, data.entries), [folders, data.entries]);
   const memos = useMemo(
-    () => sortEntriesBy(data.entries.filter((e) => e.folderId === folderId), sort),
-    [data.entries, folderId, sort],
+    () => sortEntriesBy(flat ? data.entries : data.entries.filter((e) => e.folderId === folderId), sort),
+    [data.entries, folderId, sort, flat],
   );
   // 検索はこのフォルダ以下すべて(一番上なら全体)が対象
   const results = useMemo(() => {
@@ -100,7 +105,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t('{n}件', { n: memos.length })}
                 </span>
                 <span className="toolbar-right">
-                  {!adding && !selecting && <button className="link small-link" onClick={() => setAdding(true)}>{t('＋ フォルダ')}</button>}
+                  {!adding && !selecting && !flat && <button className="link small-link" onClick={() => setAdding(true)}>{t('＋ フォルダ')}</button>}
                   <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
                 </span>
               </div>
@@ -256,6 +261,7 @@ function NameRow({ kind, x, sort, showFolder }: {
   const item: ItemRef = { kind, id: x.id, label: (kind === 'topic' ? '#' : '') + x.name, scope: kind };
   const { lifted, handlers } = usePress(item, () => go(base + x.id));
   const selecting = useInteract().sel.active;
+  const feat = useFeatures();
   return (
     <li className={`row-item pressable with-fav ${lifted ? 'lifted' : ''}`} {...handlers}>
       <span className={kind === 'topic' ? 'name topic-name' : 'name'}>
@@ -263,10 +269,10 @@ function NameRow({ kind, x, sort, showFolder }: {
         {x.pinned && <span className="pin">📌</span>}
         {kind === 'topic' ? '#' : ''}{x.name}
         {x.reading && <span className="reading">{x.reading}</span>}
-        {showFolder && x.folderId && (
+        {showFolder && feat.folders && x.folderId && (
           <span className="reading">▤ {folderPath(data.folders, x.folderId).map((f) => f.name).join(' / ')}</span>
         )}
-        {kind === 'person' && (x as { groupIds?: ID[] }).groupIds?.length ? (
+        {feat.groups && kind === 'person' && (x as { groupIds?: ID[] }).groupIds?.length ? (
           <span className="reading">{groupsOf(data.groups, x as { groupIds?: ID[] }).map((g) => g.name).join('・')}</span>
         ) : null}
       </span>
@@ -315,10 +321,13 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
   useEffect(() => { if (folderId) store.markViewed('folder', folderId); }, [store, folderId]);
   const label = kind === 'person' ? t('人') : t('話題');
   const unit = kind === 'person' ? '{n}人' : '{n}件';
+  const feat = useFeatures();
+  const flat = !feat.folders && !folderId;
 
   const path = useMemo(() => folderPath(folders, folderId), [folders, folderId]);
   const deepCount = useMemo(() => makeDeepCount(folders, kind === 'person' ? data.people : data.topics), [folders, data, kind]);
   const children = useMemo(() => {
+    if (flat) return [];
     const kids = folders.filter((f) => f.parentId === folderId);
     const byName = (a: Folder, b: Folder) => a.name.localeCompare(b.name, 'ja');
     if (sort === 'viewed') return kids.sort((a, b) => lastSeen(b) - lastSeen(a) || byName(a, b));
@@ -333,8 +342,8 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
     return sort === 'first'
       ? kids.sort((a, b) => span(a.id, 'first').localeCompare(span(b.id, 'first')) || byName(a, b))
       : kids.sort((a, b) => span(b.id, 'last').localeCompare(span(a.id, 'last')) || byName(a, b));
-  }, [folders, folderId, sort, deepCount, all]);
-  const here = all.filter((x) => (x.folderId ?? null) === folderId);
+  }, [folders, folderId, sort, deepCount, all, flat]);
+  const here = flat ? all : all.filter((x) => (x.folderId ?? null) === folderId);
   const results = useMemo(() => {
     if (!q.trim()) return null;
     const scope = folderId ? new Set([folderId, ...folderDescendants(folders, folderId)]) : null;
@@ -382,13 +391,13 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
             </>
           ) : (
             <>
-              {kind === 'person' && !folderId && <GroupBar />}
+              {kind === 'person' && !folderId && feat.groups && <GroupBar />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t(unit, { n: here.length })}
                 </span>
                 <span className="toolbar-right">
-                  {!adding && !selecting && <button className="link small-link" onClick={() => setAdding(true)}>{t('＋ フォルダ')}</button>}
+                  {!adding && !selecting && !flat && <button className="link small-link" onClick={() => setAdding(true)}>{t('＋ フォルダ')}</button>}
                   <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
                 </span>
               </div>
@@ -487,6 +496,7 @@ function MergeBox({ kind, id, name }: { kind: 'person' | 'topic'; id: ID; name: 
 export function PersonScreen({ id }: { id: ID }) {
   const data = useData();
   const store = useStore();
+  const feat = useFeatures();
   const person = data.people.find((p) => p.id === id);
   useEffect(() => { store.markViewed('person', id); }, [store, id]);
   const [q, setQ] = useState('');
@@ -531,14 +541,14 @@ export function PersonScreen({ id }: { id: ID }) {
               <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder={t('例：たなか')} />
             </section>
           )}
-          <section className="field">
+          {feat.folders && <section className="field">
             <label>{t('フォルダ')}</label>
             <FolderSelect scope="person" value={pfolder} onChange={setPfolder} />
-          </section>
-          <section className="field">
+          </section>}
+          {feat.groups && <section className="field">
             <label>{t('グループ（いくつでも）')}</label>
             <GroupToggles value={pgroups} onChange={setPgroups} />
-          </section>
+          </section>}
           <section className="field">
             <label>{t('メモ（関係・好きなものなど）')}</label>
             <textarea className="textarea" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
@@ -557,7 +567,7 @@ export function PersonScreen({ id }: { id: ID }) {
         </div>
       ) : (
         <>
-          {(person.groupIds?.length ?? 0) > 0 && (
+          {feat.groups && (person.groupIds?.length ?? 0) > 0 && (
             <div className="chips person-groups">
               {groupsOf(data.groups, person).map((g) => (
                 <button key={g.id} className="chip group small" onClick={() => go(groupHref(g.id))}>{g.name}</button>
@@ -600,6 +610,7 @@ export function PersonScreen({ id }: { id: ID }) {
 export function TopicScreen({ id }: { id: ID }) {
   const data = useData();
   const store = useStore();
+  const feat = useFeatures();
   const topic = data.topics.find((t) => t.id === id);
   useEffect(() => { store.markViewed('topic', id); }, [store, id]);
   const [editing, setEditing] = useState(false);
@@ -637,10 +648,10 @@ export function TopicScreen({ id }: { id: ID }) {
               <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder={t('例：りょこう')} />
             </section>
           )}
-          <section className="field">
+          {feat.folders && <section className="field">
             <label>{t('フォルダ')}</label>
             <FolderSelect scope="topic" value={tfolder} onChange={setTfolder} />
-          </section>
+          </section>}
           <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updateTopic(id, { name: name.trim(), reading: reading.trim(), folderId: tfolder }); setEditing(false); }}>
             {t('保存')}
           </button>

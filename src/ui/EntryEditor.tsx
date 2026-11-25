@@ -6,6 +6,7 @@ import { copyText } from './interact';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
 import { t } from '../i18n';
+import { useFeatures } from './features';
 
 
 export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
@@ -18,6 +19,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
 }) {
   const store = useStore();
   const data = useData();
+  const feat = useFeatures();
   const existing = id ? data.entries.find((e) => e.id === id) : undefined;
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
   const [title, setTitle] = useState(existing?.title ?? '');
@@ -123,7 +125,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
         }
       />
       <div className="form">
-        <input
+        {feat.title && <input
           className="title-input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -137,7 +139,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           placeholder={t('タイトル（なくてもOK）')}
           aria-label={t('タイトル')}
           enterKeyHint="next"
-        />
+        />}
         <textarea
           className="textarea"
           value={text}
@@ -147,7 +149,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           autoFocus={!existing}
           rows={6}
         />
-        {text.trim() && (
+        {feat.copy && text.trim() && (
           <button type="button" className="link small-link copy-line" onClick={() => copyText(text)}>{t('⧉ 本文をコピー')}</button>
         )}
         {ai.panel}
@@ -156,8 +158,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           <ComboPicker
             kind="person"
             options={personOpts}
-            groups={groupOpts}
-            recent={5}
+            groups={feat.groups ? groupOpts : []}
+            recent={feat.recent ? 5 : 0}
             selected={personIds}
             newNames={newPeople}
             onChange={(s, n) => { pick('person', personIds, s); setPersonIds(s); setNewPeople(n); }}
@@ -168,7 +170,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           <ComboPicker
             kind="topic"
             options={topicOpts}
-            recent={5}
+            recent={feat.recent ? 5 : 0}
             selected={topicIds}
             newNames={newTopics}
             onChange={(s, n) => { pick('topic', topicIds, s); setTopicIds(s); setNewTopics(n); }}
