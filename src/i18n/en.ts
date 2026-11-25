@@ -232,6 +232,7 @@ const en: Record<string, string> = {
   '例：旅行': 'e.g. Travel',
   '「{name}」はもういます': '"{name}" already exists',
   '「{name}」はもうあります': '"{name}" already exists',
+  'メモ': 'Memo',
   'メモを編集': 'Edit memo',
   '＋ メモを書く': '+ Write a memo',
   // AI機能(試作)

@@ -6,7 +6,7 @@ import {
 } from '../core/search';
 import { back, formatDate, go, useData, usePref, useStore } from './hooks';
 import { folderDescendants, folderPath, foldersOf } from '../core/store';
-import { Crumbs, FolderEdit, FolderRows, FolderSelect, TitleIcons, UpButton, makeDeepCount, rootHref } from './folders';
+import { Crumbs, FoldHeader, FolderEdit, FolderRows, FolderSelect, TitleIcons, useFold, UpButton, makeDeepCount, rootHref } from './folders';
 import { SelectButton, SelectionBar, toast, useInteract, usePress, SelectMark, type ItemRef } from './interact';
 import type { Folder } from '../core/types';
 import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
@@ -504,6 +504,7 @@ export function PersonScreen({ id }: { id: ID }) {
   const [q, setQ] = useState('');
   const [sort, setSort] = usePref<EntrySort>('detailSort', 'newest');
   const [topicFilter, setTopicFilter] = useState<ID | null>(null);
+  const [entriesOpen, setEntriesOpen] = useFold('person-entries');
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [reading, setReading] = useState('');
@@ -576,10 +577,8 @@ export function PersonScreen({ id }: { id: ID }) {
               ))}
             </div>
           )}
-          <PersonMemo id={id} memo={person.memo} />
-          <div className="section-title">
-            {t('{name}に話したこと', { name: person.name })} <span className="muted">{t('{n}件', { n: mine.length })}</span>
-          </div>
+          <FoldHeader label={t('{name}に話したこと', { name: person.name })} count={mine.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
+          {entriesOpen && <>
           {topicCounts.length > 0 && (
             <div className="chips filter">
               {topicCounts.map(([tid, n]) => {
@@ -601,6 +600,9 @@ export function PersonScreen({ id }: { id: ID }) {
             </div>
           )}
           <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? t('該当なし') : t('まだ記録がありません')} />
+          </>}
+          <div className="section-title">{t('メモ')}</div>
+          <PersonMemo id={id} memo={person.memo} />
           <AddEntryFab to={`/new?person=${id}`} label={t('＋ {name}に話したことを記録', { name: person.name })} />
         </>
       )}
@@ -621,6 +623,7 @@ export function TopicScreen({ id }: { id: ID }) {
   const [tfolder, setTfolder] = useState<ID | null>(null);
   const [sort, setSort] = usePref<EntrySort>('detailSort', 'newest');
   const [personFilter, setPersonFilter] = useState<ID | null>(null);
+  const [entriesOpen, setEntriesOpen] = useFold('topic-entries');
 
   const entries = useMemo(() => data.entries.filter((e) => e.topics.some((t) => t.topicId === id)), [data, id]);
   const people = useMemo(() => {
@@ -684,11 +687,16 @@ export function TopicScreen({ id }: { id: ID }) {
           ) : (
             <p className="muted pad">{t('まだ誰にも話していません')}</p>
           )}
-          <div className="toolbar">
-            <span className="section-title inline">{t('この話題の記録')} <span className="muted">{t('{n}件', { n: entries.length })}</span></span>
-            {entries.length > 1 && <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />}
-          </div>
-          <EntryList entries={shown} data={data} hideTopicId={id} empty={t('まだ記録がありません')} />
+          <FoldHeader label={t('この話題の記録')} count={entries.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
+          {entriesOpen && <>
+            {entries.length > 1 && (
+              <div className="toolbar">
+                <span className="count">{t('{n}件', { n: shown.length })}</span>
+                <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
+              </div>
+            )}
+            <EntryList entries={shown} data={data} hideTopicId={id} empty={t('まだ記録がありません')} />
+          </>}
           <AddEntryFab to={`/new?topic=${id}`} label={t('＋ {name}の記録を追加', { name: '#' + topic.name })} />
         </>
       )}
