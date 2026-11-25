@@ -362,6 +362,9 @@ const setDrag = (d: Drag | null) => {
 };
 const useDrag = () => useSyncExternalStore((l) => { dragListeners.add(l); return () => { dragListeners.delete(l); }; }, () => drag);
 
+/** ドラッグ中かどうか(しまった欄をドラッグ中だけ開くため) */
+export const useDragging = () => !!useDrag();
+
 /** ドロップ先を探す: data-drop(フォルダID or 'root') と data-drop-scope を持つ要素 */
 function dropTarget(x: number, y: number, item: ItemRef) {
   // 人はグループ(data-drop-group)の上にも落とせる。グループに入る(フォルダは変わらない)

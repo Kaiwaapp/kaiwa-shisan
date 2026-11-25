@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Folder, FolderScope, ID } from '../core/types';
 import { folderDescendants, foldersOf } from '../core/store';
-import { go, useData, useStore } from './hooks';
-import { dropProps, SelectMark, useInteract, usePress, type ItemRef } from './interact';
+import { go, useData, usePref, useStore } from './hooks';
+import { dropProps, SelectMark, useDragging, useInteract, usePress, type ItemRef } from './interact';
 import { t } from '../i18n';
 import { useFeatures } from './features';
 
@@ -46,44 +46,75 @@ export function Crumbs({ scope, path }: { scope: FolderScope; path: Folder[] }) 
 }
 
 /** フォルダの行の一覧(子フォルダ・新規フォルダ入力)。「すべて」は見出しのアイコン(TitleIcons)から */
-export function FolderRows({ scope, folderId, children, count, adding, setAdding }: {
+/**
+ * しまえる欄の見出し「フォルダ 3 ▾」。開閉は端末に覚える(key ごと)。
+ * ドラッグ中はしまっていても中身を出して、フォルダへ落とせるようにする。
+ */
+export function useFold(key: string): [boolean, (v: boolean) => void] {
+  const [v, set] = usePref<'open' | 'closed'>('fold:' + key, 'open');
+  const dragging = useDragging();
+  return [v === 'open' || dragging, (open) => set(open ? 'open' : 'closed')];
+}
+
+export function FoldHeader({ label, count, open, onToggle }: { label: string; count?: number; open: boolean; onToggle: () => void }) {
+  return (
+    <button className="fold-header" aria-expanded={open} onClick={onToggle}>
+      <span className="fold-label">{label}</span>
+      {count !== undefined && <span className="n">{count}</span>}
+      <span className={'fold-chev' + (open ? ' open' : '')} aria-hidden>›</span>
+      {!open && <span className="fold-hint">{t('タップで表示')}</span>}
+    </button>
+  );
+}
+
+export function FolderRows({ scope, folderId, children, count, adding, setAdding, extra }: {
   scope: FolderScope;
   folderId: ID | null;
   children: Folder[];
   count: (id: ID) => number;
   adding: boolean;
   setAdding: (v: boolean) => void;
+  /** フォルダと一緒にしまう行(「最近削除した項目」など) */
+  extra?: ReactNode;
 }) {
   const store = useStore();
   const [name, setName] = useState('');
-  if (children.length === 0 && !adding) return null;
+  const [open, setOpen] = useFold('folders:' + scope);
+  if (children.length === 0 && !adding && !extra) return null;
   const create = async () => {
     if (!name.trim()) return;
     await store.addFolder(name, folderId, scope);
     setName('');
     setAdding(false);
   };
+  const shown = open || adding;
   return (
-    <ul className="rows folder-rows">
-      {children.map((f) => (
-        <FolderRow key={f.id} scope={scope} folder={f} count={count(f.id)} />
-      ))}
-      {adding && (
-        <li className="row-edit">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('新しいフォルダの名前')}
-            autoFocus
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) create(); }}
-          />
-          <div className="row-actions">
-            <button className="btn small primary" disabled={!name.trim()} onClick={create}>{t('作成')}</button>
-            <button className="btn small" onClick={() => { setAdding(false); setName(''); }}>{t('やめる')}</button>
-          </div>
-        </li>
+    <div className="folder-section">
+      <FoldHeader label={t('フォルダ')} count={children.length} open={shown} onToggle={() => { if (adding) setAdding(false); setOpen(!shown); }} />
+      {shown && (children.length > 0 || adding) && (
+        <ul className="rows folder-rows">
+          {children.map((f) => (
+            <FolderRow key={f.id} scope={scope} folder={f} count={count(f.id)} />
+          ))}
+          {adding && (
+            <li className="row-edit">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('新しいフォルダの名前')}
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) create(); }}
+              />
+              <div className="row-actions">
+                <button className="btn small primary" disabled={!name.trim()} onClick={create}>{t('作成')}</button>
+                <button className="btn small" onClick={() => { setAdding(false); setName(''); }}>{t('やめる')}</button>
+              </div>
+            </li>
+          )}
+        </ul>
       )}
-    </ul>
+      {shown && extra}
+    </div>
   );
 }
 
