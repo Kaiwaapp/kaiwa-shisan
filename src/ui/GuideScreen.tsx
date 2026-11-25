@@ -11,7 +11,7 @@ const GUIDE: { img: string; title: string; lead: string; spots: Spot[] }[] = [
     img: 'entries', title: '記録', lead: '話した内容を1件ずつためる画面',
     spots: [
       { x: 50, y: 10, text: '本文・人・話題で検索（読み仮名でも）' },
-      { x: 42, y: 15.5, text: 'フォルダを作って分ける' },
+      { x: 81.5, y: 3.2, text: 'フォルダを作って分ける' },
       { x: 90, y: 25.5, text: '☆でお気に入り。長押しで移動・並べ替え・削除' },
       { x: 88, y: 88, text: '＋で新しい記録' },
     ],
