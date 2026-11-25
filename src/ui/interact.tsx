@@ -371,6 +371,28 @@ function dropTarget(x: number, y: number, item: ItemRef) {
 
 function DragLayer() {
   const d = useDrag();
+  // 念のため: 指/マウスを離した後や画面を離れた後にドラッグ表示が残っていたら消す
+  useEffect(() => {
+    if (!d) return;
+    let timer = 0;
+    const later = () => { clearTimeout(timer); timer = window.setTimeout(() => { if (drag) setDrag(null); }, 300); };
+    const onTouchEnd = (e: TouchEvent) => { if (e.touches.length === 0) later(); };
+    const now = () => { if (drag) setDrag(null); };
+    const onVis = () => { if (document.hidden) now(); };
+    addEventListener('pointerup', later, true);
+    addEventListener('touchend', onTouchEnd, true);
+    addEventListener('hashchange', now);
+    addEventListener('blur', now);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearTimeout(timer);
+      removeEventListener('pointerup', later, true);
+      removeEventListener('touchend', onTouchEnd, true);
+      removeEventListener('hashchange', now);
+      removeEventListener('blur', now);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [!!d]);
   if (!d) return null;
   return (
     <div className="drag-ghost" style={{ left: d.x, top: d.y }}>
@@ -396,16 +418,84 @@ export function usePress(item: ItemRef, onTap: () => void) {
   const store = useStore();
   const st = useRef({ timer: 0, x: 0, y: 0, lifted: false, dragging: false, suppress: false, id: -1 });
   const [lifted, setLifted] = useState(false);
-
-  useEffect(() => () => clearTimeout(st.current.timer), []);
+  // 最新の値をドキュメントのリスナーから使えるように
+  const latest = useRef({ item, sel });
+  latest.current = { item, sel };
+  // ドキュメントに付けるリスナーは描画をまたいで同じ関数にする(外し漏れを防ぐ)
+  const impl = useRef({ move: (_e: TouchEvent) => {}, end: (_e: TouchEvent) => {}, cancel: () => {} });
+  const L = useRef({
+    block: (e: TouchEvent) => { if (st.current.lifted) e.preventDefault(); },
+    move: (e: TouchEvent) => impl.current.move(e),
+    end: (e: TouchEvent) => impl.current.end(e),
+    cancel: () => impl.current.cancel(),
+  }).current;
 
   const end = () => {
     clearTimeout(st.current.timer);
-    document.removeEventListener('touchmove', block);
+    // 持ち上げた後は画面がスクロールしないように付けていたもの
+    document.removeEventListener('touchmove', L.block);
+    document.removeEventListener('touchmove', L.move);
+    document.removeEventListener('touchend', L.end);
+    document.removeEventListener('touchcancel', L.cancel);
     setLifted(false);
   };
-  // 持ち上げた後は画面がスクロールしないように
-  function block(e: TouchEvent) { if (st.current.lifted) e.preventDefault(); }
+
+  // 画面から消えたら(フォルダを開いた・データが更新された等)ドラッグ表示も片付ける
+  useEffect(() => () => {
+    const s = st.current;
+    if (s.dragging && drag) setDrag(null);
+    s.lifted = false; s.dragging = false;
+    end();
+  }, []);
+
+  const moveAt = (x: number, y: number) => {
+    const s = st.current;
+    const dist = Math.hypot(x - s.x, y - s.y);
+    if (!s.lifted) {
+      if (dist > 10) end();
+      return;
+    }
+    if (!s.dragging && dist > 8) s.dragging = true;
+    if (s.dragging) {
+      const it = latest.current.item;
+      const t = dropTarget(x, y, it);
+      setDrag({ item: it, x, y, over: t && { id: t.id, name: t.name }, overEl: t?.el });
+    }
+  };
+  const finishNow = async (cancel: boolean) => {
+    const s = st.current;
+    const wasLifted = s.lifted;
+    const wasDragging = s.dragging;
+    end();
+    s.lifted = false;
+    s.dragging = false;
+    s.id = -1;
+    if (wasDragging) {
+      const over = drag?.over ?? null;
+      setDrag(null);
+      s.suppress = true;
+      if (over && !cancel) {
+        const { item: it, sel: sl } = latest.current;
+        const items = sl.active && sl.selected.has(itemKey(it)) ? [...sl.selected.values()] : [it];
+        await moveTo(store, items.filter((i) => i.scope === it.scope), over.id, over.name);
+      }
+    } else if (wasLifted && !cancel) {
+      s.suppress = true;
+      if (!latest.current.sel.active) openMenu(latest.current.item);
+    }
+  };
+  // iPhoneでは長押し中にポインタが取り消される(pointercancel)ことがあり、その後 pointerup が来ない。
+  // そうなったらタッチイベントで指を追い、指を離した時点でドロップ/片付けをする。
+  impl.current = {
+    move: (e) => {
+      const p = e.touches[0];
+      if (!p) return;
+      if (st.current.lifted && e.cancelable) e.preventDefault();
+      moveAt(p.clientX, p.clientY);
+    },
+    end: (e) => { if (e.touches.length === 0) void finishNow(false); },
+    cancel: () => { void finishNow(true); },
+  };
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -413,7 +503,7 @@ export function usePress(item: ItemRef, onTap: () => void) {
     s.x = e.clientX; s.y = e.clientY; s.lifted = false; s.dragging = false; s.suppress = false; s.id = e.pointerId;
     clearTimeout(s.timer);
     try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* noop */ }
-    document.addEventListener('touchmove', block, { passive: false });
+    document.addEventListener('touchmove', L.block, { passive: false });
     s.timer = window.setTimeout(() => {
       s.lifted = true;
       setLifted(true);
@@ -421,38 +511,12 @@ export function usePress(item: ItemRef, onTap: () => void) {
     }, 450);
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    const s = st.current;
-    if (e.pointerId !== s.id) return;
-    const dist = Math.hypot(e.clientX - s.x, e.clientY - s.y);
-    if (!s.lifted) {
-      if (dist > 10) end();
-      return;
-    }
-    if (!s.dragging && dist > 8) s.dragging = true;
-    if (s.dragging) {
-      const t = dropTarget(e.clientX, e.clientY, item);
-      setDrag({ item, x: e.clientX, y: e.clientY, over: t && { id: t.id, name: t.name }, overEl: t?.el });
-    }
+    if (e.pointerId !== st.current.id) return;
+    moveAt(e.clientX, e.clientY);
   };
-  const finish = async (e: React.PointerEvent, cancel = false) => {
-    const s = st.current;
-    if (e.pointerId !== s.id) return;
-    const wasLifted = s.lifted;
-    const wasDragging = s.dragging;
-    end();
-    s.lifted = false;
-    if (wasDragging) {
-      const over = drag?.over ?? null;
-      setDrag(null);
-      s.suppress = true;
-      if (over && !cancel) {
-        const items = sel.active && sel.selected.has(itemKey(item)) ? [...sel.selected.values()] : [item];
-        await moveTo(store, items.filter((i) => i.scope === item.scope), over.id, over.name);
-      }
-    } else if (wasLifted && !cancel) {
-      s.suppress = true;
-      if (!sel.active) openMenu(item);
-    }
+  const finish = (e: React.PointerEvent, cancel = false) => {
+    if (e.pointerId !== st.current.id) return;
+    void finishNow(cancel);
   };
   return {
     lifted,
@@ -461,9 +525,18 @@ export function usePress(item: ItemRef, onTap: () => void) {
       onPointerMove,
       onPointerUp: (e: React.PointerEvent) => finish(e),
       onPointerCancel: (e: React.PointerEvent) => {
+        const s = st.current;
+        if (e.pointerId !== s.id) return;
+        if (s.lifted && e.pointerType === 'touch') {
+          // 持ち上げ済みならタッチイベントで続きを追う(指を離せば必ず終わる)
+          s.id = -1;
+          document.addEventListener('touchmove', L.move, { passive: false });
+          document.addEventListener('touchend', L.end);
+          document.addEventListener('touchcancel', L.cancel);
+          return;
+        }
         // スクロールが始まったなどでキャンセルされた
-        if (st.current.dragging) return; // ドラッグ中はキャンセル扱いにしない(ポインタは追う)
-        finish(e, true);
+        void finishNow(true);
       },
       onContextMenu: (e: React.MouseEvent) => {
         e.preventDefault();
