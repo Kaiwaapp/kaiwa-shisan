@@ -50,6 +50,20 @@ const parse = (): Route => {
 
 let navDepth = 0;
 
+// 画面ごとのスクロール位置。新しく開いた画面は一番上から、戻った画面は元の位置から表示する
+const scrollPos = new Map<string, number>();
+let toTop = false;
+if (typeof window !== 'undefined') {
+  try { history.scrollRestoration = 'manual'; } catch { /* 古いブラウザ */ }
+  addEventListener('scroll', () => { scrollPos.set(location.hash, scrollY); }, { passive: true });
+  addEventListener('hashchange', () => {
+    const y = toTop ? 0 : scrollPos.get(location.hash) ?? 0;
+    toTop = false;
+    // 新しい画面が描かれてから動かす
+    requestAnimationFrame(() => requestAnimationFrame(() => scrollTo(0, y)));
+  });
+}
+
 export function useRoute(): Route {
   const [r, setR] = useState(parse);
   useEffect(() => {
@@ -62,6 +76,7 @@ export function useRoute(): Route {
 
 export const go = (to: string) => {
   navDepth++;
+  toTop = true;
   location.hash = to;
 };
 
@@ -77,6 +92,7 @@ export const back = (fallback = '/') => {
 
 export const switchTab = (key: string) => {
   navDepth = 0;
+  toTop = true;
   location.replace('#/' + key);
 };
 
