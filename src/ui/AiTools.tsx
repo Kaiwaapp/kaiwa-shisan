@@ -225,7 +225,7 @@ export function AiSettingsPanel() {
               <span>
                 {t('文字起こしした画像を話題に添付する')}
                 <span className="muted small block-note">
-                  {feat.images ? t('オフにすると、文字だけを話題に入れて画像は残しません') : t('「機能とカスタマイズ」で画像の添付がオフのため、今は添付されません')}
+                  {feat.images ? t('オフにすると、文字だけを話題に入れて画像は残しません') : t('設定の「話題」で画像の添付がオフのため、今は添付されません')}
                 </span>
               </span>
             </label>
