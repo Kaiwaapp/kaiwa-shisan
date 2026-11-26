@@ -44,7 +44,7 @@ export function useDiscardGuard(dirty: boolean, save?: () => Promise<boolean | v
         <input type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} />
         <span>{t('今後表示しない')}</span>
       </label>
-      {dontAsk && <p className="muted small sheet-note">{t('設定の「機能とカスタマイズ」でまた表示するようにできます')}</p>}
+      {dontAsk && <p className="muted small sheet-note">{t('設定の「話題」でまた表示するようにできます')}</p>}
       {save && <button className="sheet-item" onClick={async () => { const { leave } = pending; finish(); if ((await save()) !== false) leave(); }}><span className="ic">✓</span>{t('保存して戻る')}</button>}
       <button className="sheet-item danger" onClick={() => { const { leave } = pending; finish(); dirtyRef.current = false; leave(); }}><span className="ic">✕</span>{t('保存せずに戻る')}</button>
     </Sheet>
