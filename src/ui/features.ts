@@ -37,18 +37,20 @@ export interface Features {
   schedule: boolean;
   /** 話題タブの一番上に今日・明日の予定を出す */
   scheduleToday: boolean;
+  /** ToDoリスト(予定タブのToDoと、人の画面のToDo欄) */
+  todo: boolean;
   /** 有料機能(将来は月額課金): バナー広告を出さない。今は誰でも切り替えられる。設定画面の「有料機能」の欄に出す */
   noAds: boolean;
 }
 
-export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'relations', 'confirmDiscard', 'presetHint', 'schedule', 'scheduleToday'] as const;
+export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'relations', 'confirmDiscard', 'presetHint', 'schedule', 'scheduleToday', 'todo'] as const;
 
 /** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
   { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent'] },
   { key: 'person', title: '人', items: ['readingPerson', 'relations', 'groups', 'profile'] },
   { key: 'topic', title: 'タグ', items: ['readingTopic', 'presetHint'] },
-  { key: 'schedule', title: '予定', items: ['schedule', 'scheduleToday'] },
+  { key: 'schedule', title: '予定', items: ['schedule', 'scheduleToday', 'todo'] },
   { key: 'common', title: '全体', items: ['folders', 'favorites', 'import', 'confirmDiscard'] },
 ];
 
@@ -69,13 +71,14 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   readingTopic: { label: 'タグに入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   presetHint: { label: 'おすすめのタグの案内', note: 'タグタブに、用意したタグリストから登録する案内を出す' },
   schedule: { label: '予定', note: '予定タブと、人の画面の予定欄。予定に人を紐づけて、カレンダーやリストで見られます' },
-  scheduleToday: { label: '今日・明日の予定を表示', note: 'アプリを開いたとき、話題タブの一番上に今日と明日の予定を出す' },
+  scheduleToday: { label: '今日・明日の予定を表示', note: 'アプリを開いたとき、話題タブの一番上に今日と明日の予定と、期限が近いToDoを出す' },
+  todo: { label: 'ToDoリスト', note: '予定タブのToDoと、人の画面のToDo欄。人を紐づけたり期限を付けたりできます' },
   noAds: { label: 'バナー広告を表示しない', note: '画面下のバナー広告を消します。' },
   confirmDiscard: { label: '保存せずに戻るときの確認', note: '話題・人・タグ・予定などを入力・変更したまま戻るとき、保存されないことを確認する' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, noAds: false };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, todo: true, noAds: false };
 
 const load = (): Features => {
   try {
