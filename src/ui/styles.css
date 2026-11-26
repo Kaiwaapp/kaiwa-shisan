@@ -16,8 +16,9 @@
   --ad-h: 0px;
   color-scheme: light;
 }
+/* ダーク: 端末がダークで「ライト」指定でないとき、または「ダーク」指定のとき (設定 → 画面の色) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #171614;
     --surface: #22211e;
     --ink: #ece8df;
@@ -31,6 +32,20 @@
     --danger: #ff8a80;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #171614;
+  --surface: #22211e;
+  --ink: #ece8df;
+  --muted: #9c968a;
+  --line: #34322d;
+  --accent: #7cc3b1;
+  --fav: #f2c14e;
+  --accent-soft: #243832;
+  --topic: #e0a865;
+  --topic-soft: #3a2e1f;
+  --danger: #ff8a80;
+  color-scheme: dark;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); }
