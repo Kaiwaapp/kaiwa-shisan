@@ -1,7 +1,7 @@
-import type { AppData, Entry, EntryImage, Folder, Group, ID, Person, ScheduleEvent, Topic } from './types';
+import type { AppData, Entry, EntryImage, Folder, Group, ID, Person, ScheduleEvent, Todo, Topic } from './types';
 
 export const BACKUP_FORMAT = 'kaiwa-shisan-backup';
-export const BACKUP_VERSION = 5;
+export const BACKUP_VERSION = 6;
 
 /** バックアップの中の画像。JSONに入れるため中身はbase64 */
 export interface BackupImage extends Omit<EntryImage, 'data'> {
@@ -11,7 +11,7 @@ export interface BackupImage extends Omit<EntryImage, 'data'> {
 /** full: 一括(全部)。incremental: 増分(前回の書き出しから変わったものだけ) */
 export type BackupKind = 'full' | 'incremental';
 
-const COLLECTIONS = ['people', 'topics', 'entries', 'folders', 'groups', 'events'] as const;
+const COLLECTIONS = ['people', 'topics', 'entries', 'folders', 'groups', 'events', 'todos'] as const;
 type Collection = (typeof COLLECTIONS)[number];
 export type DeletedIds = Record<Collection, ID[]>;
 
@@ -55,7 +55,7 @@ export interface ParsedBackup {
   deleted: DeletedIds;
 }
 
-const emptyDeleted = (): DeletedIds => ({ people: [], topics: [], entries: [], folders: [], groups: [], events: [] });
+const emptyDeleted = (): DeletedIds => ({ people: [], topics: [], entries: [], folders: [], groups: [], events: [], todos: [] });
 
 export const toBackup = (data: AppData, images?: EntryImage[]): BackupFile => ({
   format: BACKUP_FORMAT,
@@ -67,6 +67,7 @@ export const toBackup = (data: AppData, images?: EntryImage[]): BackupFile => ({
   folders: data.folders,
   groups: data.groups,
   events: data.events ?? [],
+  todos: data.todos ?? [],
   ...(images ? { images: images.map((img) => ({ ...img, data: bufferToBase64(img.data) })) } : {}),
 });
 
@@ -95,6 +96,8 @@ export function readBackup(json: string): ParsedBackup {
     groups: Array.isArray(r.groups) ? (r.groups as Group[]) : [],
     // v4までのバックアップには予定がない
     events: Array.isArray(r.events) ? (r.events as ScheduleEvent[]) : [],
+    // v5までのバックアップにはToDoがない
+    todos: Array.isArray(r.todos) ? (r.todos as Todo[]) : [],
     // v3までのバックアップ・画像なしで書き出したものには画像がない
     images: Array.isArray(r.images)
       ? r.images.filter((i) => i && typeof i.id === 'string' && typeof i.data === 'string').map((i) => ({ ...i, data: base64ToBuffer(i.data) }))
@@ -141,7 +144,7 @@ export function makeManifest(data: AppData, at = Date.now()): ExportManifest {
 /** 前回の書き出し(manifest)からの変更。manifest がなければ全部が変更扱い */
 export function diffSince(data: AppData, manifest: ExportManifest | null): { changed: AppData; deleted: DeletedIds; count: number } {
   const prev = manifest?.items ?? {};
-  const changed: AppData = { people: [], topics: [], entries: [], folders: [], groups: [], events: [] };
+  const changed: AppData = { people: [], topics: [], entries: [], folders: [], groups: [], events: [], todos: [] };
   const deleted = emptyDeleted();
   const seen = new Set<string>();
   let count = 0;
@@ -205,6 +208,7 @@ export function applyIncremental(current: AppData, file: ParsedBackup, now = Dat
     folders: drop(put(current.folders, file.data.folders), file.deleted.folders),
     groups: drop(put(current.groups ?? [], file.data.groups), file.deleted.groups),
     events: drop(put(current.events ?? [], file.data.events ?? []), file.deleted.events),
+    todos: drop(put(current.todos ?? [], file.data.todos ?? []), file.deleted.todos),
   };
 }
 
@@ -225,5 +229,6 @@ export function mergeData(current: AppData, incoming: AppData): AppData {
     folders: merge(current.folders, incoming.folders),
     groups: merge(current.groups ?? [], incoming.groups ?? []),
     events: merge(current.events ?? [], incoming.events ?? []),
+    todos: merge(current.todos ?? [], incoming.todos ?? []),
   };
 }

@@ -1,5 +1,5 @@
 // 予定の並べ替え・絞り込みと、カレンダー用ファイル(.ics)の作成。React非依存
-import { entryHasPerson, type Person, type ScheduleEvent } from './types';
+import { entryHasPerson, type Person, type ScheduleEvent, type Todo } from './types';
 
 /** 日付+時刻で並べる(終日は同じ日の先頭) */
 export const eventKey = (e: Pick<ScheduleEvent, 'date' | 'time'>) => `${e.date} ${e.time ?? ''}`;
@@ -78,3 +78,13 @@ export function toIcs(events: ScheduleEvent[], names: (e: ScheduleEvent) => stri
   lines.push('END:VCALENDAR');
   return lines.map(fold).join('\r\n') + '\r\n';
 }
+
+// ---- ToDo ----
+/** その人のToDo(直接、またはグループのメンバーとして) */
+export const todosOf = (todos: Todo[], p: Pick<Person, 'id' | 'groupIds'>) =>
+  todos.filter((x) => entryHasPerson({ personIds: x.personIds, groupIds: x.groupIds }, p));
+
+/** 終わっていないToDo。期限のあるものを期限の近い順に上、期限なしは新しい順に下 */
+export const openTodos = (todos: Todo[]) =>
+  todos.filter((x) => !x.done).sort((a, b) =>
+    a.due && b.due ? a.due.localeCompare(b.due) || b.createdAt - a.createdAt : a.due ? -1 : b.due ? 1 : b.createdAt - a.createdAt);

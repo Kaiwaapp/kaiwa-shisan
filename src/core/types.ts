@@ -205,6 +205,21 @@ export interface ScheduleEvent {
   updatedAt: number;
 }
 
+/** ToDo 1件。人(複数)・グループに紐づけられる */
+export interface Todo {
+  id: ID;
+  text: string;
+  done: boolean;
+  /** 完了にした日時 */
+  doneAt?: number;
+  /** 期限 (YYYY-MM-DD) */
+  due?: string;
+  personIds: ID[];
+  groupIds?: ID[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AppData {
   people: Person[];
   topics: Topic[];
@@ -213,6 +228,8 @@ export interface AppData {
   groups: Group[];
   /** 予定。古いデータ・バックアップにはない */
   events?: ScheduleEvent[];
+  /** ToDo。古いデータ・バックアップにはない */
+  todos?: Todo[];
 }
 
 export const newId = (): ID =>
