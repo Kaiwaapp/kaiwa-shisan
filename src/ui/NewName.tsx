@@ -7,6 +7,7 @@ import { Header } from './components';
 import { currentLang, t } from '../i18n';
 import { useAutoReading } from './reading';
 import { setFeature, useFeatures } from './features';
+import { RelationPicker } from './RelationParts';
 
 /** 人タブ・タグタブの右下「＋」から開く、人／タグの新規追加画面 */
 export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; folderId: ID | null }) {
@@ -14,10 +15,12 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
   const data = useData();
   const [name, setName] = useState('');
   const [memo, setMemo] = useState('');
+  const [relation, setRelation] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
   // 設定の人・タグの欄と同じチェック。ここで変えると設定にも反映される
   const readingKey = kind === 'person' ? 'readingPerson' : 'readingTopic';
-  const autoOn = useFeatures()[readingKey];
+  const feat = useFeatures();
+  const autoOn = feat[readingKey];
   const clean = name.trim().replace(kind === 'topic' ? /^#/ : /^$/, '');
   const { reading, setReading, isAuto } = useAutoReading(clean, '', autoOn);
   const list = kind === 'person' ? data.people : data.topics;
@@ -32,7 +35,8 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
     let id: ID;
     if (kind === 'person') {
       const p = await store.addPerson(clean, folderId, [], asNew);
-      if (reading.trim() || memo.trim()) await store.updatePerson(p.id, { reading: reading.trim(), memo });
+      const rel = feat.relations && relation ? { relation } : {};
+      if (reading.trim() || memo.trim() || rel.relation) await store.updatePerson(p.id, { reading: reading.trim(), memo, ...rel });
       id = p.id;
     } else {
       const x = await store.addTopic(clean, folderId);
@@ -66,6 +70,12 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
             <button type="button" className="link small-link" disabled={saving} onClick={() => save(true)}>{t('＋「{name}」を別の人として追加', { name: clean })}</button>
           )}
         </section>
+        {kind === 'person' && feat.relations && (
+          <section className="field">
+            <label>{t('関係')}</label>
+            <RelationPicker value={relation} onChange={setRelation} />
+          </section>
+        )}
         {currentLang() === 'ja' && (
           <section className="field">
             <label>{t('読み仮名（検索用）')}</label>
