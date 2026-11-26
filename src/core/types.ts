@@ -180,12 +180,37 @@ export interface Folder {
   order?: number;
 }
 
+/** 予定の通知(カレンダーに書き出したときのアラーム)。start=開始時刻(終日は当日9時)、1h=1時間前、1d=前日(終日は前日9時) */
+export type EventAlarm = 'start' | '1h' | '1d';
+
+/** 予定1件。人(複数)・グループに紐づけられる */
+export interface ScheduleEvent {
+  id: ID;
+  title: string;
+  /** 日付 (YYYY-MM-DD) */
+  date: string;
+  /** 開始時刻 (HH:MM)。なければ終日 */
+  time?: string;
+  /** 終了時刻 (HH:MM)。開始時刻があるときだけ */
+  endTime?: string;
+  personIds: ID[];
+  groupIds?: ID[];
+  place?: string;
+  /** 話したいこと・メモ */
+  memo?: string;
+  alarm?: EventAlarm;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AppData {
   people: Person[];
   topics: Topic[];
   entries: Entry[];
   folders: Folder[];
   groups: Group[];
+  /** 予定。古いデータ・バックアップにはない */
+  events?: ScheduleEvent[];
 }
 
 export const newId = (): ID =>
