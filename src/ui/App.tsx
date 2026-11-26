@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useCallback, useRef } from 'react';
 import { OrganizeScreen } from './OrganizeScreen';
 import type { Store } from '../core/store';
 import { StoreContext, go, switchTab, useLoadFailed, useLoaded, useRoute, useStore } from './hooks';
@@ -43,18 +43,46 @@ export function App({ store }: { store: Store }) {
   );
 }
 
+/* 中身が画面(タブバー・広告より上)に収まるときは、下の余白(タブバー・＋の分、編集画面の40px)を付けない。
+   余白を付けたままだと、収まっているのに少しだけスクロールできてしまう(予定のカレンダー、新規話題など)。.app に fits を付け、styles.css で余白を消す */
+function useFitRef() {
+  const stop = useRef<() => void>(() => {});
+  return useCallback((app: HTMLElement | null) => {
+    stop.current();
+    stop.current = () => {};
+    if (!app) return;
+    const check = () => {
+      const padded = app.querySelector<HTMLElement>(':scope > .main, .screen.editor');
+      if (!padded) return;
+      let limit = window.innerHeight;
+      app.querySelectorAll<HTMLElement>(':scope > .tabbar, :scope > .ad-banner').forEach((b) => { limit = Math.min(limit, b.getBoundingClientRect().top); });
+      const pad = parseFloat(getComputedStyle(padded).paddingBottom) || 0;
+      const bottom = padded.getBoundingClientRect().top + window.scrollY + padded.scrollHeight - pad;
+      app.classList.toggle('fits', bottom <= limit);
+    };
+    const ro = new ResizeObserver(check);
+    const watch = () => { ro.disconnect(); ro.observe(app); for (const c of Array.from(app.children)) ro.observe(c); check(); };
+    const mo = new MutationObserver(watch);
+    mo.observe(app, { childList: true });
+    window.addEventListener('resize', check);
+    stop.current = () => { ro.disconnect(); mo.disconnect(); window.removeEventListener('resize', check); };
+    watch();
+  }, []);
+}
+
 function Shell() {
   const loaded = useLoaded();
   const { path, query } = useRoute();
   const selecting = useInteract().sel.active;
   const feat = useFeatures();
+  const fitRef = useFitRef();
   const [head, sub] = path;
 
   if (!loaded) return <Loading />;
 
   if (head === 'new' || head === 'edit') {
     return (
-      <div className="app editor-app">
+      <div className="app editor-app" ref={fitRef}>
         <EntryEditor
           key={path.join('/') + query.toString()}
           id={head === 'edit' ? sub : undefined}
@@ -69,7 +97,7 @@ function Shell() {
 
   if (head === 'event' && sub) {
     return (
-      <div className="app editor-app">
+      <div className="app editor-app" ref={fitRef}>
         <EventEditor
           key={path.join('/') + query.toString()}
           id={sub === 'new' ? undefined : sub}
@@ -83,7 +111,7 @@ function Shell() {
 
   if ((head === 'people' || head === 'topics') && sub === 'new') {
     return (
-      <div className="app editor-app">
+      <div className="app editor-app" ref={fitRef}>
         <NewNameScreen kind={head === 'people' ? 'person' : 'topic'} folderId={query.get('folder')} />
       </div>
     );
@@ -91,7 +119,7 @@ function Shell() {
 
   if (head === 'topics' && sub === 'presets') {
     return (
-      <div className="app editor-app">
+      <div className="app editor-app" ref={fitRef}>
         <PresetTopicsScreen />
       </div>
     );
@@ -149,7 +177,7 @@ function Shell() {
   });
 
   return (
-    <div className={`app${feat.noAds ? '' : ' with-ad'}`}>
+    <div className={`app${feat.noAds ? '' : ' with-ad'}`} ref={fitRef}>
       <main className="main">{screen}</main>
       {!feat.noAds && <AdBanner />}
       {showFab && <Fab label={fabLabel} onTap={fabTap} items={fabItems} />}
