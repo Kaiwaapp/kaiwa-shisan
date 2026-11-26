@@ -72,9 +72,11 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
 /** 記録の見出し1行+続き1行(はみ出しは「…」)。続きがなければ見出しを2行まで折り返す */
 export function EntryPreview({ entry, pinned }: { entry: Entry; pinned?: boolean }) {
   const { head, rest } = entryPreview(entry);
+  // タイトルがない時は本文の冒頭なので太字にしない
+  const plain = !entry.title?.trim();
   return (
     <>
-      <div className={`card-head ${rest ? '' : 'two'} ${head ? '' : 'muted'}`}>
+      <div className={`card-head ${rest ? '' : 'two'} ${head ? '' : 'muted'} ${plain ? 'plain' : ''}`}>
         {pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
         {head || t('（本文なし）')}
       </div>
