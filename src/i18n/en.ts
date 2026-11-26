@@ -576,6 +576,11 @@ const en: Record<string, string> = {
   '自分のこと・価値観': 'About me & values',
   '仕事・学生時代': 'Work & school',
   '話のタイプ': 'Kinds of stories',
+  '見本の記録・人・話題を消します。自分で書いた記録は消えません。よろしいですか？': 'Remove the sample entries, people and topics? Entries you wrote stay.',
+  '見本を消しました': 'Samples removed',
+  '見本の記録・人・話題が入っています。使い方がわかったら消してください。': 'Sample entries, people and topics are included. Remove them once you get the hang of it.',
+  '見本を消す': 'Remove samples',
+  '見本を入れる': 'Add samples',
 };
 
 export default en;

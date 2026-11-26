@@ -2,6 +2,7 @@ import type { Repository } from './repository';
 import { applyIncremental, mergeData, type ParsedBackup } from './backup';
 import { newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type Topic, mergeProfiles } from './types';
 import { normalize, reorderValues } from './search';
+import { buildSamples } from './samples';
 
 type Listener = () => void;
 
@@ -317,7 +318,7 @@ export class Store {
   async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds' | 'profile'>>) {
     const p = this.data.people.find((x) => x.id === id);
     if (!p) return;
-    const next = { ...p, ...patch, updatedAt: Date.now() };
+    const next = { ...p, ...patch, sample: undefined, updatedAt: Date.now() };
     await this.repo.putPerson(next);
     this.set({ ...this.data, people: this.data.people.map((x) => (x.id === id ? next : x)) });
   }
@@ -441,7 +442,7 @@ export class Store {
   async updateTopic(id: ID, patch: Partial<Pick<Topic, 'name' | 'reading' | 'folderId'>>) {
     const t = this.data.topics.find((x) => x.id === id);
     if (!t) return;
-    const next = { ...t, ...patch, updatedAt: Date.now() };
+    const next = { ...t, ...patch, sample: undefined, updatedAt: Date.now() };
     await this.repo.putTopic(next);
     this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
   }
@@ -449,7 +450,7 @@ export class Store {
   async renameTopic(id: ID, name: string, reading?: string) {
     const t = this.data.topics.find((x) => x.id === id);
     if (!t) return;
-    const next = { ...t, name: name.trim(), reading: reading ?? t.reading, updatedAt: Date.now() };
+    const next = { ...t, name: name.trim(), reading: reading ?? t.reading, sample: undefined, updatedAt: Date.now() };
     await this.repo.putTopic(next);
     this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
   }
@@ -733,6 +734,74 @@ export class Store {
   async gcImages() {
     const used = new Set(this.data.entries.flatMap((e) => e.imageIds ?? []));
     for (const id of await this.repo.imageIds()) if (!used.has(id)) await this.repo.deleteImage(id);
+  }
+
+  // ---- 見本(初回に入れる記録・人・話題) ----
+  /** 何も入っていないか(最近削除した項目も含めて) */
+  get isEmpty(): boolean {
+    const d = this.data;
+    return !d.entries.length && !d.people.length && !d.topics.length && !d.folders.length && !d.groups.length;
+  }
+
+  /** 見本が残っているか */
+  get hasSamples(): boolean {
+    const d = this.data;
+    return d.entries.some((e) => e.sample) || d.people.some((p) => p.sample) || d.topics.some((t) => t.sample);
+  }
+
+  /** 見本を入れる。同じ名前の人・話題がすでにあれば、その人・話題は作らずに使う */
+  async addSamples(now = Date.now()) {
+    const s = buildSamples(now);
+    const pid = new Map<ID, ID>();
+    const tid = new Map<ID, ID>();
+    const people: Person[] = [];
+    const topics: Topic[] = [];
+    for (const p of s.people) {
+      const ex = this.data.people.find((x) => x.name === p.name);
+      if (ex) pid.set(p.id, ex.id); else { pid.set(p.id, p.id); people.push(p); }
+    }
+    for (const t of s.topics) {
+      const ex = this.findTopicByName(t.name);
+      if (ex) tid.set(t.id, ex.id); else { tid.set(t.id, t.id); topics.push(t); }
+    }
+    const entries = s.entries.map((e) => ({
+      ...e,
+      personIds: e.personIds.map((x) => pid.get(x) ?? x),
+      topics: e.topics.map((x) => ({ ...x, topicId: tid.get(x.topicId) ?? x.topicId })),
+    }));
+    for (const p of people) await this.repo.putPerson(p);
+    for (const t of topics) await this.repo.putTopic(t);
+    for (const e of entries) await this.repo.putEntry(e);
+    this.set({ ...this.data, people: [...this.data.people, ...people], topics: [...this.data.topics, ...topics], entries: [...this.data.entries, ...entries] });
+  }
+
+  /**
+   * 見本だけを消す。ユーザーが編集した記録は見本ではなくなっているので残る。
+   * 見本の人・話題がユーザーの記録に使われていたら、消さずに普通の人・話題にする
+   */
+  async removeSamples() {
+    const d = this.data;
+    const kept = d.entries.filter((e) => !e.sample);
+    const usedP = new Set(kept.flatMap((e) => e.personIds));
+    const usedT = new Set(kept.flatMap((e) => e.topics.map((x) => x.topicId)));
+    for (const e of d.entries) {
+      if (!e.sample) continue;
+      for (const img of e.imageIds ?? []) await this.repo.deleteImage(img).catch(() => {});
+      await this.repo.deleteEntry(e.id);
+    }
+    const people: Person[] = [];
+    for (const p of d.people) {
+      if (!p.sample) { people.push(p); continue; }
+      if (usedP.has(p.id)) { const n = { ...p, sample: undefined }; await this.repo.putPerson(n); people.push(n); }
+      else await this.repo.deletePerson(p.id);
+    }
+    const topics: Topic[] = [];
+    for (const t of d.topics) {
+      if (!t.sample) { topics.push(t); continue; }
+      if (usedT.has(t.id)) { const n = { ...t, sample: undefined }; await this.repo.putTopic(n); topics.push(n); }
+      else await this.repo.deleteTopic(t.id);
+    }
+    this.set({ ...d, entries: kept, people, topics });
   }
 
   // ---- バックアップ ----
