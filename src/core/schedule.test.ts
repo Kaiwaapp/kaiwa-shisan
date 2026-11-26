@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { Store } from './store';
 import { IdbRepository } from './idbRepository';
 import { parseBackup, toBackup } from './backup';
-import { eventsOf, openTodos, splitByDate, toIcs, todosOf } from './schedule';
+import { eventsOf, openTodos, splitByDate, toIcs, todoMarks, todosOf } from './schedule';
 
 let n = 0;
 const fresh = async (name = 'sched-' + n++) => {
@@ -84,5 +84,15 @@ describe('予定', () => {
     expect(parseBackup(JSON.stringify(toBackup(s2.snapshot))).todos).toHaveLength(3);
     await s2.deleteTodos([t3.id]);
     expect(s2.snapshot.todos).toHaveLength(2);
+  });
+
+  it('ToDoの開始日・期限を予定に出す印', () => {
+    const base = { personIds: [], done: false, createdAt: 0, updatedAt: 0 };
+    const m = todoMarks([
+      { ...base, id: 'a', text: 'a', start: '2026-12-01', due: '2026-12-05' },
+      { ...base, id: 'b', text: 'b', start: '2026-12-02', due: '2026-12-02' },
+      { ...base, id: 'c', text: 'c' },
+    ]);
+    expect(m.map((x) => `${x.todo.id}:${x.mark}:${x.date}`)).toEqual(['a:start:2026-12-01', 'a:due:2026-12-05', 'b:due:2026-12-02']);
   });
 });

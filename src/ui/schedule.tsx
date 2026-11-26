@@ -5,7 +5,7 @@ import { useDiscardGuard } from './discard';
 import { today, type AppData, type EventAlarm, type ID, type ScheduleEvent, type Todo } from '../core/types';
 import { addDays, eventsOf, sortEvents, splitByDate, toIcs } from '../core/schedule';
 import { back, go, useData, usePref, useStore } from './hooks';
-import { openTodos, todosOf } from '../core/schedule';
+import { openTodos, todoMarks, todosOf, type TodoMark } from '../core/schedule';
 import { ComboPicker, Header, sameNameHints } from './components';
 import { FoldHeader, useFold } from './folders';
 import { useFeatures } from './features';
@@ -83,7 +83,7 @@ export function ScheduleScreen({ todo }: { todo?: boolean }) {
         </div>
       )}
       {todo ? <TodoView newHref="/todo/new" /> : <>
-        <ScheduleView events={events} newHref="/event/new" />
+        <ScheduleView events={events} todos={feat.todo ? data.todos : undefined} newHref="/event/new" />
         <p className="muted small schedule-note">{t('「カレンダーへ」で、これからの予定をiPhoneなどのカレンダーに追加できます（.icsファイル）。')}</p>
       </>}
     </div>
@@ -93,20 +93,39 @@ export function ScheduleScreen({ todo }: { todo?: boolean }) {
 /** 人の画面の「予定」欄 */
 export function PersonSchedule({ person }: { person: { id: ID; name: string; groupIds?: ID[] } }) {
   const data = useData();
+  const feat = useFeatures();
   const [open, setOpen] = useFold('person-schedule');
   const mine = useMemo(() => eventsOf(data.events ?? [], person), [data.events, person]);
+  const myTodos = useMemo(() => (feat.todo ? todosOf(data.todos ?? [], person) : undefined), [feat.todo, data.todos, person]);
   const upcoming = useMemo(() => splitByDate(mine, today()).upcoming, [mine]);
   const next = upcoming[0];
   return (
     <>
       <FoldHeader label={t('予定')} count={upcoming.length} open={open} onToggle={() => setOpen(!open)} />
       {!open && next && <EventRow e={next} data={data} hidePersonId={person.id} withDate />}
-      {open && <ScheduleView events={mine} newHref={`/event/new?person=${person.id}`} hidePersonId={person.id} compact />}
+      {open && <ScheduleView events={mine} todos={myTodos} newHref={`/event/new?person=${person.id}`} hidePersonId={person.id} compact />}
     </>
   );
 }
 
-function ScheduleView({ events, newHref, hidePersonId, compact }: { events: ScheduleEvent[]; newHref: string; hidePersonId?: ID; compact?: boolean }) {
+/** 1日の中に並べるもの: 予定、またはToDo(開始日・期限の日) */
+type DayItem = { date: string; event: ScheduleEvent } | (TodoMark & { event?: undefined });
+
+/** 予定と、開始日・期限のあるToDoを日付順に。同じ日は予定(時刻順)のあとにToDo */
+function dayItems(events: ScheduleEvent[], todos: Todo[] | undefined): DayItem[] {
+  const items: DayItem[] = [...sortEvents(events).map((e) => ({ date: e.date, event: e })), ...todoMarks(todos ?? [])];
+  return items.sort((a, b) => a.date.localeCompare(b.date) || (a.event ? 0 : 1) - (b.event ? 0 : 1));
+}
+
+const itemKey = (it: DayItem) => (it.event ? it.event.id : it.todo.id + it.mark);
+
+function ItemRow({ it, data, hidePersonId }: { it: DayItem; data: AppData; hidePersonId?: ID }) {
+  return it.event
+    ? <EventRow e={it.event} data={data} hidePersonId={hidePersonId} />
+    : <TodoRow x={it.todo} data={data} hidePersonId={hidePersonId} mark={it.mark} />;
+}
+
+function ScheduleView({ events, todos, newHref, hidePersonId, compact }: { events: ScheduleEvent[]; todos?: Todo[]; newHref: string; hidePersonId?: ID; compact?: boolean }) {
   const [view, setView] = usePref<'calendar' | 'list'>('scheduleView', 'calendar');
   const add = (date?: string) => go(newHref + (date ? (newHref.includes('?') ? '&' : '?') + 'date=' + date : ''));
   return (
@@ -119,22 +138,22 @@ function ScheduleView({ events, newHref, hidePersonId, compact }: { events: Sche
         {compact && <button className="link" onClick={() => add()}>{t('＋ 予定を追加')}</button>}
       </div>
       {view === 'calendar'
-        ? <MonthView events={events} hidePersonId={hidePersonId} onAdd={add} />
-        : <ListView events={events} hidePersonId={hidePersonId} />}
+        ? <MonthView events={events} todos={todos} hidePersonId={hidePersonId} onAdd={add} />
+        : <ListView events={events} todos={todos} hidePersonId={hidePersonId} />}
     </div>
   );
 }
 
-function MonthView({ events, hidePersonId, onAdd }: { events: ScheduleEvent[]; hidePersonId?: ID; onAdd: (date: string) => void }) {
+function MonthView({ events, todos, hidePersonId, onAdd }: { events: ScheduleEvent[]; todos?: Todo[]; hidePersonId?: ID; onAdd: (date: string) => void }) {
   const data = useData();
   const now = today();
   const [sel, setSel] = useState(now);
   const [month, setMonth] = useState(now.slice(0, 7));
   const byDay = useMemo(() => {
-    const m = new Map<string, ScheduleEvent[]>();
-    for (const e of sortEvents(events)) m.set(e.date, [...(m.get(e.date) ?? []), e]);
+    const m = new Map<string, DayItem[]>();
+    for (const it of dayItems(events, todos)) m.set(it.date, [...(m.get(it.date) ?? []), it]);
     return m;
-  }, [events]);
+  }, [events, todos]);
   const [y, mo] = month.split('-').map(Number);
   const first = new Date(y, mo - 1, 1);
   const days = new Date(y, mo, 0).getDate();
@@ -173,28 +192,32 @@ function MonthView({ events, hidePersonId, onAdd }: { events: ScheduleEvent[]; h
         <button className="link small-link" onClick={() => onAdd(sel)}>{t('＋ この日に追加')}</button>
       </div>
       {dayEvents.length
-        ? <div className="list">{dayEvents.map((e) => <EventRow key={e.id} e={e} data={data} hidePersonId={hidePersonId} />)}</div>
+        ? <div className="list">{dayEvents.map((it) => <ItemRow key={itemKey(it)} it={it} data={data} hidePersonId={hidePersonId} />)}</div>
         : <p className="muted small schedule-empty">{t('予定はありません')}</p>}
     </>
   );
 }
 
-function ListView({ events, hidePersonId }: { events: ScheduleEvent[]; hidePersonId?: ID }) {
+function ListView({ events, todos, hidePersonId }: { events: ScheduleEvent[]; todos?: Todo[]; hidePersonId?: ID }) {
   const data = useData();
-  const { upcoming, past } = useMemo(() => splitByDate(events, today()), [events]);
+  const { upcoming, past } = useMemo(() => {
+    const now = today();
+    const all = dayItems(events, todos);
+    return { upcoming: all.filter((x) => x.date >= now), past: all.filter((x) => x.date < now).reverse() };
+  }, [events, todos]);
   const [pastOpen, setPastOpen] = useState(false);
-  const groups = (xs: ScheduleEvent[]) => {
-    const out: [string, ScheduleEvent[]][] = [];
+  const groups = (xs: DayItem[]) => {
+    const out: [string, DayItem[]][] = [];
     for (const e of xs) {
       const last = out[out.length - 1];
       if (last && last[0] === e.date) last[1].push(e); else out.push([e.date, [e]]);
     }
     return out;
   };
-  const render = (xs: ScheduleEvent[]) => groups(xs).map(([d, es]) => (
+  const render = (xs: DayItem[]) => groups(xs).map(([d, es]) => (
     <div key={d}>
       <div className="section-title">{dayLabel(d)}</div>
-      <div className="list">{es.map((e) => <EventRow key={e.id} e={e} data={data} hidePersonId={hidePersonId} />)}</div>
+      <div className="list">{es.map((it) => <ItemRow key={itemKey(it)} it={it} data={data} hidePersonId={hidePersonId} />)}</div>
     </div>
   ));
   return (
@@ -292,7 +315,7 @@ function TodoView({ todos, personId, hidePersonId, newHref }: { todos?: Todo[]; 
         />
         <button className="btn small" disabled={!draft.trim()} onClick={add}>{t('追加')}</button>
       </div>
-      <div className="todo-more"><button className="link small-link" onClick={() => go(newHref)}>{t('＋ 期限や相手を付けて追加')}</button></div>
+      <div className="todo-more"><button className="link small-link" onClick={() => go(newHref)}>{t('＋ 開始日・期限や相手を付けて追加')}</button></div>
       {open.length
         ? <div className="list">{open.map((x) => <TodoRow key={x.id} x={x} data={data} hidePersonId={hidePersonId} />)}</div>
         : <p className="muted small schedule-empty">{t('やることはありません')}</p>}
@@ -312,7 +335,8 @@ function TodoView({ todos, personId, hidePersonId, newHref }: { todos?: Todo[]; 
   );
 }
 
-function TodoRow({ x, data, hidePersonId }: { x: Todo; data: AppData; hidePersonId?: ID }) {
+/** mark: 予定のカレンダー・リストに出すとき、その日が開始日か期限か */
+function TodoRow({ x, data, hidePersonId, mark }: { x: Todo; data: AppData; hidePersonId?: ID; mark?: 'start' | 'due' }) {
   const store = useStore();
   const hints = sameNameHints(data.people, data.groups);
   const groups = (x.groupIds ?? []).map((id) => data.groups.find((g) => g.id === id)).filter(Boolean);
@@ -328,10 +352,12 @@ function TodoRow({ x, data, hidePersonId }: { x: Todo; data: AppData; hidePerson
         onClick={() => store.setTodoDone(x.id, !x.done)}
       ><span className="todo-circle" aria-hidden>{x.done ? '✓' : ''}</span></button>
       <button className="todo-body" onClick={() => go(`/todo/${x.id}`)}>
+        {mark && <span className="event-time">{mark === 'start' ? t('ToDo・開始') : t('ToDo・期限')}</span>}
         <span className="todo-text">{x.text}</span>
-        {(x.due || groups.length > 0 || people.length > 0) && (
+        {((!mark && (x.start || x.due)) || groups.length > 0 || people.length > 0) && (
           <span className="card-meta">
-            {x.due && <span className={`date${overdue ? ' overdue' : ''}`}>{t('期限 {d}', { d: dayLabel(x.due) })}</span>}
+            {!mark && x.start && x.start !== x.due && <span className="date">{t('開始 {d}', { d: dayLabel(x.start) })}</span>}
+            {!mark && x.due && <span className={`date${overdue ? ' overdue' : ''}`}>{t('期限 {d}', { d: dayLabel(x.due) })}</span>}
             {groups.map((g) => <span key={g!.id} className="chip group small">{g!.name}</span>)}
             {people.map((p) => <span key={p!.id} className="chip person small">{p!.name}{hints.get(p!.id) && <span className="hint">（{hints.get(p!.id)}）</span>}</span>)}
           </span>
@@ -347,6 +373,7 @@ export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID 
   const feat = useFeatures();
   const existing = id ? data.todos?.find((x) => x.id === id) : undefined;
   const [text, setText] = useState(existing?.text ?? '');
+  const [start, setStart] = useState(existing?.start ?? '');
   const [due, setDue] = useState(existing?.due ?? '');
   const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (initialPerson ? [initialPerson] : []));
   const [groupIds, setGroupIds] = useState<ID[]>(() => existing?.groupIds ?? []);
@@ -359,7 +386,7 @@ export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID 
     for (const p of data.people) for (const g of p.groupIds ?? []) count.set(g, (count.get(g) ?? 0) + 1);
     return data.groups.map((g) => ({ id: g.id, name: g.name, count: count.get(g.id) ?? 0, rank: g.selectedAt ?? g.createdAt }));
   }, [data.groups, data.people]);
-  const snap = JSON.stringify([text, due, personIds, groupIds, newPeople]);
+  const snap = JSON.stringify([text, start, due, personIds, groupIds, newPeople]);
   const [initial] = useState(snap);
   const guardSave = useRef<() => Promise<boolean>>(async () => false);
   const { guard, sheet } = useDiscardGuard(!saving && snap !== initial, text.trim() ? () => guardSave.current() : undefined);
@@ -377,7 +404,7 @@ export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID 
     if (!canSave) return false;
     setSaving(true);
     try {
-      await store.saveTodo({ text, due: due || undefined, personIds, groupIds: feat.groups ? groupIds : existing?.groupIds, newPeople }, id);
+      await store.saveTodo({ text, start: start || undefined, due: due || undefined, personIds, groupIds: feat.groups ? groupIds : existing?.groupIds, newPeople }, id);
       return true;
     } catch {
       toast(t('保存できませんでした。もう一度お試しください'));
@@ -418,12 +445,21 @@ export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID 
           />
         </section>
         <section className="field row">
+          <label htmlFor="todoStart">{t('開始日')}</label>
+          <span className="time-range">
+            <input id="todoStart" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            {start ? <button className="link small-link" onClick={() => setStart('')}>{t('開始日なしにする')}</button> : <span className="muted small">{t('なくてもOK')}</span>}
+          </span>
+        </section>
+        <section className="field row">
           <label htmlFor="todoDue">{t('期限')}</label>
           <span className="time-range">
             <input id="todoDue" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
             {due ? <button className="link small-link" onClick={() => setDue('')}>{t('期限なしにする')}</button> : <span className="muted small">{t('なくてもOK')}</span>}
           </span>
         </section>
+        {start && due && start > due && <p className="ai-msg error">{t('開始日が期限より後になっています')}</p>}
+        {(start || due) && <p className="muted small">{t('開始日・期限の日に、予定のカレンダーとリストにも表示されます。')}</p>}
         {existing && (
           <button className="btn block" onClick={() => store.setTodoDone(existing.id, !existing.done)}>{existing.done ? t('未完了に戻す') : t('✓ 完了にする')}</button>
         )}

@@ -758,7 +758,7 @@ const en: Record<string, string> = {
   "期限が近いToDo": "To-dos due soon",
   "期限なしにする": "Remove due date",
   "未完了に戻す": "Mark not done",
-  "＋ 期限や相手を付けて追加": "+ Add with due date or people",
+  "＋ 開始日・期限や相手を付けて追加": "+ Add with dates or people",
   "今日・明日の予定と期限が近いToDoがあると一番上に出る": "Today's and tomorrow's plans and to-dos due soon show at the top",
   "見本には「#見本」タグが付いている。「見本を消す」で消せる（自分で書いた話題は残る）": "Samples have the \"#見本\" (sample) tag. Remove them with \"Remove samples\" (your own topics stay)",
   "見本の案内は「今後表示しない」で閉じられる": "Hide the sample notice with \"Don't show again\"",
@@ -773,6 +773,13 @@ const en: Record<string, string> = {
   "終わったらチェックで完了": "Check it off when done",
   "相手を付けたToDoは、人の画面のToDo欄にも出る": "To-dos with a person also show on that person's screen",
   "期限が近いToDoは、話題タブの一番上にも出る": "To-dos due soon also show at the top of the Topics tab",
+  "ToDo・期限": "To-do · due",
+  "ToDo・開始": "To-do · start",
+  "開始 {d}": "Starts {d}",
+  "開始日": "Start date",
+  "開始日が期限より後になっています": "The start date is after the due date",
+  "開始日なしにする": "Remove start date",
+  "開始日・期限の日に、予定のカレンダーとリストにも表示されます。": "It also shows in the schedule calendar and list on the start and due dates.",
 };
 
 export default en;

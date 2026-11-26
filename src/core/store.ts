@@ -408,7 +408,7 @@ export class Store {
   }
 
   // ---- ToDo ----
-  async saveTodo(input: { text: string; due?: string; personIds: ID[]; groupIds?: ID[]; newPeople?: string[] }, id?: ID): Promise<Todo> {
+  async saveTodo(input: { text: string; start?: string; due?: string; personIds: ID[]; groupIds?: ID[]; newPeople?: string[] }, id?: ID): Promise<Todo> {
     const now = Date.now();
     const prev = id ? this.data.todos!.find((x) => x.id === id) : undefined;
     const personIds = [...input.personIds];
@@ -420,6 +420,7 @@ export class Store {
       text: input.text.trim(),
       done: prev?.done ?? false,
       ...(prev?.doneAt ? { doneAt: prev.doneAt } : {}),
+      ...(input.start ? { start: input.start } : {}),
       ...(input.due ? { due: input.due } : {}),
       personIds: [...new Set(personIds)],
       ...(groupIds.length ? { groupIds } : {}),
