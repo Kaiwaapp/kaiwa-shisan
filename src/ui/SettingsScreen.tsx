@@ -6,6 +6,7 @@ import { exportBackup, getLastBackup, getManifest } from './backupUi';
 import { useAiSettings } from './AiTools';
 import { FEATURE_KEYS, FEATURE_LABELS, setFeature, useFeatures } from './features';
 import { REWARD_CREDITS, RewardAd, useCredits } from './ads';
+import { confirmRemoveSamples, useHasSamples } from './samples';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
 export function SettingsScreen() {
@@ -20,6 +21,7 @@ export function SettingsScreen() {
   const [manifest, setManifest] = useState(getManifest());
   const changes = useMemo(() => diffSince(data, manifest).count, [data, manifest]);
   const feat = useFeatures();
+  const hasSamples = useHasSamples();
   const credits = useCredits();
   const [watching, setWatching] = useState(false);
   const [ai] = useAiSettings();
@@ -103,6 +105,15 @@ export function SettingsScreen() {
             <span className="sub">{t('画面の構成と使える機能')}</span>
             <span className="chev">›</span>
           </li>
+          {hasSamples ? (
+            <li className="row-item" onClick={() => confirmRemoveSamples(store)}>
+              <span className="name">{t('見本を消す')}</span>
+            </li>
+          ) : (
+            <li className="row-item" onClick={async () => { await store.addSamples(); go('/'); }}>
+              <span className="name">{t('見本を入れる')}</span>
+            </li>
+          )}
         </ul>
 
         <section className="panel" id="premium">
