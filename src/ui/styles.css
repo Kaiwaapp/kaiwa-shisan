@@ -665,3 +665,6 @@ html.kb-open .ad-banner { display: none; }
 .todo-row.done .todo-text { text-decoration: line-through; color: var(--muted); }
 .date.overdue { color: var(--danger); font-weight: 700; }
 .todo-clear { align-self: flex-start; margin: 8px 2px; }
+.tab-icon { position: relative; }
+.tab-badge { position: absolute; top: -4px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e5483d; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.panel.press-hint { margin-top: 14px; }
