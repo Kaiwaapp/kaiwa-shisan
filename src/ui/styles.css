@@ -64,14 +64,12 @@ button:disabled { opacity: .4; cursor: default; }
 .loading { padding: 40vh 0; text-align: center; color: var(--muted); }
 .app { max-width: 680px; margin: 0 auto; min-height: 100dvh; }
 .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 16px); }
-/* 右下の＋がある画面だけ、最後の行が＋に隠れない分の余白を足す */
-.app:has(.fab) .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 88px); }
-/* 中身が画面に収まるときは下の余白なし(少しだけスクロールできてしまうのを防ぐ)。fits は App.tsx useFitRef。キーボード表示中(kb-open)の余白は残す */
-.app.fits .main, html:not(.kb-open) .app.fits .screen.editor { padding-bottom: 0; }
+/* 右下の＋がある画面だけ、最後の行が＋に隠れない分の余白を足す。中身が画面に収まる(fits、App.tsx useFitRef)ときは足さない(少しだけスクロールできてしまうので) */
+.app:has(.fab):not(.fits) .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 88px); }
 /* 中身が画面に収まるときに、iPhoneで引っぱって画面ごと動く(バウンス)のを止める */
 html, body { overscroll-behavior-y: none; }
 .screen { padding: 0 16px; }
-.screen.editor { padding-bottom: 40px; }
+.screen.editor { padding-bottom: calc(var(--safe-b) + 16px); } /* 下端・ホームバーにくっつかない最低限の余白 */
 /* 下の方の入力欄も上までスクロールでき、候補がキーボードに隠れないように */
 /* キーボードが出ている間だけ付ける(中身が画面に収まるときに、下の何もないところまでスクロールできないように)。kb-open は main.tsx */
 @media (pointer: coarse) { html.kb-open .screen.editor { padding-bottom: 60vh; } }

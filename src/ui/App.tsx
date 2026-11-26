@@ -43,8 +43,9 @@ export function App({ store }: { store: Store }) {
   );
 }
 
-/* 中身が画面(タブバー・広告より上)に収まるときは、下の余白(タブバー・＋の分、編集画面の40px)を付けない。
-   余白を付けたままだと、収まっているのに少しだけスクロールできてしまう(予定のカレンダー、新規話題など)。.app に fits を付け、styles.css で余白を消す */
+/* 中身が画面(タブバー・広告より上)に余白16px付きで収まるときは .app に fits を付け、＋ボタンの分の下の余白(88px)を付けない(styles.css)。
+   付けたままだと、収まっているのに少しだけスクロールできてしまう(予定のカレンダーなど)。最低限の余白16pxはいつも残す */
+const FIT_GAP = 16;
 function useFitRef() {
   const stop = useRef<() => void>(() => {});
   return useCallback((app: HTMLElement | null) => {
@@ -52,13 +53,13 @@ function useFitRef() {
     stop.current = () => {};
     if (!app) return;
     const check = () => {
-      const padded = app.querySelector<HTMLElement>(':scope > .main, .screen.editor');
+      const padded = app.querySelector<HTMLElement>(':scope > .main');
       if (!padded) return;
       let limit = window.innerHeight;
       app.querySelectorAll<HTMLElement>(':scope > .tabbar, :scope > .ad-banner').forEach((b) => { limit = Math.min(limit, b.getBoundingClientRect().top); });
       const pad = parseFloat(getComputedStyle(padded).paddingBottom) || 0;
       const bottom = padded.getBoundingClientRect().top + window.scrollY + padded.scrollHeight - pad;
-      app.classList.toggle('fits', bottom <= limit);
+      app.classList.toggle('fits', bottom + FIT_GAP <= limit);
     };
     const ro = new ResizeObserver(check);
     const watch = () => { ro.disconnect(); ro.observe(app); for (const c of Array.from(app.children)) ro.observe(c); check(); };
