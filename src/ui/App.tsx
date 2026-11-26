@@ -16,6 +16,7 @@ import { t, useLang } from '../i18n';
 import { Fab, createItems } from './fab';
 import { useFeatures } from './features';
 import { AdBanner } from './ads';
+import { EventEditor, ScheduleScreen } from './schedule';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
@@ -24,6 +25,7 @@ const TABS = [
   { key: '', label: '記録', icon: '✎' },
   { key: 'people', label: '人', icon: '☺' },
   { key: 'topics', label: '話題', icon: '#' },
+  { key: 'schedule', label: '予定', icon: '▦' },
   { key: 'settings', label: '設定', icon: '⚙' },
 ];
 
@@ -63,6 +65,20 @@ function Shell() {
     );
   }
 
+  if (head === 'event' && sub) {
+    return (
+      <div className="app editor-app">
+        <EventEditor
+          key={path.join('/') + query.toString()}
+          id={sub === 'new' ? undefined : sub}
+          initialPerson={query.get('person') ?? undefined}
+          initialGroup={query.get('group') ?? undefined}
+          initialDate={query.get('date') ?? undefined}
+        />
+      </div>
+    );
+  }
+
   if ((head === 'people' || head === 'topics') && sub === 'new') {
     return (
       <div className="app editor-app">
@@ -90,6 +106,7 @@ function Shell() {
     else if (sub) screen = kind === 'person' ? <PersonScreen key={sub} id={sub} /> : <TopicScreen key={sub} id={sub} />;
     else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;
   }
+  else if (head === 'schedule' && feat.schedule) screen = <ScheduleScreen />;
   else if (head === 'settings' && sub === 'profile') screen = <ProfileFieldsScreen />;
   else if (head === 'settings' && sub === 'guide') screen = <GuideScreen />;
   else if (head === 'settings') screen = sub === 'features' ? <FeaturesScreen /> : <SettingsScreen />;
@@ -101,21 +118,23 @@ function Shell() {
   else if (head === 'f' && sub) screen = <FolderScreen key={sub} folderId={sub} />;
   else screen = <FolderScreen key="root" folderId={null} />;
 
-  const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : (head ?? '');
-  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('話題を追加') : t('記録を追加');
+  const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : head === 'schedule' && !feat.schedule ? '' : (head ?? '');
+  const onSchedule = head === 'schedule' && feat.schedule;
+  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('話題を追加') : onSchedule ? t('予定を追加') : t('記録を追加');
   const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
 
   // 人タブ・話題タブでは人／話題を追加(開いているフォルダに入れる)。記録の追加は記録タブと各詳細画面の＋から
   const inFolder = sub === 'f' && third ? `?folder=${third}` : '';
   const fabTap = () => {
-    if (head === 'people' || head === 'topics') go(`/${head}/new` + inFolder);
+    if (onSchedule) go('/event/new');
+    else if (head === 'people' || head === 'topics') go(`/${head}/new` + inFolder);
     else go(head === 'f' && sub ? `/new?folder=${sub}` : '/new');
   };
   // 長押しメニュー: その画面で作れるもの。フォルダは一覧(フォルダを出す画面)のときだけ、グループは人タブの一番上だけ
   const onFolderList = head === 'people' || head === 'topics' ? (!sub || sub === 'f') : (!head || head === 'f');
   const fabItems = createItems({
-    first: { icon: head === 'people' ? '☺' : head === 'topics' ? '#' : '✎', label: fabLabel, run: fabTap },
-    entry: head === 'people' || head === 'topics' ? '/new' : undefined,
+    first: { icon: head === 'people' ? '☺' : head === 'topics' ? '#' : onSchedule ? '▦' : '✎', label: fabLabel, run: fabTap },
+    entry: head === 'people' || head === 'topics' || onSchedule ? '/new' : undefined,
     people: head !== 'people' ? '/people/new' : undefined,
     topics: head !== 'topics' ? '/topics/new' : undefined,
     group: head === 'people' && !sub && feat.groups,
@@ -128,7 +147,7 @@ function Shell() {
       {!feat.noAds && <AdBanner />}
       {showFab && <Fab label={fabLabel} onTap={fabTap} items={fabItems} />}
       <nav className="tabbar">
-        {TABS.map((tb) => (
+        {TABS.filter((tb) => tb.key !== 'schedule' || feat.schedule).map((tb) => (
           <button
             key={tb.key}
             className={`tab ${tab === tb.key ? 'on' : ''}`}
