@@ -220,7 +220,12 @@ export function SortSelect<K extends string>({ value, options, onChange }: {
   return (
     <label className="sort">
       <span aria-hidden>⇅</span>
-      <select value={value} onChange={(e) => onChange(e.target.value as K)} aria-label={t('並べ替え')}>
+      <select value={value} onChange={(e) => {
+        const k = e.target.value as K;
+        onChange(k);
+        // 手動の並び順は長押しで動かすことを知らないと使えないので、選んだときに伝える
+        if (k === 'manual') toast(t('行を長押しして上下に動かすと並べ替えられます'), 3500);
+      }} aria-label={t('並べ替え')}>
         {options.map((o) => (
           <option key={o.key} value={o.key}>{t(o.label)}</option>
         ))}

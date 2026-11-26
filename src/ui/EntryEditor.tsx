@@ -211,7 +211,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
               className={`link strong ${hasContent ? '' : 'dim'}`}
               aria-disabled={!hasContent || saving || imgBusy > 0}
               title={t('保存(長押しで保存後の動きを選ぶ)')}
-              onTap={() => save()}
+              onTap={() => save(feat.stayAfterSave)}
               holdDisabled={!hasContent || saving}
               menuTitle={t('保存')}
               items={[
@@ -248,8 +248,13 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           ref={!existing ? autoFocusRef : undefined}
           rows={6}
         />
-        {feat.copy && text.trim() && (
-          <button type="button" className="link small-link copy-line" onClick={(e) => copyText(text, e.currentTarget)}>{t('⧉ 本文をコピー')}</button>
+        {text.trim() && (feat.copy || 'share' in navigator) && (
+          <div className="copy-row">
+            {'share' in navigator && (
+              <button type="button" className="link small-link copy-line" onClick={() => navigator.share({ ...(title.trim() ? { title } : {}), text: title.trim() ? `${title}\n${text}` : text }).catch(() => {})}>{t('↑ 共有')}</button>
+            )}
+            {feat.copy && <button type="button" className="link small-link copy-line" onClick={(e) => copyText(text, e.currentTarget)}>{t('⧉ 本文をコピー')}</button>}
+          </div>
         )}
         {feat.memo && (memoOpen
           ? <textarea className="textarea memo-field" rows={4} ref={!memo ? autoFocusRef : undefined} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t('メモ（相手の反応など）')} aria-label={t('メモ')} />

@@ -298,6 +298,8 @@ html, body { overscroll-behavior-y: none; }
 .copy-btn { transition: transform .1s, background .15s, color .15s; }
 .copy-btn:active { background: var(--bg); color: var(--accent); transform: scale(.85); }
 .copy-btn.copied { background: var(--accent); color: #fff; animation: copied-pop .35s ease-out; }
+.copy-row { display: flex; justify-content: flex-end; gap: 4px; margin-top: -8px; }
+.copy-row .copy-line { margin-top: 0; }
 .copy-line { align-self: flex-end; margin-top: -8px; border-radius: 8px; padding: 4px 8px; transition: transform .1s, background .15s; }
 .copy-line:active { transform: scale(.94); }
 .copy-line.copied { background: var(--accent); color: #fff; animation: copied-pop .35s ease-out; }
@@ -545,8 +547,9 @@ body.dragging { cursor: grabbing; }
 .panel-sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); font-weight: 600; }
 .toggle.small-toggle { font-size: 14px; margin: 2px 0 4px; }
 /* 使い方ガイド: 画面の画像に番号、右に番号ごとの説明 */
-.panel.guide-card { flex-direction: row; align-items: flex-start; gap: 14px; }
-.guide-shot { position: relative; flex: none; width: 42%; max-width: 200px; }
+.panel.guide-card { gap: 12px; }
+/* 画像は上に大きめに出す(番号が重ならないように)。説明はその下 */
+.guide-shot { position: relative; align-self: center; width: 72%; max-width: 280px; }
 .guide-shot img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .guide-pin, .guide-num {
   display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
@@ -558,6 +561,8 @@ body.dragging { cursor: grabbing; }
 .guide-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; }
 .guide-list li { display: flex; gap: 6px; align-items: flex-start; }
 .guide-list .guide-num { margin-top: 1px; }
+/* 番号を付けきれない操作(長押しなど)の一覧 */
+.guide-more { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.5; }
 .field .toggle.small-toggle, .field .toggle.small-toggle span { font-weight: 400; color: var(--ink); font-size: 14px; }
 /* 設定 > 機能とカスタマイズ: グループの見出し(折りたたみ)とその下の欄 */
 .feature-group .fold-header { margin-bottom: 4px; }

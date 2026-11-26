@@ -25,6 +25,8 @@ export interface Features {
   profile: boolean;
   /** 人の関係(友達・家族など)と、人タブの関係での絞り込み */
   relations: boolean;
+  /** 話題の保存ボタンを押したあと、一覧に戻らず編集画面に留まる(保存ボタンの長押しでも選べる) */
+  stayAfterSave: boolean;
   /** 話題の編集画面で、保存せずに戻るときの確認 */
   confirmDiscard: boolean;
   /** 人: 名前に入力した文字(変換前のかな)から読み仮名を作る。設定画面の「人」の欄に出す */
@@ -45,7 +47,7 @@ export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title'
 
 /** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
-  { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent'] },
+  { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent', 'stayAfterSave'] },
   { key: 'person', title: '人', items: ['readingPerson', 'relations', 'groups', 'profile'] },
   { key: 'topic', title: 'タグ', items: ['readingTopic', 'presetHint'] },
   { key: 'schedule', title: '予定', items: ['schedule', 'scheduleToday'] },
@@ -71,11 +73,12 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   schedule: { label: '予定', note: '予定タブと、人の画面の予定欄。予定に人を紐づけて、カレンダーやリストで見られます' },
   scheduleToday: { label: '今日・明日の予定を表示', note: 'アプリを開いたとき、話題タブの一番上に今日と明日の予定を出す' },
   noAds: { label: 'バナー広告を表示しない', note: '画面下のバナー広告を消します。' },
+  stayAfterSave: { label: '保存後もこの画面に留まる', note: '話題の保存ボタンを押したあと、一覧に戻らずに続けて書けます。保存ボタンの長押しでも、その都度選べます' },
   confirmDiscard: { label: '保存せずに戻るときの確認', note: '話題・人・タグ・予定などを入力・変更したまま戻るとき、保存されないことを確認する' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, noAds: false };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, stayAfterSave: false, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, noAds: false };
 
 const load = (): Features => {
   try {

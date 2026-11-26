@@ -22,17 +22,18 @@ export const itemKey = (i: { kind: ItemKind; id: ID }) => `${i.kind}:${i.id}`;
 export const scopeOfKind = (k: 'entry' | 'person' | 'topic'): FolderScope => k;
 
 // ---------------- トースト ----------------
-let showToast: ((m: string) => void) | null = null;
-export const toast = (m: string) => showToast?.(m);
+let showToast: ((m: string, ms?: number) => void) | null = null;
+/** 画面下に短いお知らせを出す。ms は表示する時間(長めの文のとき) */
+export const toast = (m: string, ms?: number) => showToast?.(m, ms);
 
 export function ToastHost() {
   const [msg, setMsg] = useState<string | null>(null);
   const t = useRef<number>(0);
   useEffect(() => {
-    showToast = (m) => {
+    showToast = (m, ms = 1800) => {
       setMsg(m);
       clearTimeout(t.current);
-      t.current = window.setTimeout(() => setMsg(null), 1800);
+      t.current = window.setTimeout(() => setMsg(null), ms);
     };
     return () => { showToast = null; };
   }, []);
@@ -670,6 +671,31 @@ export function SelectButton() {
     <button className="link small-link" onClick={() => setSelecting(!sel.active)}>
       {sel.active ? t('完了') : t('選択')}
     </button>
+  );
+}
+
+const PRESS_HINT_KEY = 'kaiwa-shisan:pressHintSeen';
+/**
+ * 長押しの操作は見ただけでは分からないので、一覧の上に一度だけ案内を出す。
+ * 「わかった」で消え、どの一覧でも二度と出ない(端末ごと)。
+ */
+export function PressHint() {
+  const [seen, setSeen] = useState(() => {
+    try { return localStorage.getItem(PRESS_HINT_KEY) === '1'; } catch { return true; }
+  });
+  const { sel } = useInteract();
+  if (seen || sel.active) return null;
+  const ok = () => {
+    setSeen(true);
+    try { localStorage.setItem(PRESS_HINT_KEY, '1'); } catch { /* noop */ }
+  };
+  return (
+    <section className="panel preset-hint">
+      <p>{t('行を長押しすると、ピン留め・移動・削除などのメニューが出ます。長押ししたまま動かすと、フォルダへの移動や並べ替えができます。')}</p>
+      <div className="preset-bar">
+        <button className="btn small-btn" onClick={ok}>{t('わかった')}</button>
+      </div>
+    </section>
   );
 }
 
