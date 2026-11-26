@@ -23,10 +23,9 @@ export function addCredits(n: number) {
   listeners.forEach((f) => f());
 }
 
-/** 設定の「有料機能」の欄を開く(設定画面にいるときもそこまでスクロール) */
+/** 設定の「有料機能」の画面を開く */
 function showPremium() {
-  go('/settings');
-  setTimeout(() => document.getElementById('premium')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+  go('/settings/premium');
 }
 
 /** 表示確認用のダミーのバナー広告(320x50)。タブバーの上に出し、話題の編集画面などには出さない */
