@@ -88,3 +88,14 @@ export const todosOf = (todos: Todo[], p: Pick<Person, 'id' | 'groupIds'>) =>
 export const openTodos = (todos: Todo[]) =>
   todos.filter((x) => !x.done).sort((a, b) =>
     a.due && b.due ? a.due.localeCompare(b.due) || b.createdAt - a.createdAt : a.due ? -1 : b.due ? 1 : b.createdAt - a.createdAt);
+
+/** 予定のカレンダー・リストに出すToDoの印。開始日と期限の日に出す(同じ日なら期限だけ) */
+export interface TodoMark { date: string; mark: 'start' | 'due'; todo: Todo }
+export function todoMarks(todos: Todo[]): TodoMark[] {
+  const out: TodoMark[] = [];
+  for (const x of todos) {
+    if (x.start && x.start !== x.due) out.push({ date: x.start, mark: 'start', todo: x });
+    if (x.due) out.push({ date: x.due, mark: 'due', todo: x });
+  }
+  return out;
+}

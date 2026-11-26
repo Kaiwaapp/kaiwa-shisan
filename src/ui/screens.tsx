@@ -23,7 +23,7 @@ import { Icon } from './icons';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
 import { RelationBadge, RelationBar, RelationPicker } from './RelationParts';
 import { relationName, useRelations } from './relations';
-import { PersonSchedule, PersonTodos, TodayEvents } from './schedule';
+import { PersonSchedule, PersonTodos } from './schedule';
 
 // ---- 話題タブ: iPhoneのメモのように、フォルダと話題が並ぶ(フォルダは入れ子可) ----
 export function FolderScreen({ folderId }: { folderId: ID | null }) {
@@ -100,7 +100,6 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
         right={<span className="header-actions">{!editing && !adding && !selecting && !flat && <FolderAddButton onClick={() => setAdding(true)} />}{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => (editing ? confirmLeave(() => setEditing(false)) : setEditing(true))}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
       <Crumbs scope="entry" path={path} />
-      {!folder && !selecting && <TodayEvents />}
       {editing && folder ? (
         <FolderEdit id={folder.id} onDone={() => setEditing(false)} />
       ) : (
@@ -117,7 +116,6 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
           ) : (
             <>
               {!folderId && !selecting && <SampleHint />}
-              {!folderId && <PressHint />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t('{n}件', { n: memos.length })}
@@ -151,6 +149,8 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
                     : children.length ? t('フォルダに入っていない話題はありません') : <>{t('まだ話題がありません。')}<br />{t('右下の＋から、話したことを書いてみましょう。')}</>
                 }
              />}
+              {/* 長押しの案内は一覧の一番下(一覧を見る邪魔をしない) */}
+              {!folderId && <PressHint />}
               <SelectionBar folderId={folderId} all={[
                 ...children.map((f) => ({ kind: 'folder' as const, id: f.id, label: f.name, scope: 'entry' as const })),
                 ...memos.map((e) => ({ kind: 'entry' as const, id: e.id, label: entryLabel(e, 24), scope: 'entry' as const })),
@@ -436,7 +436,6 @@ export function NameFolderScreen({ kind, folderId, rel }: { kind: NameKind; fold
               {relOn && <RelationBar value={relFilter} onChange={setRelFilter} />}
               {kind === 'person' && !folderId && feat.groups && !relPicked && <GroupBar />}
               {kind === 'topic' && !folderId && <PresetHint />}
-              {!folderId && <PressHint />}
               {relPicked ? (
                 <>
                   <div className="toolbar">
@@ -470,6 +469,7 @@ export function NameFolderScreen({ kind, folderId, rel }: { kind: NameKind; fold
                       : t(kind === 'person' ? 'フォルダに入っていない人はいません' : 'フォルダに入っていないタグはありません')}
                 </div>
               )}
+              {!folderId && <PressHint />}
               </>)}
             </>
           )}

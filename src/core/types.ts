@@ -212,7 +212,9 @@ export interface Todo {
   done: boolean;
   /** 完了にした日時 */
   doneAt?: number;
-  /** 期限 (YYYY-MM-DD) */
+  /** 開始日 (YYYY-MM-DD)。付けると予定のカレンダー・リストにも出る */
+  start?: string;
+  /** 期限 (YYYY-MM-DD)。付けると予定のカレンダー・リストにも出る */
   due?: string;
   personIds: ID[];
   groupIds?: ID[];
