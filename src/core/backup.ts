@@ -1,7 +1,7 @@
-import type { AppData, Entry, EntryImage, Folder, Group, ID, Person, Topic } from './types';
+import type { AppData, Entry, EntryImage, Folder, Group, ID, Person, ScheduleEvent, Topic } from './types';
 
 export const BACKUP_FORMAT = 'kaiwa-shisan-backup';
-export const BACKUP_VERSION = 4;
+export const BACKUP_VERSION = 5;
 
 /** バックアップの中の画像。JSONに入れるため中身はbase64 */
 export interface BackupImage extends Omit<EntryImage, 'data'> {
@@ -11,7 +11,7 @@ export interface BackupImage extends Omit<EntryImage, 'data'> {
 /** full: 一括(全部)。incremental: 増分(前回の書き出しから変わったものだけ) */
 export type BackupKind = 'full' | 'incremental';
 
-const COLLECTIONS = ['people', 'topics', 'entries', 'folders', 'groups'] as const;
+const COLLECTIONS = ['people', 'topics', 'entries', 'folders', 'groups', 'events'] as const;
 type Collection = (typeof COLLECTIONS)[number];
 export type DeletedIds = Record<Collection, ID[]>;
 
@@ -55,7 +55,7 @@ export interface ParsedBackup {
   deleted: DeletedIds;
 }
 
-const emptyDeleted = (): DeletedIds => ({ people: [], topics: [], entries: [], folders: [], groups: [] });
+const emptyDeleted = (): DeletedIds => ({ people: [], topics: [], entries: [], folders: [], groups: [], events: [] });
 
 export const toBackup = (data: AppData, images?: EntryImage[]): BackupFile => ({
   format: BACKUP_FORMAT,
@@ -66,6 +66,7 @@ export const toBackup = (data: AppData, images?: EntryImage[]): BackupFile => ({
   entries: data.entries,
   folders: data.folders,
   groups: data.groups,
+  events: data.events ?? [],
   ...(images ? { images: images.map((img) => ({ ...img, data: bufferToBase64(img.data) })) } : {}),
 });
 
@@ -92,6 +93,8 @@ export function readBackup(json: string): ParsedBackup {
     folders: Array.isArray(r.folders) ? (r.folders as Folder[]).map((f) => ({ ...f, parentId: f.parentId ?? null })) : [],
     // v2までのバックアップにはグループがない
     groups: Array.isArray(r.groups) ? (r.groups as Group[]) : [],
+    // v4までのバックアップには予定がない
+    events: Array.isArray(r.events) ? (r.events as ScheduleEvent[]) : [],
     // v3までのバックアップ・画像なしで書き出したものには画像がない
     images: Array.isArray(r.images)
       ? r.images.filter((i) => i && typeof i.id === 'string' && typeof i.data === 'string').map((i) => ({ ...i, data: base64ToBuffer(i.data) }))
@@ -138,7 +141,7 @@ export function makeManifest(data: AppData, at = Date.now()): ExportManifest {
 /** 前回の書き出し(manifest)からの変更。manifest がなければ全部が変更扱い */
 export function diffSince(data: AppData, manifest: ExportManifest | null): { changed: AppData; deleted: DeletedIds; count: number } {
   const prev = manifest?.items ?? {};
-  const changed: AppData = { people: [], topics: [], entries: [], folders: [], groups: [] };
+  const changed: AppData = { people: [], topics: [], entries: [], folders: [], groups: [], events: [] };
   const deleted = emptyDeleted();
   const seen = new Set<string>();
   let count = 0;
@@ -147,7 +150,7 @@ export function diffSince(data: AppData, manifest: ExportManifest | null): { cha
       const k = `${c}:${x.id}`;
       seen.add(k);
       if (prev[k] !== hash(JSON.stringify(x))) {
-        (changed[c] as { id: ID }[]).push(x);
+        (changed[c] as { id: ID }[] | undefined)?.push(x);
         count++;
       }
     }
@@ -161,7 +164,7 @@ export function diffSince(data: AppData, manifest: ExportManifest | null): { cha
   return { changed, deleted, count };
 }
 
-/** images: 書き出す画像。変わった記録に付いている画像だけを入れる */
+/** images: 書き出す画像。変わった話題に付いている画像だけを入れる */
 export const toIncremental = (data: AppData, manifest: ExportManifest | null, images?: EntryImage[]): BackupFile => {
   const { changed, deleted } = diffSince(data, manifest);
   const ids = new Set(changed.entries.flatMap((e) => e.imageIds ?? []));
@@ -176,7 +179,7 @@ export const toIncremental = (data: AppData, manifest: ExportManifest | null, im
 /**
  * 増分ファイルを今のデータに反映する。変更は「同じか新しい更新日時」なら上書き
  * (ピン留めなど更新日時を変えない変更も反映するため)。
- * 削除は、このファイルの書き出しより後にこちらで編集したものは残す。記録は「最近削除した項目」へ移す
+ * 削除は、このファイルの書き出しより後にこちらで編集したものは残す。話題は「最近削除した項目」へ移す
  */
 export function applyIncremental(current: AppData, file: ParsedBackup, now = Date.now()): AppData {
   const put = <T extends { id: string; updatedAt: number }>(a: T[], b: T[]): T[] => {
@@ -201,6 +204,7 @@ export function applyIncremental(current: AppData, file: ParsedBackup, now = Dat
     entries,
     folders: drop(put(current.folders, file.data.folders), file.deleted.folders),
     groups: drop(put(current.groups ?? [], file.data.groups), file.deleted.groups),
+    events: drop(put(current.events ?? [], file.data.events ?? []), file.deleted.events),
   };
 }
 
@@ -220,5 +224,6 @@ export function mergeData(current: AppData, incoming: AppData): AppData {
     entries: merge(current.entries, incoming.entries),
     folders: merge(current.folders, incoming.folders),
     groups: merge(current.groups ?? [], incoming.groups ?? []),
+    events: merge(current.events ?? [], incoming.events ?? []),
   };
 }

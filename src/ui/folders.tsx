@@ -7,17 +7,17 @@ import { dropProps, reorderProps, SelectMark, useDragging, useInteract, usePress
 import { t } from '../i18n';
 import { useFeatures } from './features';
 
-/** 各タブのフォルダのURL。記録は '' 、人は '/people'、話題は '/topics' */
+/** 各タブのフォルダのURL。話題は '' 、人は '/people'、タグは '/topics' */
 export const SCOPE_BASE: Record<FolderScope, string> = { entry: '', person: '/people', topic: '/topics' };
 /** 表示時に t() を通す */
-export const SCOPE_LABEL: Record<FolderScope, string> = { entry: '記録', person: '人', topic: '話題' };
-const ALL_LABEL: Record<FolderScope, string> = { entry: 'すべての記録', person: 'すべての人', topic: 'すべての話題' };
+export const SCOPE_LABEL: Record<FolderScope, string> = { entry: '話題', person: '人', topic: 'タグ' };
+const ALL_LABEL: Record<FolderScope, string> = { entry: 'すべての話題', person: 'すべての人', topic: 'すべてのタグ' };
 export const rootHref = (scope: FolderScope) => SCOPE_BASE[scope] || '/';
 export const folderHref = (scope: FolderScope, id: ID | null) => (id ? `${SCOPE_BASE[scope]}/f/${id}` : rootHref(scope));
 export const allHref = (scope: FolderScope) => `${SCOPE_BASE[scope]}/all`;
 export const favHref = (scope: FolderScope) => `${SCOPE_BASE[scope]}/fav`;
 
-/** 見出し行の左端に出すアイコン: お気に入り一覧と「すべての記録/人/話題」へ */
+/** 見出し行の左端に出すアイコン: お気に入り一覧と「すべての話題/人/タグ」へ */
 export function TitleIcons({ scope }: { scope: FolderScope }) {
   const fav = useFeatures().favorites;
   return (
@@ -164,7 +164,7 @@ export function FolderEdit({ id, onDone }: { id: ID; onDone: () => void }) {
       </section>
       <button className="btn primary block" disabled={!name.trim()} onClick={save}>{t('保存')}</button>
       {scope === 'entry' && (
-        <button className="btn danger block" onClick={() => openClear(id)}>{t('中の記録をすべて削除')}</button>
+        <button className="btn danger block" onClick={() => openClear(id)}>{t('中の話題をすべて削除')}</button>
       )}
       <button className="btn danger block" onClick={async () => {
         if (!confirm(t('フォルダ「{name}」を削除しますか？\n中身は消えず、1つ上の階層に移ります。', { name: folder.name }))) return;
@@ -193,7 +193,7 @@ export function folderChoices(folders: { id: ID; name: string; parentId: ID | nu
   return out;
 }
 
-/** 人・話題の編集画面で入れるフォルダを選ぶ */
+/** 人・タグの編集画面で入れるフォルダを選ぶ */
 export function FolderSelect({ scope, value, onChange }: { scope: FolderScope; value: ID | null; onChange: (v: ID | null) => void }) {
   const data = useData();
   const choices = folderChoices(foldersOf(data.folders, scope));

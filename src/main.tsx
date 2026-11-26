@@ -8,20 +8,25 @@ import './ui/styles.css';
 import { guessReading, installReadingCapture } from './ui/reading';
 import { getFeatures } from './ui/features';
 import { installTapFocus } from './ui/focus';
+import { seedSamplesOnce } from './ui/samples';
+import { installTheme } from './ui/theme';
 
 registerSW({ immediate: true });
 installTapFocus();
+installTheme();
 
 // iOSでデータが自動削除されにくくなるよう永続化を要求(ホーム画面追加時に効きやすい)
 navigator.storage?.persist?.().catch(() => {});
 
 const store = new Store(new IdbRepository());
-store.init();
-// 入力から読み仮名を拾い、新しく作る人・話題に付ける(無料。設定の人・話題の欄でそれぞれオフにできる)
+// 初めて開いたときだけ見本を入れる(データがある端末には入れない)
+const start = () => store.init().then(() => seedSamplesOnce(store));
+start();
+// 入力から読み仮名を拾い、新しく作る人・タグに付ける(無料。設定の人・タグの欄でそれぞれオフにできる)
 installReadingCapture();
 store.readingGuess = (name, kind) => (getFeatures()[kind === 'person' ? 'readingPerson' : 'readingTopic'] ? guessReading(name) : '');
 // 読み込みに失敗したままアプリを閉じて開き直した(復帰した)ときは、もう一度読む
-const retry = () => { if (!store.loaded && document.visibilityState === 'visible') store.init(); };
+const retry = () => { if (!store.loaded && document.visibilityState === 'visible') start(); };
 document.addEventListener('visibilitychange', retry);
 addEventListener('pageshow', retry);
 

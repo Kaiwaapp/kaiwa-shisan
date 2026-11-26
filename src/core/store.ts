@@ -1,7 +1,8 @@
 import type { Repository } from './repository';
 import { applyIncremental, mergeData, type ParsedBackup } from './backup';
-import { newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type Topic, mergeProfiles } from './types';
+import { newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type ScheduleEvent, type Topic, mergeProfiles } from './types';
 import { normalize, reorderValues } from './search';
+import { buildSamples } from './samples';
 
 type Listener = () => void;
 
@@ -15,10 +16,10 @@ export interface EntryInput {
   /** 話したグループ(グループ自体を付ける) */
   groupIds?: ID[];
   topicIds: ID[];
-  /** 保存時に新しく作る人・話題の名前。人は同名の人がいても別の人として作る */
+  /** 保存時に新しく作る人・タグの名前。人は同名の人がいても別の人として作る */
   newPeople?: string[];
   newTopics?: string[];
-  /** AIの提案から付けた話題(既存のid・新規の名前)。source を 'ai' にする */
+  /** AIの提案から付けたタグ(既存のid・新規の名前)。source を 'ai' にする */
   aiTopicIds?: ID[];
   aiNewTopics?: string[];
   talkedOn: string;
@@ -31,13 +32,27 @@ export interface EntryInput {
   newImages?: EntryImage[];
 }
 
+export interface EventInput {
+  title: string;
+  date: string;
+  time?: string;
+  endTime?: string;
+  personIds: ID[];
+  groupIds?: ID[];
+  /** 保存時に新しく作る人の名前 */
+  newPeople?: string[];
+  place?: string;
+  memo?: string;
+  alarm?: ScheduleEvent['alarm'];
+}
+
 export interface ImportResult { entryIds: ID[]; personIds: ID[]; topicIds: ID[]; folderIds: ID[] }
 
 /** アプリの状態と操作。React非依存なのでネイティブ版でも使い回せる */
 export class Store {
-  /** 削除済み(ゴミ箱)の記録も含む全データ */
+  /** 削除済み(ゴミ箱)の話題も含む全データ */
   private data: AppData = { people: [], topics: [], entries: [], folders: [], groups: [] };
-  /** 画面に出すデータ(削除済みの記録を除く) */
+  /** 画面に出すデータ(削除済みの話題を除く) */
   private snap: AppData = this.data;
   private trashSnap: Entry[] = [];
   private listeners = new Set<Listener>();
@@ -47,7 +62,7 @@ export class Store {
   loadFailed = false;
   private loading: Promise<void> | null = null;
 
-  /** 新しく作る人・話題の読み仮名を名前から推測する(画面側が入力から拾ったもの) */
+  /** 新しく作る人・タグの読み仮名を名前から推測する(画面側が入力から拾ったもの) */
   readingGuess: ((name: string, kind: 'person' | 'topic') => string) | null = null;
 
   constructor(private repo: Repository) {}
@@ -81,7 +96,7 @@ export class Store {
       }
     }
     await this.purgeTrash().catch(() => {});
-    // 保存の途中でアプリが閉じられた等で残った、どの記録にも付いていない画像を消す
+    // 保存の途中でアプリが閉じられた等で残った、どの話題にも付いていない画像を消す
     await this.gcImages().catch(() => {});
   }
 
@@ -98,6 +113,7 @@ export class Store {
 
   private set(next: AppData) {
     if (!next.groups) next = { ...next, groups: [] };
+    if (!next.events) next = { ...next, events: [] };
     this.data = next;
     const live: Entry[] = [];
     const dead: Entry[] = [];
@@ -113,12 +129,12 @@ export class Store {
     this.set({ ...this.data, entries: this.data.entries.map((e) => m.get(e.id) ?? e) });
   }
 
-  // ---- 記録 ----
+  // ---- 話題 ----
   async saveEntry(input: EntryInput, id?: ID): Promise<Entry> {
     const now = Date.now();
     const prev = id ? this.data.entries.find((e) => e.id === id) : undefined;
     const prevSource = new Map(prev?.topics.map((t) => [t.topicId, t.source]));
-    // 新規の人・話題は記録の保存時にはじめて作る(キャンセルしたらゴミが残らない)
+    // 新規の人・タグは話題の保存時にはじめて作る(キャンセルしたらゴミが残らない)
     const personIds = [...input.personIds];
     for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name, null, [], true)).id);
     const alive = new Set(this.data.groups.map((g) => g.id));
@@ -154,7 +170,7 @@ export class Store {
     };
     const imageIds = input.imageIds ?? prev?.imageIds ?? [];
     if (imageIds.length) entry.imageIds = [...new Set(imageIds)];
-    // 画像を先に保存してから記録を保存する(途中で閉じても記録が画像を見失わない)
+    // 画像を先に保存してから話題を保存する(途中で閉じても話題が画像を見失わない)
     for (const img of input.newImages ?? []) if (imageIds.includes(img.id)) await this.repo.putImage(img);
     await this.repo.putEntry(entry);
     for (const old of prev?.imageIds ?? []) if (!imageIds.includes(old)) await this.repo.deleteImage(old).catch(() => {});
@@ -167,7 +183,7 @@ export class Store {
     return entry;
   }
 
-  /** 記録を「最近削除した項目」へ移す(30日間は復元できる) */
+  /** 話題を「最近削除した項目」へ移す(30日間は復元できる) */
   async deleteEntry(id: ID) { await this.trashEntries([id]); }
 
   async trashEntries(ids: ID[]) {
@@ -187,13 +203,13 @@ export class Store {
     );
   }
 
-  /** フォルダに入っている記録(削除済みは除く)。deep なら中のフォルダの記録も含める */
+  /** フォルダに入っている話題(削除済みは除く)。deep なら中のフォルダの話題も含める */
   folderEntryIds(folderId: ID, deep: boolean): ID[] {
     const scope = new Set([folderId, ...(deep ? folderDescendants(this.data.folders, folderId) : [])]);
     return this.snap.entries.filter((e) => e.folderId && scope.has(e.folderId)).map((e) => e.id);
   }
 
-  /** フォルダ内の記録をまとめて「最近削除した項目」へ移す。フォルダ自体は残す。移した件数を返す */
+  /** フォルダ内の話題をまとめて「最近削除した項目」へ移す。フォルダ自体は残す。移した件数を返す */
   async trashFolderEntries(folderId: ID, deep: boolean): Promise<number> {
     const ids = this.folderEntryIds(folderId, deep);
     if (ids.length) await this.trashEntries(ids);
@@ -210,7 +226,7 @@ export class Store {
     this.set({ ...this.data, entries: this.data.entries.filter((e) => !set.has(e.id)) });
   }
 
-  /** 削除から30日たった記録を完全に消す */
+  /** 削除から30日たった話題を完全に消す */
   async purgeTrash(days = 30) {
     const limit = Date.now() - days * 24 * 3600 * 1000;
     const old = this.data.entries.filter((e) => e.deletedAt && e.deletedAt < limit).map((e) => e.id);
@@ -273,7 +289,7 @@ export class Store {
     }
   }
 
-  /** 記録・人・話題・フォルダをまとめて別のフォルダへ移す(null は一番上) */
+  /** 話題・人・タグ・フォルダをまとめて別のフォルダへ移す(null は一番上) */
   async moveItems(kind: 'entry' | 'person' | 'topic' | 'folder', ids: ID[], folderId: ID | null) {
     const set = new Set(ids);
     const now = Date.now();
@@ -317,25 +333,71 @@ export class Store {
   async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds' | 'profile' | 'relation'>>) {
     const p = this.data.people.find((x) => x.id === id);
     if (!p) return;
-    const next = { ...p, ...patch, updatedAt: Date.now() };
+    const next = { ...p, ...patch, sample: undefined, updatedAt: Date.now() };
     await this.repo.putPerson(next);
     this.set({ ...this.data, people: this.data.people.map((x) => (x.id === id ? next : x)) });
   }
 
-  /** 人を削除。記録自体は残し、その人の紐づけだけ外す */
+  /** 人を削除。話題自体は残し、その人の紐づけだけ外す */
   async deletePerson(id: ID) {
     const now = Date.now();
     const touched = this.data.entries
       .filter((e) => e.personIds.includes(id))
       .map((e) => ({ ...e, personIds: e.personIds.filter((x) => x !== id), updatedAt: now }));
     for (const e of touched) await this.repo.putEntry(e);
+    const events = await this.fixEvents((e) => (e.personIds.includes(id) ? { ...e, personIds: e.personIds.filter((x) => x !== id), updatedAt: now } : null));
     await this.repo.deletePerson(id);
     const map = new Map(touched.map((e) => [e.id, e]));
     this.set({
       ...this.data,
       people: this.data.people.filter((p) => p.id !== id),
       entries: this.data.entries.map((e) => map.get(e.id) ?? e),
+      events,
     });
+  }
+
+  // ---- 予定 ----
+  async saveEvent(input: EventInput, id?: ID): Promise<ScheduleEvent> {
+    const now = Date.now();
+    const prev = id ? this.data.events!.find((e) => e.id === id) : undefined;
+    const personIds = [...input.personIds];
+    for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name, null, [], true)).id);
+    const alive = new Set(this.data.groups.map((g) => g.id));
+    const groupIds = [...new Set(input.groupIds ?? [])].filter((g) => alive.has(g));
+    const time = input.time || undefined;
+    const ev: ScheduleEvent = {
+      id: prev?.id ?? newId(),
+      title: input.title.trim(),
+      date: input.date,
+      ...(time ? { time } : {}),
+      ...(time && input.endTime && input.endTime > time ? { endTime: input.endTime } : {}),
+      personIds: [...new Set(personIds)],
+      ...(groupIds.length ? { groupIds } : {}),
+      ...(input.place?.trim() ? { place: input.place.trim() } : {}),
+      ...(input.memo?.trim() ? { memo: input.memo.trim() } : {}),
+      ...(input.alarm ? { alarm: input.alarm } : {}),
+      createdAt: prev?.createdAt ?? now,
+      updatedAt: now,
+    };
+    await this.repo.putEvent(ev);
+    const rest = this.data.events!.filter((e) => e.id !== ev.id);
+    this.set({ ...this.data, events: [...rest, ev] });
+    return ev;
+  }
+
+  async deleteEvent(id: ID) {
+    await this.repo.deleteEvent(id);
+    this.set({ ...this.data, events: this.data.events!.filter((e) => e.id !== id) });
+  }
+
+  /** 人・グループを消したり、まとめたりしたときに予定の紐づけを直す */
+  private async fixEvents(fn: (e: ScheduleEvent) => ScheduleEvent | null): Promise<ScheduleEvent[]> {
+    const out: ScheduleEvent[] = [];
+    for (const e of this.data.events ?? []) {
+      const n = fn(e);
+      if (n) { await this.repo.putEvent(n); out.push(n); } else out.push(e);
+    }
+    return out;
   }
 
   // ---- 人のグループ(1人が複数に入れる) ----
@@ -362,7 +424,7 @@ export class Store {
     this.set({ ...this.data, groups: this.data.groups.map((x) => (x.id === id ? next : x)) });
   }
 
-  /** グループを削除。人や記録は消さず、グループへの紐づけだけ外す */
+  /** グループを削除。人や話題は消さず、グループへの紐づけだけ外す */
   async deleteGroup(id: ID) {
     const now = Date.now();
     const touched = this.data.people
@@ -377,6 +439,12 @@ export class Store {
         return { ...rest, ...(groupIds.length ? { groupIds } : {}) } as Entry;
       });
     for (const e of touchedE) await this.repo.putEntry(e);
+    const events = await this.fixEvents((e) => {
+      if (!e.groupIds?.includes(id)) return null;
+      const { groupIds: g, ...rest } = e;
+      const left = g!.filter((x) => x !== id);
+      return { ...rest, ...(left.length ? { groupIds: left } : {}), updatedAt: now };
+    });
     await this.repo.deleteGroup(id);
     const m = new Map(touched.map((p) => [p.id, p]));
     const me = new Map(touchedE.map((e) => [e.id, e]));
@@ -385,6 +453,7 @@ export class Store {
       groups: this.data.groups.filter((g) => g.id !== id),
       people: this.data.people.map((p) => m.get(p.id) ?? p),
       entries: this.data.entries.map((e) => me.get(e.id) ?? e),
+      events,
     });
   }
 
@@ -404,7 +473,7 @@ export class Store {
     this.set({ ...this.data, people: this.data.people.map((x) => m.get(x.id) ?? x) });
   }
 
-  // ---- 話題 ----
+  // ---- タグ ----
   findTopicByName(name: string) {
     const n = normalize(name.trim().replace(/^#/, ''));
     return this.data.topics.find((t) => normalize(t.name) === n);
@@ -421,7 +490,7 @@ export class Store {
     return t;
   }
 
-  /** 話題をまとめて登録する(用意した話題リストから)。同じ名前の話題があるものは登録しない。登録した件数を返す */
+  /** タグをまとめて登録する(用意したタグリストから)。同じ名前のタグがあるものは登録しない。登録した件数を返す */
   async addTopicsBulk(items: { name: string; reading?: string }[], folderId: ID | null = null): Promise<number> {
     const now = Date.now();
     const seen = new Set(this.data.topics.map((t) => normalize(t.name)));
@@ -441,7 +510,7 @@ export class Store {
   async updateTopic(id: ID, patch: Partial<Pick<Topic, 'name' | 'reading' | 'folderId'>>) {
     const t = this.data.topics.find((x) => x.id === id);
     if (!t) return;
-    const next = { ...t, ...patch, updatedAt: Date.now() };
+    const next = { ...t, ...patch, sample: undefined, updatedAt: Date.now() };
     await this.repo.putTopic(next);
     this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
   }
@@ -449,7 +518,7 @@ export class Store {
   async renameTopic(id: ID, name: string, reading?: string) {
     const t = this.data.topics.find((x) => x.id === id);
     if (!t) return;
-    const next = { ...t, name: name.trim(), reading: reading ?? t.reading, updatedAt: Date.now() };
+    const next = { ...t, name: name.trim(), reading: reading ?? t.reading, sample: undefined, updatedAt: Date.now() };
     await this.repo.putTopic(next);
     this.set({ ...this.data, topics: this.data.topics.map((x) => (x.id === id ? next : x)) });
   }
@@ -469,7 +538,7 @@ export class Store {
     });
   }
 
-  /** source の人を target に統合。記録の紐づけを付け替え、メモを足して source を消す */
+  /** source の人を target に統合。話題の紐づけを付け替え、メモを足して source を消す */
   async mergePeople(sourceId: ID, targetId: ID) {
     if (sourceId === targetId) return;
     const src = this.data.people.find((p) => p.id === sourceId);
@@ -489,6 +558,7 @@ export class Store {
     const profile = mergeProfiles(dst.profile, src.profile);
     const merged: Person = { ...dst, relation: dst.relation ?? src.relation, memo, ...(groupIds.length ? { groupIds } : {}), profile, updatedAt: now };
     if (!profile) delete merged.profile;
+    const events = await this.fixEvents((e) => (e.personIds.includes(sourceId) ? { ...e, personIds: [...new Set(e.personIds.map((x) => (x === sourceId ? targetId : x)))], updatedAt: now } : null));
     if (!merged.relation) delete merged.relation;
     await this.repo.putPerson(merged);
     await this.repo.deletePerson(sourceId);
@@ -497,6 +567,7 @@ export class Store {
       ...this.data,
       people: this.data.people.filter((p) => p.id !== sourceId).map((p) => (p.id === targetId ? merged : p)),
       entries: this.data.entries.map((e) => map.get(e.id) ?? e),
+      events,
     });
   }
 
@@ -510,7 +581,7 @@ export class Store {
         const seen = new Set<ID>();
         const topics = e.topics
           .map((t) => (t.topicId === sourceId ? { ...t, topicId: targetId } : t))
-          // 同じ話題が重なったら手動タグを優先して1つに
+          // 同じタグが重なったら手動タグを優先して1つに
           .sort((a, b) => (a.source === 'manual' ? -1 : 0) - (b.source === 'manual' ? -1 : 0))
           .filter((t) => (seen.has(t.topicId) ? false : (seen.add(t.topicId), true)));
         return { ...e, topics, updatedAt: now };
@@ -559,7 +630,7 @@ export class Store {
     await this.putFolderState({ ...f, parentId, updatedAt: Date.now() });
   }
 
-  /** フォルダを削除。中の記録とフォルダは消さず、1つ上の階層へ移す */
+  /** フォルダを削除。中の話題とフォルダは消さず、1つ上の階層へ移す */
   async deleteFolder(id: ID) {
     const f = this.data.folders.find((x) => x.id === id);
     if (!f) return;
@@ -617,7 +688,7 @@ export class Store {
     }
   }
 
-  /** 記録の編集で人・話題を選んだ日時を残す(ドロップダウンの並び順用) */
+  /** 話題の編集で人・タグを選んだ日時を残す(ドロップダウンの並び順用) */
   async markSelected(kind: 'person' | 'topic' | 'group', id: ID) {
     const now = Date.now();
     if (kind === 'group') {
@@ -643,7 +714,7 @@ export class Store {
 
   // ---- 他アプリからの取り込み ----
   /**
-   * 下書きをまとめて記録にする。人・話題は名前で既存のものに合わせ、なければ作る。
+   * 下書きをまとめて話題にする。人・タグは名前で既存のものに合わせ、なければ作る。
    * 取り消し用に、新しく作ったもののIDを返す。
    */
   async importDrafts(
@@ -713,6 +784,7 @@ export class Store {
       entries: drop(this.data.entries, r.entryIds),
       folders: drop(this.data.folders, r.folderIds),
       groups: this.data.groups,
+      events: this.data.events,
     }, 'replace');
   }
 
@@ -720,7 +792,7 @@ export class Store {
   /** 画像を1枚読む(画面で表示するとき) */
   getImage(id: ID): Promise<EntryImage | undefined> { return this.repo.getImage(id); }
 
-  /** 記録に付いている画像をまとめて読む(バックアップ用)。見つからないものは飛ばす */
+  /** 話題に付いている画像をまとめて読む(バックアップ用)。見つからないものは飛ばす */
   async imagesOf(entries: Entry[]): Promise<EntryImage[]> {
     const out: EntryImage[] = [];
     for (const id of new Set(entries.flatMap((e) => e.imageIds ?? []))) {
@@ -730,10 +802,78 @@ export class Store {
     return out;
   }
 
-  /** どの記録(最近削除した項目も含む)にも付いていない画像を消す */
+  /** どの話題(最近削除した項目も含む)にも付いていない画像を消す */
   async gcImages() {
     const used = new Set(this.data.entries.flatMap((e) => e.imageIds ?? []));
     for (const id of await this.repo.imageIds()) if (!used.has(id)) await this.repo.deleteImage(id);
+  }
+
+  // ---- 見本(初回に入れる話題・人・タグ) ----
+  /** 何も入っていないか(最近削除した項目も含めて) */
+  get isEmpty(): boolean {
+    const d = this.data;
+    return !d.entries.length && !d.people.length && !d.topics.length && !d.folders.length && !d.groups.length;
+  }
+
+  /** 見本が残っているか */
+  get hasSamples(): boolean {
+    const d = this.data;
+    return d.entries.some((e) => e.sample) || d.people.some((p) => p.sample) || d.topics.some((t) => t.sample);
+  }
+
+  /** 見本を入れる。同じ名前の人・タグがすでにあれば、その人・タグは作らずに使う */
+  async addSamples(now = Date.now()) {
+    const s = buildSamples(now);
+    const pid = new Map<ID, ID>();
+    const tid = new Map<ID, ID>();
+    const people: Person[] = [];
+    const topics: Topic[] = [];
+    for (const p of s.people) {
+      const ex = this.data.people.find((x) => x.name === p.name);
+      if (ex) pid.set(p.id, ex.id); else { pid.set(p.id, p.id); people.push(p); }
+    }
+    for (const t of s.topics) {
+      const ex = this.findTopicByName(t.name);
+      if (ex) tid.set(t.id, ex.id); else { tid.set(t.id, t.id); topics.push(t); }
+    }
+    const entries = s.entries.map((e) => ({
+      ...e,
+      personIds: e.personIds.map((x) => pid.get(x) ?? x),
+      topics: e.topics.map((x) => ({ ...x, topicId: tid.get(x.topicId) ?? x.topicId })),
+    }));
+    for (const p of people) await this.repo.putPerson(p);
+    for (const t of topics) await this.repo.putTopic(t);
+    for (const e of entries) await this.repo.putEntry(e);
+    this.set({ ...this.data, people: [...this.data.people, ...people], topics: [...this.data.topics, ...topics], entries: [...this.data.entries, ...entries] });
+  }
+
+  /**
+   * 見本だけを消す。ユーザーが編集した話題は見本ではなくなっているので残る。
+   * 見本の人・タグがユーザーの話題に使われていたら、消さずに普通の人・タグにする
+   */
+  async removeSamples() {
+    const d = this.data;
+    const kept = d.entries.filter((e) => !e.sample);
+    const usedP = new Set(kept.flatMap((e) => e.personIds));
+    const usedT = new Set(kept.flatMap((e) => e.topics.map((x) => x.topicId)));
+    for (const e of d.entries) {
+      if (!e.sample) continue;
+      for (const img of e.imageIds ?? []) await this.repo.deleteImage(img).catch(() => {});
+      await this.repo.deleteEntry(e.id);
+    }
+    const people: Person[] = [];
+    for (const p of d.people) {
+      if (!p.sample) { people.push(p); continue; }
+      if (usedP.has(p.id)) { const n = { ...p, sample: undefined }; await this.repo.putPerson(n); people.push(n); }
+      else await this.repo.deletePerson(p.id);
+    }
+    const topics: Topic[] = [];
+    for (const t of d.topics) {
+      if (!t.sample) { topics.push(t); continue; }
+      if (usedT.has(t.id)) { const n = { ...t, sample: undefined }; await this.repo.putTopic(n); topics.push(n); }
+      else await this.repo.deleteTopic(t.id);
+    }
+    this.set({ ...d, entries: kept, people, topics });
   }
 
   // ---- バックアップ ----
@@ -749,7 +889,7 @@ export class Store {
   async importData(incoming: AppData & { images?: EntryImage[] }, mode: 'merge' | 'replace') {
     const { images, ...rest } = incoming;
     const next = mode === 'merge' ? mergeData(this.data, rest) : rest;
-    // 画像は記録より先に入れる
+    // 画像は話題より先に入れる
     for (const img of images ?? []) await this.repo.putImage(img);
     await this.repo.replaceAll(next);
     this.set(next);

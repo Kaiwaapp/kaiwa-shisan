@@ -9,15 +9,15 @@ export interface Features {
   favorites: boolean;
   /** 人のグループ */
   groups: boolean;
-  /** 記録の相手・話題の下に出す直近の候補 */
+  /** 話題の相手・タグの下に出す直近の候補 */
   recent: boolean;
-  /** 記録のタイトル欄 */
+  /** 話題のタイトル欄 */
   title: boolean;
-  /** 記録のメモ欄(本文とは別の覚え書き) */
+  /** 話題のメモ欄(本文とは別の覚え書き) */
   memo: boolean;
   /** 一覧・編集画面のコピーボタン */
   copy: boolean;
-  /** 記録への画像の添付 */
+  /** 話題への画像の添付 */
   images: boolean;
   /** 設定の「他のアプリから取り込む」 */
   import: boolean;
@@ -25,50 +25,57 @@ export interface Features {
   profile: boolean;
   /** 人の関係(友達・家族など)と、人タブの関係での絞り込み */
   relations: boolean;
-  /** 記録の編集画面で、保存せずに戻るときの確認 */
+  /** 話題の編集画面で、保存せずに戻るときの確認 */
   confirmDiscard: boolean;
   /** 人: 名前に入力した文字(変換前のかな)から読み仮名を作る。設定画面の「人」の欄に出す */
   readingPerson: boolean;
-  /** 話題: 名前に入力した文字から読み仮名を作る。設定画面の「話題」の欄に出す */
+  /** タグ: 名前に入力した文字から読み仮名を作る。設定画面の「タグ」の欄に出す */
   readingTopic: boolean;
-  /** 話題: 話題タブに「おすすめの話題から登録」の案内を出す(案内の「今後表示しない」でオフになる) */
+  /** タグ: タグタブに「おすすめのタグから登録」の案内を出す(案内の「今後表示しない」でオフになる) */
   presetHint: boolean;
+  /** 予定(予定タブと人ごとの予定) */
+  schedule: boolean;
+  /** 話題タブの一番上に今日・明日の予定を出す */
+  scheduleToday: boolean;
   /** 有料機能(将来は月額課金): バナー広告を出さない。今は誰でも切り替えられる。設定画面の「有料機能」の欄に出す */
   noAds: boolean;
 }
 
-export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'relations', 'confirmDiscard', 'presetHint'] as const;
+export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'relations', 'confirmDiscard', 'presetHint', 'schedule', 'scheduleToday'] as const;
 
 /** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
-  { key: 'entry', title: '記録', items: ['title', 'memo', 'images', 'copy', 'recent', 'confirmDiscard'] },
+  { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent', 'confirmDiscard'] },
   { key: 'person', title: '人', items: ['readingPerson', 'relations', 'groups', 'profile'] },
-  { key: 'topic', title: '話題', items: ['readingTopic', 'presetHint'] },
+  { key: 'topic', title: 'タグ', items: ['readingTopic', 'presetHint'] },
+  { key: 'schedule', title: '予定', items: ['schedule', 'scheduleToday'] },
   { key: 'common', title: '全体', items: ['folders', 'favorites', 'import'] },
 ];
 
 /** 設定画面に出す名前と説明(表示時に t() を通す) */
 export const FEATURE_LABELS: Record<keyof Features, { label: string; note: string }> = {
-  folders: { label: 'フォルダ', note: 'オフにすると、記録・人・話題をフォルダに分けずに全部並べます' },
+  folders: { label: 'フォルダ', note: 'オフにすると、話題・人・タグをフォルダに分けずに全部並べます' },
   favorites: { label: 'お気に入り', note: '☆ボタンと★のお気に入り一覧' },
-  groups: { label: 'グループ', note: '人のグループと、記録の相手を「グループから」選ぶ機能' },
-  recent: { label: '直近の候補', note: '記録の相手・話題の入力欄の下に、入力しなくても候補を出す' },
-  title: { label: '記録のタイトル', note: '記録の編集画面のタイトル欄' },
-  memo: { label: '記録のメモ', note: '記録の本文とは別に、相手の反応などを書いておく欄' },
+  groups: { label: 'グループ', note: '人のグループと、話題の相手を「グループから」選ぶ機能' },
+  recent: { label: '直近の候補', note: '話題の相手・タグの入力欄の下に、入力しなくても候補を出す' },
+  title: { label: '話題のタイトル', note: '話題の編集画面のタイトル欄' },
+  memo: { label: '話題のメモ', note: '話題の本文とは別に、相手の反応などを書いておく欄' },
   copy: { label: 'コピーボタン', note: '一覧と編集画面の本文コピーボタン' },
-  images: { label: '画像の添付', note: '記録に写真やスクショを添付する機能' },
+  images: { label: '画像の添付', note: '話題に写真やスクショを添付する機能' },
   import: { label: '他のアプリから取り込む', note: '設定の取り込みの項目' },
   relations: { label: '関係', note: '人に友達・家族などの関係を付けて、人タブで絞り込む' },
   profile: { label: '人のプロフィール', note: '人の画面の年齢・仕事・趣味などの欄' },
   readingPerson: { label: '人の名前に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
-  readingTopic: { label: '話題に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
-  presetHint: { label: 'おすすめの話題の案内', note: '話題タブに、用意した話題リストから登録する案内を出す' },
+  readingTopic: { label: 'タグに入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
+  presetHint: { label: 'おすすめのタグの案内', note: 'タグタブに、用意したタグリストから登録する案内を出す' },
+  schedule: { label: '予定', note: '予定タブと、人の画面の予定欄。予定に人を紐づけて、カレンダーやリストで見られます' },
+  scheduleToday: { label: '今日・明日の予定を表示', note: 'アプリを開いたとき、話題タブの一番上に今日と明日の予定を出す' },
   noAds: { label: 'バナー広告を表示しない', note: '画面下のバナー広告を消します。' },
-  confirmDiscard: { label: '保存せずに戻るときの確認', note: '記録を入力したままキャンセルしたとき、保存されないことを確認する' },
+  confirmDiscard: { label: '保存せずに戻るときの確認', note: '話題を入力したままキャンセルしたとき、保存されないことを確認する' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, noAds: false };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, noAds: false };
 
 const load = (): Features => {
   try {

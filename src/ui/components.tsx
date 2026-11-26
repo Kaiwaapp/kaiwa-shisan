@@ -35,7 +35,7 @@ export function FavButton({ on, onToggle, className = '' }: { on: boolean; onTog
   );
 }
 
-/** 保存済みの記録・人・話題のお気に入りを切り替えるボタン */
+/** 保存済みの話題・人・タグのお気に入りを切り替えるボタン */
 export function FavToggle({ kind, id, on, className }: { kind: 'entry' | 'person' | 'topic'; id: ID; on: boolean; className?: string }) {
   const store = useStore();
   return (
@@ -69,12 +69,14 @@ export function SearchBox({ value, onChange, placeholder }: { value: string; onC
   );
 }
 
-/** 記録の見出し1行+続き1行(はみ出しは「…」)。続きがなければ見出しを2行まで折り返す */
+/** 話題の見出し1行+続き1行(はみ出しは「…」)。続きがなければ見出しを2行まで折り返す */
 export function EntryPreview({ entry, pinned }: { entry: Entry; pinned?: boolean }) {
   const { head, rest } = entryPreview(entry);
+  // タイトルがない時は本文の冒頭なので太字にしない
+  const plain = !entry.title?.trim();
   return (
     <>
-      <div className={`card-head ${rest ? '' : 'two'} ${head ? '' : 'muted'}`}>
+      <div className={`card-head ${rest ? '' : 'two'} ${head ? '' : 'muted'} ${plain ? 'plain' : ''}`}>
         {pinned && <span className="pin" aria-label={t('ピン留め')}>📌</span>}
         {head || t('（本文なし）')}
       </div>
@@ -163,7 +165,7 @@ export function EntryList({ entries, data, empty, hidePersonId, hideTopicId, hid
       <>
         <div className="section-title">{t('📌 ピン留め')}</div>
         <EntryList entries={pinned} empty="" {...props} />
-        {rest.length > 0 && <div className="section-title">{t('記録')}</div>}
+        {rest.length > 0 && <div className="section-title">{t('話題')}</div>}
         {rest.length > 0 && <EntryList entries={rest} empty="" {...props} />}
       </>
     );
@@ -226,7 +228,7 @@ export function SortSelect<K extends string>({ value, options, onChange }: {
     </label>
   );
 }
-/** 記録の相手に出す人のグループ。選ぶとグループそのものが記録に付く(メンバーには展開しない) */
+/** 話題の相手に出す人のグループ。選ぶとグループそのものが話題に付く(メンバーには展開しない) */
 export interface PickGroup { id: ID; name: string; rank: number; count: number }
 
 /** 候補の最初の表示数。横にスクロールして端まで行くと、同じ数ずつ追加で出す */
@@ -295,9 +297,9 @@ function PickRow({ children, more, onMore, resetKey, wrap }: { children: ReactNo
 }
 
 /**
- * 人・話題の選択。ドロップダウンは出さず、入力欄の下に候補を並べてタップで選ぶ。
+ * 人・タグの選択。ドロップダウンは出さず、入力欄の下に候補を並べてタップで選ぶ。
  * 候補は最後に選んだ順に {PICK_PAGE} 件ずつ。横にスクロールすると追加で出る。
- * 入力すると候補が絞り込まれ、先頭に「新しく追加」が出る(新規は記録の保存時に作られる)。
+ * 入力すると候補が絞り込まれ、先頭に「新しく追加」が出る(新規は話題の保存時に作られる)。
  * 人のときはグループの列も出し、グループを選ぶとグループ自体が付く。
  */
 export function ComboPicker({ kind, options, selected, newNames, onChange, groups = [], selectedGroups = [], onGroupsChange, suggest = true, allowSameName = false }: {
@@ -396,7 +398,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange, group
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={(e) => liftAboveKeyboard(e.currentTarget)}
-          placeholder={kind === 'person' ? t('🔍 名前で絞り込む／新しい人を入力') : t('🔍 話題で絞り込む／新しい話題を入力')}
+          placeholder={kind === 'person' ? t('🔍 名前で絞り込む／新しい人を入力') : t('🔍 タグで絞り込む／新しいタグを入力')}
           enterKeyHint="done"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.nativeEvent.isComposing) {

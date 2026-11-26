@@ -10,11 +10,11 @@ export interface Person {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
-  /** 記録の相手・話題として最後に選んだ日時(候補の並び順用) */
+  /** 話題の相手・タグとして最後に選んだ日時(候補の並び順用) */
   selectedAt?: number;
   /** 読み仮名(検索用) */
   reading?: string;
-  /** 入っているフォルダ(人用・話題用)。null/未設定は一番上 */
+  /** 入っているフォルダ(人用・タグ用)。null/未設定は一番上 */
   folderId?: ID | null;
   /** ピン留め(一覧の上に固定) */
   pinned?: boolean;
@@ -28,6 +28,8 @@ export interface Person {
   relation?: string;
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い(新しいものが上) */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
 /** 初めから用意しているプロフィール項目。表示名は画面側(ui/profileFields.ts)で付け、設定で変えられる */
@@ -80,7 +82,7 @@ export interface Group {
   name: string;
   createdAt: number;
   updatedAt: number;
-  /** 記録の相手として最後に選んだ日時(候補の並び順用) */
+  /** 話題の相手として最後に選んだ日時(候補の並び順用) */
   selectedAt?: number;
 }
 
@@ -91,11 +93,11 @@ export interface Topic {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
-  /** 記録の相手・話題として最後に選んだ日時(候補の並び順用) */
+  /** 話題の相手・タグとして最後に選んだ日時(候補の並び順用) */
   selectedAt?: number;
   /** 読み仮名(検索用) */
   reading?: string;
-  /** 入っているフォルダ(人用・話題用)。null/未設定は一番上 */
+  /** 入っているフォルダ(人用・タグ用)。null/未設定は一番上 */
   folderId?: ID | null;
   /** ピン留め(一覧の上に固定) */
   pinned?: boolean;
@@ -103,9 +105,11 @@ export interface Topic {
   favorite?: boolean;
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
-/** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
+/** タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
 export type TagSource = 'manual' | 'ai';
 
 export interface TopicTag {
@@ -113,7 +117,7 @@ export interface TopicTag {
   source: TagSource;
 }
 
-/** 記録1件 = タイトル(任意) + 自由記述テキスト + 話した相手(複数) + 話題タグ */
+/** 話題1件 = タイトル(任意) + 自由記述テキスト + 話した相手(複数) + タグ */
 export interface Entry {
   id: ID;
   /** タイトル(任意)。未設定なら一覧では本文の1行目を見出しに使う */
@@ -143,10 +147,12 @@ export interface Entry {
   imageIds?: ID[];
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
 /**
- * 記録に添付した画像。一覧の読み込みを軽くするため、記録とは別の保存場所に置き、開いたときだけ読む。
+ * 話題に添付した画像。一覧の読み込みを軽くするため、話題とは別の保存場所に置き、開いたときだけ読む。
  * 端末の中だけに保存する(縮小・JPEG圧縮したもの)
  */
 export interface EntryImage {
@@ -166,7 +172,7 @@ export interface Folder {
   name: string;
   /** 親フォルダ。null は一番上 */
   parentId: ID | null;
-  /** 何を入れるフォルダか。未設定は記録用 */
+  /** 何を入れるフォルダか。未設定は話題用 */
   scope?: FolderScope;
   createdAt: number;
   updatedAt: number;
@@ -176,12 +182,37 @@ export interface Folder {
   order?: number;
 }
 
+/** 予定の通知(カレンダーに書き出したときのアラーム)。start=開始時刻(終日は当日9時)、1h=1時間前、1d=前日(終日は前日9時) */
+export type EventAlarm = 'start' | '1h' | '1d';
+
+/** 予定1件。人(複数)・グループに紐づけられる */
+export interface ScheduleEvent {
+  id: ID;
+  title: string;
+  /** 日付 (YYYY-MM-DD) */
+  date: string;
+  /** 開始時刻 (HH:MM)。なければ終日 */
+  time?: string;
+  /** 終了時刻 (HH:MM)。開始時刻があるときだけ */
+  endTime?: string;
+  personIds: ID[];
+  groupIds?: ID[];
+  place?: string;
+  /** 話したいこと・メモ */
+  memo?: string;
+  alarm?: EventAlarm;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AppData {
   people: Person[];
   topics: Topic[];
   entries: Entry[];
   folders: Folder[];
   groups: Group[];
+  /** 予定。古いデータ・バックアップにはない */
+  events?: ScheduleEvent[];
 }
 
 export const newId = (): ID =>
@@ -213,6 +244,6 @@ export const entryPreview = (e: { title?: string; text: string }): { head: strin
   return { head: lines[i].trim(), rest: oneLine(lines.slice(i + 1).join('\n')) };
 };
 
-/** その記録の相手に入っている人か(直接、またはグループのメンバーとして) */
+/** その話題の相手に入っている人か(直接、またはグループのメンバーとして) */
 export const entryHasPerson = (e: Pick<Entry, 'personIds' | 'groupIds'>, p: Pick<Person, 'id' | 'groupIds'>): boolean =>
   e.personIds.includes(p.id) || !!e.groupIds?.some((g) => p.groupIds?.includes(g));

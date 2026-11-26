@@ -49,7 +49,7 @@ describe('添付画像', () => {
     expect(await repo.imageIds()).toEqual([]);
   });
 
-  it('起動時にどの記録にも付いていない画像を掃除する', async () => {
+  it('起動時にどの話題にも付いていない画像を掃除する', async () => {
     const repo = new IdbRepository('img-' + n++);
     await repo.putImage(img('orphan'));
     const s = new Store(repo);

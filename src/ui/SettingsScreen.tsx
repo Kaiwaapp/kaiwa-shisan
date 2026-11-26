@@ -6,6 +6,8 @@ import { exportBackup, getLastBackup, getManifest } from './backupUi';
 import { useAiSettings } from './AiTools';
 import { FEATURE_KEYS, FEATURE_LABELS, setFeature, useFeatures } from './features';
 import { REWARD_CREDITS, RewardAd, useCredits } from './ads';
+import { confirmRemoveSamples, useHasSamples } from './samples';
+import { setThemePref, useThemePref, type ThemePref } from './theme';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
 export function SettingsScreen() {
@@ -20,6 +22,8 @@ export function SettingsScreen() {
   const [manifest, setManifest] = useState(getManifest());
   const changes = useMemo(() => diffSince(data, manifest).count, [data, manifest]);
   const feat = useFeatures();
+  const hasSamples = useHasSamples();
+  const theme = useThemePref();
   const credits = useCredits();
   const [watching, setWatching] = useState(false);
   const [ai] = useAiSettings();
@@ -75,9 +79,9 @@ export function SettingsScreen() {
       <Header title={t('設定')} />
       <div className="form">
         <div className="stats">
-          <div><b>{data.entries.length}</b><span>{t('記録')}</span></div>
+          <div><b>{data.entries.length}</b><span>{t('話題')}</span></div>
           <div><b>{data.people.length}</b><span>{t('人')}</span></div>
-          <div><b>{data.topics.length}</b><span>{t('話題')}</span></div>
+          <div><b>{data.topics.length}</b><span>{t('タグ')}</span></div>
           <div><b>{data.folders.length}</b><span>{t('フォルダ')}</span></div>
         </div>
 
@@ -86,6 +90,15 @@ export function SettingsScreen() {
           <select className="select block" value={langPref()} onChange={(e) => setLangPref(e.target.value as LangPref)}>
             <option value="auto">{t('自動（端末の言語）')}</option>
             {LANGS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
+          </select>
+        </section>
+
+        <section className="panel">
+          <h2>{t('画面の色')}</h2>
+          <select className="select block" value={theme} onChange={(e) => setThemePref(e.target.value as ThemePref)}>
+            <option value="auto">{t('端末に合わせる')}</option>
+            <option value="light">{t('ライト')}</option>
+            <option value="dark">{t('ダーク')}</option>
           </select>
         </section>
 
@@ -103,6 +116,15 @@ export function SettingsScreen() {
             <span className="sub">{t('画面の構成と使える機能')}</span>
             <span className="chev">›</span>
           </li>
+          {hasSamples ? (
+            <li className="row-item" onClick={() => confirmRemoveSamples(store)}>
+              <span className="name">{t('見本を消す')}</span>
+            </li>
+          ) : (
+            <li className="row-item" onClick={async () => { await store.addSamples(); go('/'); }}>
+              <span className="name">{t('見本を入れる')}</span>
+            </li>
+          )}
         </ul>
 
         <section className="panel" id="premium">
@@ -125,7 +147,7 @@ export function SettingsScreen() {
 
         {feat.import && <section className="panel">
           <h2>{t('他のアプリから取り込む')}</h2>
-          <p className="muted small">{t('iPhoneのメモ・テキストやLINEのトーク履歴を、記録としてまとめて取り込めます。')}</p>
+          <p className="muted small">{t('iPhoneのメモ・テキストやLINEのトーク履歴を、話題としてまとめて取り込めます。')}</p>
           <button className="btn block" onClick={() => go('/import')}>{t('取り込みを始める')}</button>
         </section>}
 
@@ -163,7 +185,7 @@ export function SettingsScreen() {
           {pending && pending.kind === 'incremental' && (
             <div className="confirm">
               <p>
-                {t('増分のファイル（{d}時点）: 追加・変更 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個、削除{x}件', {
+                {t('増分のファイル（{d}時点）: 追加・変更 話題{e}件・人{p}人・タグ{t}件・フォルダ{f}個、削除{x}件', {
                   d: new Date(pending.exportedAt).toLocaleString(locale()),
                   e: pending.data.entries.length, p: pending.data.people.length, t: pending.data.topics.length, f: pending.data.folders.length, x: deletedCount,
                 })}
@@ -176,7 +198,7 @@ export function SettingsScreen() {
           {pending && pending.kind === 'full' && (
             <div className="confirm">
               <p>
-                {t('読み込むファイル: 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個', { e: pending.data.entries.length, p: pending.data.people.length, t: pending.data.topics.length, f: pending.data.folders.length })}
+                {t('読み込むファイル: 話題{e}件・人{p}人・タグ{t}件・フォルダ{f}個', { e: pending.data.entries.length, p: pending.data.people.length, t: pending.data.topics.length, f: pending.data.folders.length })}
                 {!!pending.data.images?.length && <>{t('・画像{n}枚', { n: pending.data.images.length })}</>}
               </p>
               <button className="btn primary block" onClick={() => apply('merge')}>{t('今のデータに統合する')}</button>

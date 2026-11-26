@@ -16,12 +16,12 @@ export const nameMatches = (x: { name: string; reading?: string; profile?: Perso
 };
 
 /**
- * 記録ごとの検索用文字列(正規化済み)。打つたびに全件を作り直すと件数が多い時に重いので使い回す。
- * 記録・人・話題・グループが変わると別のオブジェクト(配列)になるので、それを見て作り直す
+ * 話題ごとの検索用文字列(正規化済み)。打つたびに全件を作り直すと件数が多い時に重いので使い回す。
+ * 話題・人・タグ・グループが変わると別のオブジェクト(配列)になるので、それを見て作り直す
  */
 const hayCache = new WeakMap<Entry, { p: unknown; t: unknown; g: unknown; hay: string }>();
 
-/** スペース区切りの全語を、タイトル・本文・メモ・人の名前・話題名のどこかに含む記録を返す */
+/** スペース区切りの全語を、タイトル・本文・メモ・人の名前・タグ名のどこかに含む話題を返す */
 export function searchEntries(data: AppData, query: string): Entry[] {
   const words = normalize(query).split(/\s+/).filter(Boolean);
   if (words.length === 0) return sortEntries(data.entries);
@@ -79,7 +79,7 @@ export function moveInList(ids: string[], dragId: string, targetId: string, afte
 /**
  * 新しい並び arranged に合わせて order を振り直す。並べ替えた項目がもともと使っていた値を
  * 小さい順に配り直すので、この一覧に出ていない項目との前後関係は変わらない
- * (フォルダの中で並べ替えても「すべての記録」での位置が大きく崩れない)
+ * (フォルダの中で並べ替えても「すべての話題」での位置が大きく崩れない)
  */
 export function reorderValues(items: Orderable[], arranged: string[]): Map<string, number> {
   const byId = new Map(items.map((x) => [x.id, x]));
@@ -120,10 +120,10 @@ export const NAME_SORTS: { key: NameSort; label: string }[] = [
 
 export interface NameStat { count: number; first: string; last: string }
 
-/** 人または話題ごとの 記録数・最初/最後に話した日 */
+/** 人またはタグごとの 話題数・最初/最後に話した日 */
 export function statsBy(data: AppData, key: 'person' | 'topic'): Map<string, NameStat> {
   const m = new Map<string, NameStat>();
-  // グループに話した記録は、そのグループの人みんなに話したものとして数える
+  // グループに話した話題は、そのグループの人みんなに話したものとして数える
   const members = new Map<string, string[]>();
   if (key === 'person') for (const p of data.people) for (const g of p.groupIds ?? []) members.set(g, [...(members.get(g) ?? []), p.id]);
   for (const e of data.entries) {
@@ -154,7 +154,7 @@ export function sortNames<T extends { id: string; name: string; createdAt: numbe
     case 'count':
       return l.sort((a, b) => b.stat.count - a.stat.count || byName(a, b));
     case 'first':
-      // まだ記録がないものは最後
+      // まだ話題がないものは最後
       return l.sort((a, b) => (a.stat.first || '9999').localeCompare(b.stat.first || '9999') || a.createdAt - b.createdAt);
     default:
       return l.sort((a, b) => b.stat.last.localeCompare(a.stat.last) || b.createdAt - a.createdAt);

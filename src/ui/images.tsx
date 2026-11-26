@@ -1,4 +1,4 @@
-// 記録の添付画像。端末の中だけに保存する。アプリを軽く保つため、縮小・JPEG圧縮してから保存する。
+// 話題の添付画像。端末の中だけに保存する。アプリを軽く保つため、縮小・JPEG圧縮してから保存する。
 import { useEffect, useState } from 'react';
 import { newId, type EntryImage, type ID } from '../core/types';
 import { useStore } from './hooks';

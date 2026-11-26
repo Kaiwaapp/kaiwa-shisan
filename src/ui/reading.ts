@@ -9,7 +9,7 @@ const listeners = new Set<() => void>();
 
 /**
  * 日本語入力の変換を見張る。変換前のかなと確定した文字を組にして覚える。
- * どの入力欄でも動くので、記録の画面で新しく入れた人・話題の名前の読みも拾える
+ * どの入力欄でも動くので、話題の画面で新しく入れた人・タグの名前の読みも拾える
  */
 export function installReadingCapture() {
   let lastKana = '';
