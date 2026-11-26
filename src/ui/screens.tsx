@@ -17,6 +17,7 @@ export { folderChoices } from './folders';
 import { PresetHint } from './PresetTopics';
 import { SampleHint } from './samples';
 import { useFeatures } from './features';
+import { confirmLeave, useDiscardGuard } from './discard';
 import { Fab, createItems, useAddRequest } from './fab';
 import { Icon } from './icons';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
@@ -96,7 +97,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
         title={folder ? folder.name : t('話題')}
         lead={<TitleIcons scope="entry" />}
         left={folder && <UpButton scope="entry" parent={parent} />}
-        right={<span className="header-actions">{!editing && !adding && !selecting && !flat && <FolderAddButton onClick={() => setAdding(true)} />}{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
+        right={<span className="header-actions">{!editing && !adding && !selecting && !flat && <FolderAddButton onClick={() => setAdding(true)} />}{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => (editing ? confirmLeave(() => setEditing(false)) : setEditing(true))}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
       <Crumbs scope="entry" path={path} />
       {!folder && !selecting && <TodayEvents />}
@@ -407,7 +408,7 @@ export function NameFolderScreen({ kind, folderId, rel }: { kind: NameKind; fold
         title={folder ? folder.name : label}
         lead={<TitleIcons scope={kind} />}
         left={folder && <UpButton scope={kind} parent={parent} />}
-        right={<span className="header-actions">{!editing && !adding && !selecting && !flat && <FolderAddButton onClick={() => setAdding(true)} />}{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
+        right={<span className="header-actions">{!editing && !adding && !selecting && !flat && <FolderAddButton onClick={() => setAdding(true)} />}{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => (editing ? confirmLeave(() => setEditing(false)) : setEditing(true))}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
       <Crumbs scope={kind} path={path} />
       {editing && folder ? (
@@ -562,6 +563,14 @@ export function PersonScreen({ id }: { id: ID }) {
   const [pfolder, setPfolder] = useState<ID | null>(null);
   const [pgroups, setPgroups] = useState<ID[]>([]);
   const [prel, setPrel] = useState<string | undefined>(undefined);
+  const pdirty = editing && !!person && (name !== person.name || reading !== (person.reading ?? '') || memo !== person.memo || pfolder !== (person.folderId ?? null)
+    || pgroups.join() !== (person.groupIds ?? []).join() || (feat.relations && prel !== person.relation));
+  const savePerson = async () => {
+    if (!name.trim()) return false;
+    await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder, groupIds: pgroups.filter((g) => data.groups.some((x) => x.id === g)), ...(feat.relations ? { relation: prel } : {}) });
+    setEditing(false);
+  };
+  const pguard = useDiscardGuard(!!pdirty, name.trim() ? savePerson : undefined);
 
   // グループに話した話題も、そのグループの人の話題として出す
   const mine = useMemo(() => (person ? data.entries.filter((e) => entryHasPerson(e, person)) : []), [data, person]);
@@ -581,9 +590,10 @@ export function PersonScreen({ id }: { id: ID }) {
     <div className="screen">
       <Header
         title={person.name}
-        left={<button className="link" onClick={() => back('/people')}>{t('‹ 人')}</button>}
-        right={<span className="header-actions">{!editing && <FavToggle kind="person" id={id} on={!!person.favorite} className="in-header" />}<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setPgroups(person.groupIds ?? []); setPrel(person.relation); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
+        left={<button className="link" onClick={() => confirmLeave(() => back('/people'))}>{t('‹ 人')}</button>}
+        right={<span className="header-actions">{!editing && <FavToggle kind="person" id={id} on={!!person.favorite} className="in-header" />}<button className="link" onClick={() => { if (editing) { pguard.guard(() => setEditing(false)); return; } setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setPgroups(person.groupIds ?? []); setPrel(person.relation); setEditing(true); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
       />
+      {pguard.sheet}
       {editing ? (
         <div className="form">
           <section className="field">
@@ -613,7 +623,7 @@ export function PersonScreen({ id }: { id: ID }) {
             <label>{t('メモ（関係・好きなものなど）')}</label>
             <textarea className="textarea" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
           </section>
-          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder, groupIds: pgroups.filter((g) => data.groups.some((x) => x.id === g)), ...(feat.relations ? { relation: prel } : {}) }); setEditing(false); }}>
+          <button className="btn primary block" disabled={!name.trim()} onClick={savePerson}>
             {t('保存')}
           </button>
           <MergeBox kind="person" id={id} name={person.name} />
@@ -682,6 +692,13 @@ export function TopicScreen({ id }: { id: ID }) {
   const [name, setName] = useState('');
   const [reading, setReading] = useState('');
   const [tfolder, setTfolder] = useState<ID | null>(null);
+  const tdirty = editing && !!topic && (name !== topic.name || reading !== (topic.reading ?? '') || tfolder !== (topic.folderId ?? null));
+  const saveTopic = async () => {
+    if (!name.trim()) return false;
+    await store.updateTopic(id, { name: name.trim(), reading: reading.trim(), folderId: tfolder });
+    setEditing(false);
+  };
+  const tguard = useDiscardGuard(tdirty, name.trim() ? saveTopic : undefined);
   const [sort, setSort] = usePref<EntrySort>('detailSort', 'newest');
   const [personFilter, setPersonFilter] = useState<ID | null>(null);
   const [entriesOpen, setEntriesOpen] = useFold('topic-entries');
@@ -699,9 +716,10 @@ export function TopicScreen({ id }: { id: ID }) {
     <div className="screen">
       <Header
         title={`#${topic.name}`}
-        left={<button className="link" onClick={() => back('/topics')}>{t('‹ タグ')}</button>}
-        right={<span className="header-actions">{!editing && <FavToggle kind="topic" id={id} on={!!topic.favorite} className="in-header" />}<button className="link" onClick={() => { setName(topic.name); setReading(topic.reading ?? ''); setTfolder(topic.folderId ?? null); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
+        left={<button className="link" onClick={() => confirmLeave(() => back('/topics'))}>{t('‹ タグ')}</button>}
+        right={<span className="header-actions">{!editing && <FavToggle kind="topic" id={id} on={!!topic.favorite} className="in-header" />}<button className="link" onClick={() => { if (editing) { tguard.guard(() => setEditing(false)); return; } setName(topic.name); setReading(topic.reading ?? ''); setTfolder(topic.folderId ?? null); setEditing(true); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
       />
+      {tguard.sheet}
       {editing ? (
         <div className="form">
           <section className="field">
@@ -718,7 +736,7 @@ export function TopicScreen({ id }: { id: ID }) {
             <label>{t('フォルダ')}</label>
             <FolderSelect scope="topic" value={tfolder} onChange={setTfolder} />
           </section>}
-          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updateTopic(id, { name: name.trim(), reading: reading.trim(), folderId: tfolder }); setEditing(false); }}>
+          <button className="btn primary block" disabled={!name.trim()} onClick={saveTopic}>
             {t('保存')}
           </button>
           <MergeBox kind="topic" id={id} name={topic.name} />
@@ -782,15 +800,17 @@ function PersonMemo({ id, memo }: { id: ID; memo: string }) {
   const store = useStore();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(memo);
+  const save = async () => { if (draft !== memo) await store.updatePerson(id, { memo: draft }); setOpen(false); };
+  const { guard, sheet } = useDiscardGuard(open && draft !== memo, save);
   if (open) {
-    const save = async () => { if (draft !== memo) await store.updatePerson(id, { memo: draft }); setOpen(false); };
     return (
       <div className="memo-edit">
         <textarea className="textarea" rows={5} ref={autoFocusRef} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t('メモ（関係・好きなものなど）')} />
         <div className="memo-actions">
-          <button className="link" onClick={() => { setDraft(memo); setOpen(false); }}>{t('キャンセル')}</button>
+          <button className="link" onClick={() => guard(() => { setDraft(memo); setOpen(false); })}>{t('キャンセル')}</button>
           <button className="link strong" onClick={save}>{t('保存')}</button>
         </div>
+        {sheet}
       </div>
     );
   }

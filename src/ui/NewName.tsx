@@ -7,6 +7,7 @@ import { Header } from './components';
 import { currentLang, t } from '../i18n';
 import { useAutoReading } from './reading';
 import { setFeature, useFeatures } from './features';
+import { useDiscardGuard } from './discard';
 
 /** 人タブ・タグタブの右下「＋」から開く、人／タグの新規追加画面 */
 export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; folderId: ID | null }) {
@@ -23,6 +24,8 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
   const list = kind === 'person' ? data.people : data.topics;
   const dup = clean ? list.find((x) => normalize(x.name) === normalize(clean)) : undefined;
   const base = kind === 'person' ? '#/people/' : '#/topics/';
+  // 何か入力していれば、キャンセル時に確認する(保存して戻る＝追加)
+  const { guard, sheet } = useDiscardGuard(!saving && !!(name.trim() || memo.trim() || reading.trim()), clean ? () => { void save(); return false; } : undefined);
 
   /** asNew: 同名の人がいても別の人として追加する */
   const save = async (asNew = false) => {
@@ -47,9 +50,10 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
     <div className="screen editor">
       <Header
         title={kind === 'person' ? t('新しい人') : t('新しいタグ')}
-        left={<button className="link" onClick={() => back(kind === 'person' ? '/people' : '/topics')}>{t('キャンセル')}</button>}
+        left={<button className="link" onClick={() => guard(() => back(kind === 'person' ? '/people' : '/topics'))}>{t('キャンセル')}</button>}
         right={<button className="link strong" disabled={!clean || saving} onClick={() => save()}>{dup ? t('開く') : t('追加')}</button>}
       />
+      {sheet}
       <div className="form">
         <section className="field">
           <label>{kind === 'person' ? t('名前') : t('タグの名前')}</label>

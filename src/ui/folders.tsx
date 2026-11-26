@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useDiscardGuard } from './discard';
 import { autoFocusRef } from './focus';
 import type { Folder, FolderScope, ID } from '../core/types';
 import { folderDescendants, foldersOf } from '../core/store';
@@ -146,9 +147,11 @@ export function FolderEdit({ id, onDone }: { id: ID; onDone: () => void }) {
   const choices = folderChoices(foldersOf(data.folders, scope)).filter((c) => c.id !== id && !blocked.has(c.id));
   const save = async () => {
     if (name.trim() !== folder.name) await store.renameFolder(id, name);
-    if ((parent || null) !== folder.parentId) await store.moveFolder(id, parent || null);
+    if ((parent || null) !== (folder.parentId ?? null)) await store.moveFolder(id, parent || null);
     onDone();
   };
+  const dirty = name.trim() !== folder.name || (parent || null) !== (folder.parentId ?? null);
+  const { sheet } = useDiscardGuard(dirty, name.trim() ? save : undefined);
   return (
     <div className="form">
       <section className="field">
@@ -163,6 +166,7 @@ export function FolderEdit({ id, onDone }: { id: ID; onDone: () => void }) {
         </select>
       </section>
       <button className="btn primary block" disabled={!name.trim()} onClick={save}>{t('保存')}</button>
+      {sheet}
       {scope === 'entry' && (
         <button className="btn danger block" onClick={() => openClear(id)}>{t('中の話題をすべて削除')}</button>
       )}
