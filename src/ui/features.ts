@@ -73,7 +73,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   readingTopic: { label: 'タグに入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   presetHint: { label: 'おすすめのタグの案内', note: 'タグタブに、用意したタグリストから登録する案内を出す' },
   schedule: { label: '予定', note: '予定タブと、人の画面の予定欄。予定に人を紐づけて、カレンダーやリストで見られます' },
-  scheduleToday: { label: '今日・明日の予定を表示', note: 'アプリを開いたとき、話題タブの一番上に今日と明日の予定と、期限が近いToDoを出す' },
+  scheduleToday: { label: '予定タブに今日・明日の件数を表示', note: '今日・明日の予定と、期限が明日まで（過ぎたものも）のToDoがあるとき、予定タブのアイコンに赤い数字を出す' },
   todo: { label: 'ToDoリスト', note: '予定タブのToDoと、人の画面のToDo欄。人を紐づけたり期限を付けたりできます' },
   noAds: { label: 'バナー広告を表示しない', note: '画面下のバナー広告を消します。' },
   stayAfterSave: { label: '保存後もこの画面に留まる', note: '話題の保存ボタンを押したあと、一覧に戻らずに続けて書けます。保存ボタンの長押しでも、その都度選べます' },

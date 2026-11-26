@@ -252,26 +252,21 @@ function EventRow({ e, data, hidePersonId, withDate }: { e: ScheduleEvent; data:
   );
 }
 
-/** 話題タブの一番上に出す、今日・明日の予定(アプリを開いたときに気づけるように) */
-export function TodayEvents() {
+/**
+ * 予定タブのアイコンに出す赤い数字: 今日・明日の予定と、期限が明日まで(過ぎたものも)の終わっていないToDoの数。
+ * アプリを開いたときに気づけるように
+ */
+export function useScheduleBadge(): number {
   const data = useData();
   const feat = useFeatures();
   const now = today();
   const tomorrow = addDays(now, 1);
-  const soon = useMemo(() => sortEvents((data.events ?? []).filter((e) => e.date === now || e.date === tomorrow)), [data.events, now, tomorrow]);
-  // 期限が明日まで(過ぎたものも)の終わっていないToDo
-  const dueTodos = useMemo(() => openTodos(data.todos ?? []).filter((x) => x.due && x.due <= tomorrow), [data.todos, tomorrow]);
-  if (!feat.schedule || !feat.scheduleToday) return null;
-  const todos = feat.todo ? dueTodos : [];
-  if (!soon.length && !todos.length) return null;
-  return (
-    <section className="panel today-events">
-      {soon.length > 0 && <div className="panel-sub">{t('今日・明日の予定')}</div>}
-      {soon.map((e) => <EventRow key={e.id} e={e} data={data} withDate />)}
-      {todos.length > 0 && <div className="panel-sub">{t('期限が近いToDo')}</div>}
-      {todos.map((x) => <TodoRow key={x.id} x={x} data={data} />)}
-    </section>
-  );
+  return useMemo(() => {
+    if (!feat.schedule || !feat.scheduleToday) return 0;
+    const ev = (data.events ?? []).filter((e) => e.date === now || e.date === tomorrow).length;
+    const td = feat.todo ? openTodos(data.todos ?? []).filter((x) => x.due && x.due <= tomorrow).length : 0;
+    return ev + td;
+  }, [data.events, data.todos, feat.schedule, feat.scheduleToday, feat.todo, now, tomorrow]);
 }
 
 // ---- ToDo ----

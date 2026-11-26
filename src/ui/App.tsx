@@ -17,7 +17,7 @@ import { Fab, createItems } from './fab';
 import { useFeatures } from './features';
 import { AdBanner } from './ads';
 import { Icon, type IconName } from './icons';
-import { EventEditor, ScheduleScreen, TodoEditor } from './schedule';
+import { EventEditor, ScheduleScreen, TodoEditor, useScheduleBadge } from './schedule';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
@@ -77,6 +77,7 @@ function Shell() {
   const { path, query } = useRoute();
   const selecting = useInteract().sel.active;
   const feat = useFeatures();
+  const badge = useScheduleBadge();
   const fitRef = useFitRef();
   const [head, sub] = path;
 
@@ -200,7 +201,7 @@ function Shell() {
             className={`tab ${tab === tb.key ? 'on' : ''}`}
             onClick={() => switchTab(tb.key)}
           >
-            <span className="tab-icon"><Icon name={tb.icon} /></span>
+            <span className="tab-icon"><Icon name={tb.icon} />{tb.key === 'schedule' && badge > 0 && <span className="tab-badge" aria-label={t('今日・明日の予定とToDo {n}件', { n: badge })}>{badge > 99 ? '99+' : badge}</span>}</span>
             <span className="tab-label">{t(tb.label)}</span>
           </button>
         ))}

@@ -780,6 +780,13 @@ const en: Record<string, string> = {
   "開始日が期限より後になっています": "The start date is after the due date",
   "開始日なしにする": "Remove start date",
   "開始日・期限の日に、予定のカレンダーとリストにも表示されます。": "It also shows in the schedule calendar and list on the start and due dates.",
+  "今日・明日の予定とToDo {n}件": "{n} plans and to-dos for today and tomorrow",
+  "予定タブに今日・明日の件数を表示": "Show today's and tomorrow's count on the Schedule tab",
+  "今日・明日の予定と、期限が明日まで（過ぎたものも）のToDoがあるとき、予定タブのアイコンに赤い数字を出す": "Show a red number on the Schedule tab icon when there are plans today or tomorrow, or to-dos due by tomorrow (including overdue)",
+  "長押しの操作の案内は一覧の一番下に出る（「わかった」で消える）": "A tip about long-press actions shows at the bottom of the list (tap \"Got it\" to hide it)",
+  "今日・明日の予定や期限が近いToDoがあると、予定タブのアイコンに赤い数字が出る": "A red number appears on the Schedule tab icon when you have plans today or tomorrow, or to-dos due soon",
+  "開始日・期限を付けたToDoは、予定のカレンダーとリストにも出る": "To-dos with a start or due date also show in the schedule calendar and list",
+  "開始日・期限や相手を付けて追加": "Add with dates or people",
 };
 
 export default en;

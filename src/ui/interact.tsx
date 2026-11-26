@@ -690,7 +690,7 @@ export function PressHint() {
     try { localStorage.setItem(PRESS_HINT_KEY, '1'); } catch { /* noop */ }
   };
   return (
-    <section className="panel preset-hint">
+    <section className="panel preset-hint press-hint">
       <p>{t('行を長押しすると、ピン留め・移動・削除などのメニューが出ます。長押ししたまま動かすと、フォルダへの移動や並べ替えができます。')}</p>
       <div className="preset-bar">
         <button className="btn small-btn" onClick={ok}>{t('わかった')}</button>
