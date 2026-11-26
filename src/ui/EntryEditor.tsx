@@ -276,7 +276,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           </div>
         )}
         {!feat.images && imageIds.length > 0 && (
-          <p className="muted small">{t('画像{n}枚が付いています（「機能とカスタマイズ」で画像の添付をオンにすると表示されます）', { n: imageIds.length })}</p>
+          <p className="muted small">{t('画像{n}枚が付いています（設定の「話題」で画像の添付をオンにすると表示されます）', { n: imageIds.length })}</p>
         )}
         {ai.panel}
         <section className="field">
@@ -322,7 +322,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
             <input type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} />
             <span>{t('今後表示しない')}</span>
           </label>
-          {dontAsk && <p className="muted small sheet-note">{t('設定の「機能とカスタマイズ」でまた表示するようにできます')}</p>}
+          {dontAsk && <p className="muted small sheet-note">{t('設定の「話題」でまた表示するようにできます')}</p>}
           {hasContent && !saving && <button className="sheet-item" onClick={() => { setAsking(false); if (dontAsk) setFeature('confirmDiscard', false); save(); }}><span className="ic">✓</span>{t('保存して戻る')}</button>}
           <button className="sheet-item danger" onClick={() => { if (dontAsk) setFeature('confirmDiscard', false); leave(); }}><span className="ic">✕</span>{t('保存せずに戻る')}</button>
         </Sheet>

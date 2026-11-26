@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useCallback, useRef } from 'react';
 import { OrganizeScreen } from './OrganizeScreen';
 import type { Store } from '../core/store';
 import { StoreContext, go, switchTab, useLoadFailed, useLoaded, useRoute, useStore } from './hooks';
@@ -8,7 +8,7 @@ import { EntryEditor } from './EntryEditor';
 import { NewNameScreen } from './NewName';
 import { PresetTopicsScreen } from './PresetTopics';
 import { GroupScreen } from './groups';
-import { SettingsScreen } from './SettingsScreen';
+import { BackupSettingsScreen, DisplaySettingsScreen, PremiumSettingsScreen, SettingsScreen } from './SettingsScreen';
 import { FeaturesScreen } from './FeaturesScreen';
 import { GuideScreen } from './GuideScreen';
 import { ProfileFieldsScreen } from './profile';
@@ -43,18 +43,46 @@ export function App({ store }: { store: Store }) {
   );
 }
 
+/* 中身が画面(タブバー・広告より上)に収まるときは、下の余白(タブバー・＋の分、編集画面の40px)を付けない。
+   余白を付けたままだと、収まっているのに少しだけスクロールできてしまう(予定のカレンダー、新規話題など)。.app に fits を付け、styles.css で余白を消す */
+function useFitRef() {
+  const stop = useRef<() => void>(() => {});
+  return useCallback((app: HTMLElement | null) => {
+    stop.current();
+    stop.current = () => {};
+    if (!app) return;
+    const check = () => {
+      const padded = app.querySelector<HTMLElement>(':scope > .main, .screen.editor');
+      if (!padded) return;
+      let limit = window.innerHeight;
+      app.querySelectorAll<HTMLElement>(':scope > .tabbar, :scope > .ad-banner').forEach((b) => { limit = Math.min(limit, b.getBoundingClientRect().top); });
+      const pad = parseFloat(getComputedStyle(padded).paddingBottom) || 0;
+      const bottom = padded.getBoundingClientRect().top + window.scrollY + padded.scrollHeight - pad;
+      app.classList.toggle('fits', bottom <= limit);
+    };
+    const ro = new ResizeObserver(check);
+    const watch = () => { ro.disconnect(); ro.observe(app); for (const c of Array.from(app.children)) ro.observe(c); check(); };
+    const mo = new MutationObserver(watch);
+    mo.observe(app, { childList: true });
+    window.addEventListener('resize', check);
+    stop.current = () => { ro.disconnect(); mo.disconnect(); window.removeEventListener('resize', check); };
+    watch();
+  }, []);
+}
+
 function Shell() {
   const loaded = useLoaded();
   const { path, query } = useRoute();
   const selecting = useInteract().sel.active;
   const feat = useFeatures();
+  const fitRef = useFitRef();
   const [head, sub] = path;
 
   if (!loaded) return <Loading />;
 
   if (head === 'new' || head === 'edit') {
     return (
-      <div className="app editor-app">
+      <div className="app editor-app" ref={fitRef}>
         <EntryEditor
           key={path.join('/') + query.toString()}
           id={head === 'edit' ? sub : undefined}
@@ -69,7 +97,7 @@ function Shell() {
 
   if (head === 'event' && sub) {
     return (
-      <div className="app editor-app">
+      <div className="app editor-app" ref={fitRef}>
         <EventEditor
           key={path.join('/') + query.toString()}
           id={sub === 'new' ? undefined : sub}
@@ -83,7 +111,7 @@ function Shell() {
 
   if ((head === 'people' || head === 'topics') && sub === 'new') {
     return (
-      <div className="app editor-app">
+      <div className="app editor-app" ref={fitRef}>
         <NewNameScreen kind={head === 'people' ? 'person' : 'topic'} folderId={query.get('folder')} />
       </div>
     );
@@ -91,7 +119,7 @@ function Shell() {
 
   if (head === 'topics' && sub === 'presets') {
     return (
-      <div className="app editor-app">
+      <div className="app editor-app" ref={fitRef}>
         <PresetTopicsScreen />
       </div>
     );
@@ -112,7 +140,11 @@ function Shell() {
   else if (head === 'settings' && sub === 'profile') screen = <ProfileFieldsScreen />;
   else if (head === 'settings' && sub === 'relations') screen = <RelationsScreen />;
   else if (head === 'settings' && sub === 'guide') screen = <GuideScreen />;
-  else if (head === 'settings') screen = sub === 'features' ? <FeaturesScreen /> : <SettingsScreen />;
+  else if (head === 'settings' && sub === 'features' && third) screen = <FeaturesScreen key={third} group={third === 'ai' ? undefined : third} />;
+  else if (head === 'settings' && sub === 'display') screen = <DisplaySettingsScreen />;
+  else if (head === 'settings' && sub === 'premium') screen = <PremiumSettingsScreen />;
+  else if (head === 'settings' && sub === 'backup') screen = <BackupSettingsScreen />;
+  else if (head === 'settings') screen = <SettingsScreen />;
   else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen /></Suspense>;
   else if (head === 'organize') screen = <OrganizeScreen key={sub} scope={sub === 'person' || sub === 'topic' ? sub : 'entry'} />;
   else if (head === 'all') screen = <AllEntriesScreen key="all" />;
@@ -145,7 +177,7 @@ function Shell() {
   });
 
   return (
-    <div className={`app${feat.noAds ? '' : ' with-ad'}`}>
+    <div className={`app${feat.noAds ? '' : ' with-ad'}`} ref={fitRef}>
       <main className="main">{screen}</main>
       {!feat.noAds && <AdBanner />}
       {showFab && <Fab label={fabLabel} onTap={fabTap} items={fabItems} />}

@@ -24,9 +24,9 @@
     --ink: #ece8df;
     --muted: #9c968a;
     --line: #34322d;
-    --accent: #7cc3b1;
+    --accent: #6a9e91;
     --fav: #f2c14e;
-    --accent-soft: #243832;
+    --accent-soft: #212d29;
     --topic: #e0a865;
     --topic-soft: #3a2e1f;
     --danger: #ff8a80;
@@ -39,9 +39,9 @@
   --ink: #ece8df;
   --muted: #9c968a;
   --line: #34322d;
-  --accent: #7cc3b1;
+  --accent: #6a9e91;
   --fav: #f2c14e;
-  --accent-soft: #243832;
+  --accent-soft: #212d29;
   --topic: #e0a865;
   --topic-soft: #3a2e1f;
   --danger: #ff8a80;
@@ -66,6 +66,8 @@ button:disabled { opacity: .4; cursor: default; }
 .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 16px); }
 /* 右下の＋がある画面だけ、最後の行が＋に隠れない分の余白を足す */
 .app:has(.fab) .main { padding-bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 88px); }
+/* 中身が画面に収まるときは下の余白なし(少しだけスクロールできてしまうのを防ぐ)。fits は App.tsx useFitRef。キーボード表示中(kb-open)の余白は残す */
+.app.fits .main, html:not(.kb-open) .app.fits .screen.editor { padding-bottom: 0; }
 /* 中身が画面に収まるときに、iPhoneで引っぱって画面ごと動く(バウンス)のを止める */
 html, body { overscroll-behavior-y: none; }
 .screen { padding: 0 16px; }

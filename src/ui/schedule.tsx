@@ -1,6 +1,7 @@
 // 予定: 自分の全部の予定(予定タブ)と、人ごとの予定(人の画面)。カレンダー表示とリスト表示を切り替えられる。
 // iPhoneのカレンダーへは .ics ファイルで書き出す(Webアプリからは直接書き込めないため)。
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useDiscardGuard } from './discard';
 import { today, type AppData, type EventAlarm, type ID, type ScheduleEvent } from '../core/types';
 import { addDays, eventsOf, sortEvents, splitByDate, toIcs } from '../core/schedule';
 import { back, go, useData, usePref, useStore } from './hooks';
@@ -258,6 +259,12 @@ export function EventEditor({ id, initialPerson, initialGroup, initialDate }: { 
     return data.groups.map((g) => ({ id: g.id, name: g.name, count: count.get(g.id) ?? 0, rank: g.selectedAt ?? g.createdAt }));
   }, [data.groups, data.people]);
 
+  // 開いた時点の内容と違えば「入力した」とみなし、キャンセル時に確認する
+  const snap = JSON.stringify([title, date, time, endTime, personIds, groupIds, newPeople, place, memo, alarm]);
+  const [initial] = useState(snap);
+  const guardSave = useRef<() => Promise<boolean>>(async () => false);
+  const { guard, sheet } = useDiscardGuard(!saving && snap !== initial, title.trim() || personIds.length || newPeople.length ? () => guardSave.current() : undefined);
+
   if (id && !existing) {
     return (
       <div className="screen">
@@ -269,19 +276,23 @@ export function EventEditor({ id, initialPerson, initialGroup, initialDate }: { 
 
   const who = [...data.people.filter((p) => personIds.includes(p.id)).map((p) => p.name), ...newPeople];
   const canSave = !!(title.trim() || who.length) && !saving;
-  const save = async () => {
-    if (!canSave) return;
+  /** 保存だけ行う(画面は移らない)。成功ならtrue */
+  const persist = async () => {
+    if (!canSave) return false;
     setSaving(true);
     try {
       // タイトルが空なら「〇〇さんと会う」にする
       const name = title.trim() || t('{name}と会う', { name: who.join('、') });
       await store.saveEvent({ title: name, date, time, endTime, personIds, groupIds: feat.groups ? groupIds : existing?.groupIds, newPeople, place, memo, alarm: alarm || undefined }, id);
-      back('/schedule');
+      return true;
     } catch {
       toast(t('保存できませんでした。もう一度お試しください'));
       setSaving(false);
+      return false;
     }
   };
+  guardSave.current = persist;
+  const save = async () => { if (await persist()) back('/schedule'); };
   const remove = async () => {
     if (!existing || !confirm(t('この予定を削除しますか？'))) return;
     await store.deleteEvent(existing.id);
@@ -292,9 +303,10 @@ export function EventEditor({ id, initialPerson, initialGroup, initialDate }: { 
     <div className="screen editor">
       <Header
         title={existing ? t('予定を編集') : t('新しい予定')}
-        left={<button className="link" onClick={() => back('/schedule')}>{t('キャンセル')}</button>}
+        left={<button className="link" onClick={() => guard(() => back('/schedule'))}>{t('キャンセル')}</button>}
         right={<button className={`link strong ${canSave ? '' : 'dim'}`} aria-disabled={!canSave} onClick={save}>{saving ? t('保存中…') : t('保存')}</button>}
       />
+      {sheet}
       <div className="form">
         <input className="title-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('予定の名前（例：ごはん）')} aria-label={t('予定の名前')} ref={!existing && !initialPerson ? autoFocusRef : undefined} />
         <section className="field">
