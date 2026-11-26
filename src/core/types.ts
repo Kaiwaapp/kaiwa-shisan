@@ -26,6 +26,8 @@ export interface Person {
   profile?: PersonProfile;
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い(新しいものが上) */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
 /** 初めから用意しているプロフィール項目。表示名は画面側(ui/profileFields.ts)で付け、設定で変えられる */
@@ -101,6 +103,8 @@ export interface Topic {
   favorite?: boolean;
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
 /** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -141,6 +145,8 @@ export interface Entry {
   imageIds?: ID[];
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
 /**

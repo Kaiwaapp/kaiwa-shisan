@@ -15,6 +15,7 @@ import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSe
 import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
 import { PresetHint } from './PresetTopics';
+import { SampleHint } from './samples';
 import { useFeatures } from './features';
 import { Fab, createItems, useAddRequest } from './fab';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
@@ -111,6 +112,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
             </>
           ) : (
             <>
+              {!folderId && !selecting && <SampleHint />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t('{n}件', { n: memos.length })}

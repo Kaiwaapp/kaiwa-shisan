@@ -64,6 +64,10 @@ const en: Record<string, string> = {
   'バックアップで置き換えました': 'Replaced with backup',
   '言語': 'Language',
   '自動（端末の言語）': 'Automatic (device language)',
+  '画面の色': 'Appearance',
+  '端末に合わせる': 'Match device',
+  'ライト': 'Light',
+  'ダーク': 'Dark',
   'バックアップ': 'Backup',
   'データはこの端末の中だけに保存されています。iPhoneでは長く開かないと消えることがあるので、ときどき書き出して「ファイル」アプリやiCloud Driveに保存してください。':
     'Your data is stored only on this device. On iPhone it may be cleared if the app goes unused for a long time, so export a backup now and then and keep it in the Files app or iCloud Drive.',
@@ -629,6 +633,11 @@ const en: Record<string, string> = {
   '＋ この日に追加': "+ Add on this day",
   '＋ 予定を追加': "+ Add plan",
   '📅 カレンダーに追加（.ics）': "📅 Add to calendar (.ics)",
+  '見本の記録・人・話題を消します。自分で書いた記録は消えません。よろしいですか？': 'Remove the sample entries, people and topics? Entries you wrote stay.',
+  '見本を消しました': 'Samples removed',
+  '見本の記録・人・話題が入っています。使い方がわかったら消してください。': 'Sample entries, people and topics are included. Remove them once you get the hang of it.',
+  '見本を消す': 'Remove samples',
+  '見本を入れる': 'Add samples',
 };
 
 export default en;
