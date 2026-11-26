@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { confirmLeave, useDiscardGuard } from './discard';
 import { autoFocusRef } from './focus';
 import { useAddRequest } from './fab';
 import type { Group, ID, Person } from '../core/types';
@@ -88,6 +89,8 @@ export function GroupScreen({ id }: { id: ID }) {
   const members = all.filter((p) => inGroup.has(p.id));
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
+  const saveName = async () => { if (!name.trim()) return false; await store.renameGroup(id, name); setEditing(false); };
+  const { guard, sheet } = useDiscardGuard(editing && !!group && name.trim() !== group.name, name.trim() ? saveName : undefined);
 
   if (!group) {
     return (
@@ -115,16 +118,17 @@ export function GroupScreen({ id }: { id: ID }) {
     <div className="screen">
       <Header
         title={group.name}
-        left={<button className="link" onClick={() => back('/people')}>{t('‹ 人')}</button>}
-        right={<button className="link" onClick={() => { setName(group.name); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button>}
+        left={<button className="link" onClick={() => confirmLeave(() => back('/people'))}>{t('‹ 人')}</button>}
+        right={<button className="link" onClick={() => { if (editing) guard(() => setEditing(false)); else { setName(group.name); setEditing(true); } }}>{editing ? t('閉じる') : t('編集')}</button>}
       />
+      {sheet}
       {editing ? (
         <div className="form">
           <section className="field">
             <label>{t('グループの名前')}</label>
             <input value={name} onChange={(e) => setName(e.target.value)} />
           </section>
-          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.renameGroup(id, name); setEditing(false); }}>
+          <button className="btn primary block" disabled={!name.trim()} onClick={saveName}>
             {t('保存')}
           </button>
           <button className="btn danger block" onClick={async () => {

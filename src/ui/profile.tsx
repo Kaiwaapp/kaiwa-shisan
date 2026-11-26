@@ -1,4 +1,5 @@
 // 人のプロフィール。人の画面で見る・その場で書く。項目は設定で決めたひな形に沿う。
+import { useDiscardGuard } from './discard';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { cleanProfile, hasProfile, type Entry, type Person, type PersonProfile, type ProfileExtra } from '../core/types';
 import { profileReady } from '../core/ai';
@@ -69,7 +70,7 @@ function ProfileEditor({ person, entries, showAi, onCancel, onSave }: {
   entries: Entry[];
   showAi: boolean;
   onCancel: () => void;
-  onSave: (p: PersonProfile | undefined) => void;
+  onSave: (p: PersonProfile | undefined) => Promise<void> | void;
 }) {
   const fields = visibleFields(useProfileFields());
   const [values, setValues] = useState<Record<string, string>>({ ...(person.profile?.fields ?? {}) });
@@ -98,6 +99,8 @@ function ProfileEditor({ person, entries, showAi, onCancel, onSave }: {
   };
 
   const current: PersonProfile = { fields: values, extra };
+  const [initial] = useState(() => JSON.stringify(cleanProfile({ fields: values, extra }) ?? null));
+  const { guard, sheet } = useDiscardGuard(JSON.stringify(cleanProfile(current) ?? null) !== initial, () => onSave(cleanProfile(current)));
   const texts = useMemo(
     () => [...entries].sort((a, b) => (b.talkedOn.localeCompare(a.talkedOn)) || b.updatedAt - a.updatedAt).map((e) => [e.title, e.text].filter(Boolean).join('\n')),
     [entries],
@@ -128,12 +131,13 @@ function ProfileEditor({ person, entries, showAi, onCancel, onSave }: {
       </div>
       <div className="profile-links">
         <button className="link small-link" onClick={() => setExtra((xs) => [...xs, { label: '', value: '' }])}>{t('＋ この人だけの項目を足す')}</button>
-        <button className="link small-link muted" onClick={() => go('/settings/profile')}>{t('全員の項目を変える ›')}</button>
+        <button className="link small-link muted" onClick={() => guard(() => go('/settings/profile'))}>{t('全員の項目を変える ›')}</button>
       </div>
       <div className="memo-actions">
-        <button className="link" onClick={onCancel}>{t('キャンセル')}</button>
+        <button className="link" onClick={() => guard(onCancel)}>{t('キャンセル')}</button>
         <button className="link strong" onClick={() => onSave(cleanProfile(current))}>{t('保存')}</button>
       </div>
+      {sheet}
     </div>
   );
 }

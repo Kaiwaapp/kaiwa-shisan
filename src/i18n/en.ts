@@ -474,7 +474,7 @@ const en: Record<string, string> = {
   '＋「{name}」を別の人として追加': '+ Add "{name}" as a different person',
   '話題の相手・タグの入力欄の下に、入力しなくても候補を出す': 'Show suggestions under the people and tag fields of a topic, even before you type',
   '保存せずに戻るときの確認': 'Confirm before leaving without saving',
-  '話題を入力したままキャンセルしたとき、保存されないことを確認する': "When you cancel a topic you've typed in, warn that it won't be saved",
+  '話題・人・タグ・予定などを入力・変更したまま戻るとき、保存されないことを確認する': "When you leave a topic, person, tag, event, etc. with unsaved changes, warn that they won't be saved",
   '＋ 「{name}」に話したことを記録': '+ Note something you told "{name}"',
   'このグループに話した話題': 'Topics told to this group',
   // 添付画像
