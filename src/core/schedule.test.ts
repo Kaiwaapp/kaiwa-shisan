@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { Store } from './store';
 import { IdbRepository } from './idbRepository';
 import { parseBackup, toBackup } from './backup';
-import { eventsOf, splitByDate, toIcs } from './schedule';
+import { eventsOf, openTodos, splitByDate, toIcs, todosOf } from './schedule';
 
 let n = 0;
 const fresh = async (name = 'sched-' + n++) => {
@@ -61,5 +61,28 @@ describe('予定', () => {
     expect(ics).toContain('DTSTART:20261203T183000');
     expect(ics).toContain('TRIGGER:-PT1H');
     for (const line of ics.split('\r\n')) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
+  });
+
+  it('ToDo: 追加・完了・削除、人の削除・グループで紐づけ、バックアップ', async () => {
+    const s = await fresh('todo-persist');
+    const g = await s.addGroup('家族');
+    const a = await s.addPerson('Aさん', null, [g.id]);
+    const t1 = await s.saveTodo({ text: ' お店を送る ', personIds: [a.id], due: '2026-12-01' });
+    await s.saveTodo({ text: '写真を送る', personIds: [], groupIds: [g.id] });
+    const t3 = await s.saveTodo({ text: '期限なし', personIds: [] });
+    expect(t1.text).toBe('お店を送る');
+    expect(todosOf(s.snapshot.todos!, s.snapshot.people.find((p) => p.id === a.id)!)).toHaveLength(2);
+    expect(openTodos(s.snapshot.todos!)[0].id).toBe(t1.id);
+    await s.setTodoDone(t3.id, true);
+    expect(openTodos(s.snapshot.todos!)).toHaveLength(2);
+    const s2 = await fresh('todo-persist');
+    expect(s2.snapshot.todos!.find((x) => x.id === t3.id)!.done).toBe(true);
+    await s2.deletePerson(a.id);
+    expect(s2.snapshot.todos!.find((x) => x.id === t1.id)!.personIds).toEqual([]);
+    await s2.deleteGroup(g.id);
+    expect(s2.snapshot.todos!.some((x) => x.groupIds)).toBe(false);
+    expect(parseBackup(JSON.stringify(toBackup(s2.snapshot))).todos).toHaveLength(3);
+    await s2.deleteTodos([t3.id]);
+    expect(s2.snapshot.todos).toHaveLength(2);
   });
 });

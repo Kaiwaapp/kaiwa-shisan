@@ -17,7 +17,7 @@ import { Fab, createItems } from './fab';
 import { useFeatures } from './features';
 import { AdBanner } from './ads';
 import { Icon, type IconName } from './icons';
-import { EventEditor, ScheduleScreen } from './schedule';
+import { EventEditor, ScheduleScreen, TodoEditor } from './schedule';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
@@ -44,8 +44,9 @@ export function App({ store }: { store: Store }) {
   );
 }
 
-/* 中身が画面(タブバー・広告より上)に収まるときは、下の余白(タブバー・＋の分、編集画面の40px)を付けない。
-   余白を付けたままだと、収まっているのに少しだけスクロールできてしまう(予定のカレンダー、新規話題など)。.app に fits を付け、styles.css で余白を消す */
+/* 中身が画面(タブバー・広告より上)に余白16px付きで収まるときは .app に fits を付け、＋ボタンの分の下の余白(88px)を付けない(styles.css)。
+   付けたままだと、収まっているのに少しだけスクロールできてしまう(予定のカレンダーなど)。最低限の余白16pxはいつも残す */
+const FIT_GAP = 16;
 function useFitRef() {
   const stop = useRef<() => void>(() => {});
   return useCallback((app: HTMLElement | null) => {
@@ -53,13 +54,13 @@ function useFitRef() {
     stop.current = () => {};
     if (!app) return;
     const check = () => {
-      const padded = app.querySelector<HTMLElement>(':scope > .main, .screen.editor');
+      const padded = app.querySelector<HTMLElement>(':scope > .main');
       if (!padded) return;
       let limit = window.innerHeight;
       app.querySelectorAll<HTMLElement>(':scope > .tabbar, :scope > .ad-banner').forEach((b) => { limit = Math.min(limit, b.getBoundingClientRect().top); });
       const pad = parseFloat(getComputedStyle(padded).paddingBottom) || 0;
       const bottom = padded.getBoundingClientRect().top + window.scrollY + padded.scrollHeight - pad;
-      app.classList.toggle('fits', bottom <= limit);
+      app.classList.toggle('fits', bottom + FIT_GAP <= limit);
     };
     const ro = new ResizeObserver(check);
     const watch = () => { ro.disconnect(); ro.observe(app); for (const c of Array.from(app.children)) ro.observe(c); check(); };
@@ -92,6 +93,14 @@ function Shell() {
           initialFolder={query.get('folder') ?? undefined}
           initialGroup={query.get('group') ?? undefined}
         />
+      </div>
+    );
+  }
+
+  if (head === 'todo' && sub) {
+    return (
+      <div className="app editor-app">
+        <TodoEditor key={path.join('/') + query.toString()} id={sub === 'new' ? undefined : sub} initialPerson={query.get('person') ?? undefined} />
       </div>
     );
   }
@@ -137,7 +146,7 @@ function Shell() {
     else if (sub) screen = kind === 'person' ? <PersonScreen key={sub} id={sub} /> : <TopicScreen key={sub} id={sub} />;
     else screen = <NameFolderScreen key={kind + 'root' + (query.get('rel') ?? '')} kind={kind} folderId={null} rel={query.get('rel')} />;
   }
-  else if (head === 'schedule' && feat.schedule) screen = <ScheduleScreen />;
+  else if (head === 'schedule' && feat.schedule) screen = <ScheduleScreen todo={sub === 'todo' && feat.todo} />;
   else if (head === 'settings' && sub === 'profile') screen = <ProfileFieldsScreen />;
   else if (head === 'settings' && sub === 'relations') screen = <RelationsScreen />;
   else if (head === 'settings' && sub === 'guide') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><GuideScreen /></Suspense>;
@@ -156,13 +165,15 @@ function Shell() {
 
   const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : head === 'schedule' && !feat.schedule ? '' : (head ?? '');
   const onSchedule = head === 'schedule' && feat.schedule;
-  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('タグを追加') : onSchedule ? t('予定を追加') : t('話題を追加');
-  const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
+  const onTodo = onSchedule && sub === 'todo' && feat.todo;
+  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('タグを追加') : onTodo ? t('ToDoを追加') : onSchedule ? t('予定を追加') : t('話題を追加');
+  const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || onSchedule || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
 
   // 人タブ・タグタブでは人／タグを追加(開いているフォルダに入れる)。話題の追加は話題タブと各詳細画面の＋から
   const inFolder = sub === 'f' && third ? `?folder=${third}` : '';
   const fabTap = () => {
-    if (onSchedule) go('/event/new');
+    if (onTodo) go('/todo/new');
+    else if (onSchedule) go('/event/new');
     else if (head === 'people' || head === 'topics') go(`/${head}/new` + inFolder);
     else go(head === 'f' && sub ? `/new?folder=${sub}` : '/new');
   };

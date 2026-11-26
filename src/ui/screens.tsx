@@ -23,7 +23,7 @@ import { Icon } from './icons';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
 import { RelationBadge, RelationBar, RelationPicker } from './RelationParts';
 import { relationName, useRelations } from './relations';
-import { PersonSchedule, TodayEvents } from './schedule';
+import { PersonSchedule, PersonTodos, TodayEvents } from './schedule';
 
 // ---- 話題タブ: iPhoneのメモのように、フォルダと話題が並ぶ(フォルダは入れ子可) ----
 export function FolderScreen({ folderId }: { folderId: ID | null }) {
@@ -649,6 +649,7 @@ export function PersonScreen({ id }: { id: ID }) {
           )}
           {feat.profile && <PersonProfileSection person={person} entries={mine} />}
           {feat.schedule && <PersonSchedule person={person} />}
+          {feat.schedule && feat.todo && <PersonTodos person={person} />}
           <FoldHeader label={t('{name}に話したこと', { name: person.name })} count={mine.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
           {entriesOpen && <>
           {mine.length > 3 && <SearchBox value={q} onChange={setQ} placeholder={t('{name}に話したことを検索', { name: person.name })} />}

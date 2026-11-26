@@ -1,10 +1,11 @@
 // 予定: 自分の全部の予定(予定タブ)と、人ごとの予定(人の画面)。カレンダー表示とリスト表示を切り替えられる。
 // iPhoneのカレンダーへは .ics ファイルで書き出す(Webアプリからは直接書き込めないため)。
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDiscardGuard } from './discard';
-import { today, type AppData, type EventAlarm, type ID, type ScheduleEvent } from '../core/types';
+import { today, type AppData, type EventAlarm, type ID, type ScheduleEvent, type Todo } from '../core/types';
 import { addDays, eventsOf, sortEvents, splitByDate, toIcs } from '../core/schedule';
 import { back, go, useData, usePref, useStore } from './hooks';
+import { openTodos, todosOf } from '../core/schedule';
 import { ComboPicker, Header, sameNameHints } from './components';
 import { FoldHeader, useFold } from './folders';
 import { useFeatures } from './features';
@@ -55,18 +56,36 @@ export function exportIcs(events: ScheduleEvent[], data: AppData, name = 'kaiwa-
 }
 
 // ---- 予定タブ ----
-export function ScheduleScreen() {
+export function ScheduleScreen({ todo }: { todo?: boolean }) {
   const data = useData();
+  const feat = useFeatures();
   const events = data.events ?? [];
   const upcoming = useMemo(() => splitByDate(events, today()).upcoming, [events]);
+  // 予定とToDoの切り替え。最後に開いた方を覚えておき、タブから開いたときもそちらを出す
+  const [last, setLast] = usePref<'events' | 'todo'>('scheduleTab', 'events');
+  useEffect(() => {
+    if (!feat.todo) return;
+    if (todo) setLast('todo');
+    else if (last === 'todo' && !location.hash.includes('/schedule/events')) location.replace('#/schedule/todo');
+    else setLast('events');
+  }, [todo]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openCount = useMemo(() => openTodos(data.todos ?? []).length, [data.todos]);
   return (
     <div className="screen">
       <Header
-        title={t('予定')}
-        right={<button className="link" onClick={() => exportIcs(upcoming, data)}>{t('カレンダーへ')}</button>}
+        title={todo ? t('ToDo') : t('予定')}
+        right={!todo && <button className="link" onClick={() => exportIcs(upcoming, data)}>{t('カレンダーへ')}</button>}
       />
-      <ScheduleView events={events} newHref="/event/new" />
-      <p className="muted small schedule-note">{t('「カレンダーへ」で、これからの予定をiPhoneなどのカレンダーに追加できます（.icsファイル）。')}</p>
+      {feat.todo && (
+        <div className="seg seg-wide" role="tablist">
+          <button role="tab" aria-selected={!todo} className={!todo ? 'on' : ''} onClick={() => location.replace('#/schedule/events')}>{t('予定')}</button>
+          <button role="tab" aria-selected={!!todo} className={todo ? 'on' : ''} onClick={() => location.replace('#/schedule/todo')}>{t('ToDo')}{openCount > 0 && <span className="n"> {openCount}</span>}</button>
+        </div>
+      )}
+      {todo ? <TodoView newHref="/todo/new" /> : <>
+        <ScheduleView events={events} newHref="/event/new" />
+        <p className="muted small schedule-note">{t('「カレンダーへ」で、これからの予定をiPhoneなどのカレンダーに追加できます（.icsファイル）。')}</p>
+      </>}
     </div>
   );
 }
@@ -217,12 +236,200 @@ export function TodayEvents() {
   const now = today();
   const tomorrow = addDays(now, 1);
   const soon = useMemo(() => sortEvents((data.events ?? []).filter((e) => e.date === now || e.date === tomorrow)), [data.events, now, tomorrow]);
-  if (!feat.schedule || !feat.scheduleToday || !soon.length) return null;
+  // 期限が明日まで(過ぎたものも)の終わっていないToDo
+  const dueTodos = useMemo(() => openTodos(data.todos ?? []).filter((x) => x.due && x.due <= tomorrow), [data.todos, tomorrow]);
+  if (!feat.schedule || !feat.scheduleToday) return null;
+  const todos = feat.todo ? dueTodos : [];
+  if (!soon.length && !todos.length) return null;
   return (
     <section className="panel today-events">
-      <div className="panel-sub">{t('今日・明日の予定')}</div>
+      {soon.length > 0 && <div className="panel-sub">{t('今日・明日の予定')}</div>}
       {soon.map((e) => <EventRow key={e.id} e={e} data={data} withDate />)}
+      {todos.length > 0 && <div className="panel-sub">{t('期限が近いToDo')}</div>}
+      {todos.map((x) => <TodoRow key={x.id} x={x} data={data} />)}
     </section>
+  );
+}
+
+// ---- ToDo ----
+/** 人の画面の「ToDo」欄(その人・その人のグループのToDo) */
+export function PersonTodos({ person }: { person: { id: ID; name: string; groupIds?: ID[] } }) {
+  const data = useData();
+  const [open, setOpen] = useFold('person-todo');
+  const mine = useMemo(() => todosOf(data.todos ?? [], person), [data.todos, person]);
+  const n = mine.filter((x) => !x.done).length;
+  return (
+    <>
+      <FoldHeader label={t('ToDo')} count={n} open={open} onToggle={() => setOpen(!open)} />
+      {open && <TodoView todos={mine} personId={person.id} hidePersonId={person.id} newHref={`/todo/new?person=${person.id}`} />}
+    </>
+  );
+}
+
+function TodoView({ todos, personId, hidePersonId, newHref }: { todos?: Todo[]; personId?: ID; hidePersonId?: ID; newHref: string }) {
+  const data = useData();
+  const store = useStore();
+  const all = todos ?? data.todos ?? [];
+  const open = useMemo(() => openTodos(all), [all]);
+  const done = useMemo(() => all.filter((x) => x.done).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0)), [all]);
+  const [doneOpen, setDoneOpen] = useFold('todo-done' + (personId ? '-p' : ''));
+  const [draft, setDraft] = useState('');
+  const add = async () => {
+    if (!draft.trim()) return;
+    await store.saveTodo({ text: draft, personIds: personId ? [personId] : [] });
+    setDraft('');
+  };
+  return (
+    <div className="todo">
+      <div className="todo-add">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); void add(); } }}
+          placeholder={t('ToDoを入力して追加')}
+          aria-label={t('ToDoを追加')}
+          enterKeyHint="done"
+        />
+        <button className="btn small" disabled={!draft.trim()} onClick={add}>{t('追加')}</button>
+      </div>
+      <div className="todo-more"><button className="link small-link" onClick={() => go(newHref)}>{t('＋ 期限や相手を付けて追加')}</button></div>
+      {open.length
+        ? <div className="list">{open.map((x) => <TodoRow key={x.id} x={x} data={data} hidePersonId={hidePersonId} />)}</div>
+        : <p className="muted small schedule-empty">{t('やることはありません')}</p>}
+      {done.length > 0 && (
+        <>
+          <FoldHeader label={t('完了')} count={done.length} open={doneOpen} onToggle={() => setDoneOpen(!doneOpen)} />
+          {doneOpen && <>
+            <div className="list">{done.map((x) => <TodoRow key={x.id} x={x} data={data} hidePersonId={hidePersonId} />)}</div>
+            <button className="link small-link todo-clear" onClick={async () => {
+              if (!confirm(t('完了したToDo{n}件を削除しますか？', { n: done.length }))) return;
+              await store.deleteTodos(done.map((x) => x.id));
+            }}>{t('完了したものを削除')}</button>
+          </>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function TodoRow({ x, data, hidePersonId }: { x: Todo; data: AppData; hidePersonId?: ID }) {
+  const store = useStore();
+  const hints = sameNameHints(data.people, data.groups);
+  const groups = (x.groupIds ?? []).map((id) => data.groups.find((g) => g.id === id)).filter(Boolean);
+  const people = x.personIds.filter((id) => id !== hidePersonId).map((id) => data.people.find((p) => p.id === id)).filter(Boolean);
+  const overdue = !x.done && !!x.due && x.due < today();
+  return (
+    <div className={`card todo-row${x.done ? ' done' : ''}`}>
+      <button
+        className={`todo-check${x.done ? ' on' : ''}`}
+        role="checkbox"
+        aria-checked={x.done}
+        aria-label={x.done ? t('未完了に戻す') : t('完了にする')}
+        onClick={() => store.setTodoDone(x.id, !x.done)}
+      ><span className="todo-circle" aria-hidden>{x.done ? '✓' : ''}</span></button>
+      <button className="todo-body" onClick={() => go(`/todo/${x.id}`)}>
+        <span className="todo-text">{x.text}</span>
+        {(x.due || groups.length > 0 || people.length > 0) && (
+          <span className="card-meta">
+            {x.due && <span className={`date${overdue ? ' overdue' : ''}`}>{t('期限 {d}', { d: dayLabel(x.due) })}</span>}
+            {groups.map((g) => <span key={g!.id} className="chip group small">{g!.name}</span>)}
+            {people.map((p) => <span key={p!.id} className="chip person small">{p!.name}{hints.get(p!.id) && <span className="hint">（{hints.get(p!.id)}）</span>}</span>)}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID }) {
+  const store = useStore();
+  const data = useData();
+  const feat = useFeatures();
+  const existing = id ? data.todos?.find((x) => x.id === id) : undefined;
+  const [text, setText] = useState(existing?.text ?? '');
+  const [due, setDue] = useState(existing?.due ?? '');
+  const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (initialPerson ? [initialPerson] : []));
+  const [groupIds, setGroupIds] = useState<ID[]>(() => existing?.groupIds ?? []);
+  const [newPeople, setNewPeople] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const hints = sameNameHints(data.people, data.groups);
+  const personOpts = data.people.map((p) => ({ id: p.id, name: p.name, reading: p.reading, rank: p.selectedAt ?? p.viewedAt ?? p.createdAt, hint: hints.get(p.id) }));
+  const groupOpts = useMemo(() => {
+    const count = new Map<ID, number>();
+    for (const p of data.people) for (const g of p.groupIds ?? []) count.set(g, (count.get(g) ?? 0) + 1);
+    return data.groups.map((g) => ({ id: g.id, name: g.name, count: count.get(g.id) ?? 0, rank: g.selectedAt ?? g.createdAt }));
+  }, [data.groups, data.people]);
+  const snap = JSON.stringify([text, due, personIds, groupIds, newPeople]);
+  const [initial] = useState(snap);
+  const guardSave = useRef<() => Promise<boolean>>(async () => false);
+  const { guard, sheet } = useDiscardGuard(!saving && snap !== initial, text.trim() ? () => guardSave.current() : undefined);
+
+  if (id && !existing) {
+    return (
+      <div className="screen">
+        <Header title="" left={<button className="link" onClick={() => back('/schedule/todo')}>{t('‹ 戻る')}</button>} />
+        <div className="empty">{t('見つかりませんでした（削除された可能性があります）')}</div>
+      </div>
+    );
+  }
+  const canSave = !!text.trim() && !saving;
+  const persist = async () => {
+    if (!canSave) return false;
+    setSaving(true);
+    try {
+      await store.saveTodo({ text, due: due || undefined, personIds, groupIds: feat.groups ? groupIds : existing?.groupIds, newPeople }, id);
+      return true;
+    } catch {
+      toast(t('保存できませんでした。もう一度お試しください'));
+      setSaving(false);
+      return false;
+    }
+  };
+  guardSave.current = persist;
+  const save = async () => { if (await persist()) back('/schedule/todo'); };
+  const remove = async () => {
+    if (!existing || !confirm(t('このToDoを削除しますか？'))) return;
+    await store.deleteTodos([existing.id]);
+    back('/schedule/todo');
+  };
+  return (
+    <div className="screen editor">
+      <Header
+        title={existing ? t('ToDoを編集') : t('新しいToDo')}
+        left={<button className="link" onClick={() => guard(() => back('/schedule/todo'))}>{t('キャンセル')}</button>}
+        right={<button className={`link strong ${canSave ? '' : 'dim'}`} aria-disabled={!canSave} onClick={save}>{saving ? t('保存中…') : t('保存')}</button>}
+      />
+      {sheet}
+      <div className="form">
+        <textarea className="textarea" rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('やること（例：Aさんにお店を送る）')} aria-label={t('やること')} ref={!existing ? autoFocusRef : undefined} />
+        <section className="field">
+          <label>{t('相手')}</label>
+          <ComboPicker
+            kind="person"
+            options={personOpts}
+            groups={feat.groups ? groupOpts : []}
+            selectedGroups={groupIds}
+            onGroupsChange={setGroupIds}
+            suggest={feat.recent}
+            allowSameName
+            selected={personIds}
+            newNames={newPeople}
+            onChange={(s, n) => { setPersonIds(s); setNewPeople(n); }}
+          />
+        </section>
+        <section className="field row">
+          <label htmlFor="todoDue">{t('期限')}</label>
+          <span className="time-range">
+            <input id="todoDue" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            {due ? <button className="link small-link" onClick={() => setDue('')}>{t('期限なしにする')}</button> : <span className="muted small">{t('なくてもOK')}</span>}
+          </span>
+        </section>
+        {existing && (
+          <button className="btn block" onClick={() => store.setTodoDone(existing.id, !existing.done)}>{existing.done ? t('未完了に戻す') : t('✓ 完了にする')}</button>
+        )}
+        {existing && <button className="btn danger block" onClick={remove}>{t('このToDoを削除')}</button>}
+      </div>
+    </div>
   );
 }
 

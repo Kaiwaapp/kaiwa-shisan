@@ -1,6 +1,6 @@
 import type { Repository } from './repository';
 import { applyIncremental, mergeData, type ParsedBackup } from './backup';
-import { newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type ScheduleEvent, type Topic, mergeProfiles } from './types';
+import { newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type ScheduleEvent, type Todo, type Topic, mergeProfiles } from './types';
 import { normalize, reorderValues } from './search';
 import { buildSamples } from './samples';
 
@@ -114,6 +114,7 @@ export class Store {
   private set(next: AppData) {
     if (!next.groups) next = { ...next, groups: [] };
     if (!next.events) next = { ...next, events: [] };
+    if (!next.todos) next = { ...next, todos: [] };
     this.data = next;
     const live: Entry[] = [];
     const dead: Entry[] = [];
@@ -345,7 +346,7 @@ export class Store {
       .filter((e) => e.personIds.includes(id))
       .map((e) => ({ ...e, personIds: e.personIds.filter((x) => x !== id), updatedAt: now }));
     for (const e of touched) await this.repo.putEntry(e);
-    const events = await this.fixEvents((e) => (e.personIds.includes(id) ? { ...e, personIds: e.personIds.filter((x) => x !== id), updatedAt: now } : null));
+    const { events, todos } = await this.fixEvents((e) => (e.personIds.includes(id) ? { ...e, personIds: e.personIds.filter((x) => x !== id), updatedAt: now } : null));
     await this.repo.deletePerson(id);
     const map = new Map(touched.map((e) => [e.id, e]));
     this.set({
@@ -353,6 +354,7 @@ export class Store {
       people: this.data.people.filter((p) => p.id !== id),
       entries: this.data.entries.map((e) => map.get(e.id) ?? e),
       events,
+      todos,
     });
   }
 
@@ -390,14 +392,59 @@ export class Store {
     this.set({ ...this.data, events: this.data.events!.filter((e) => e.id !== id) });
   }
 
-  /** 人・グループを消したり、まとめたりしたときに予定の紐づけを直す */
-  private async fixEvents(fn: (e: ScheduleEvent) => ScheduleEvent | null): Promise<ScheduleEvent[]> {
-    const out: ScheduleEvent[] = [];
+  /** 人・グループを消したり、まとめたりしたときに予定・ToDoの紐づけを直す */
+  private async fixEvents(fn: <T extends ScheduleEvent | Todo>(e: T) => T | null): Promise<{ events: ScheduleEvent[]; todos: Todo[] }> {
+    const events: ScheduleEvent[] = [];
     for (const e of this.data.events ?? []) {
       const n = fn(e);
-      if (n) { await this.repo.putEvent(n); out.push(n); } else out.push(e);
+      if (n) { await this.repo.putEvent(n); events.push(n); } else events.push(e);
     }
-    return out;
+    const todos: Todo[] = [];
+    for (const x of this.data.todos ?? []) {
+      const n = fn(x);
+      if (n) { await this.repo.putTodo(n); todos.push(n); } else todos.push(x);
+    }
+    return { events, todos };
+  }
+
+  // ---- ToDo ----
+  async saveTodo(input: { text: string; due?: string; personIds: ID[]; groupIds?: ID[]; newPeople?: string[] }, id?: ID): Promise<Todo> {
+    const now = Date.now();
+    const prev = id ? this.data.todos!.find((x) => x.id === id) : undefined;
+    const personIds = [...input.personIds];
+    for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name, null, [], true)).id);
+    const alive = new Set(this.data.groups.map((g) => g.id));
+    const groupIds = [...new Set(input.groupIds ?? [])].filter((g) => alive.has(g));
+    const td: Todo = {
+      id: prev?.id ?? newId(),
+      text: input.text.trim(),
+      done: prev?.done ?? false,
+      ...(prev?.doneAt ? { doneAt: prev.doneAt } : {}),
+      ...(input.due ? { due: input.due } : {}),
+      personIds: [...new Set(personIds)],
+      ...(groupIds.length ? { groupIds } : {}),
+      createdAt: prev?.createdAt ?? now,
+      updatedAt: now,
+    };
+    await this.repo.putTodo(td);
+    this.set({ ...this.data, todos: [...this.data.todos!.filter((x) => x.id !== td.id), td] });
+    return td;
+  }
+
+  async setTodoDone(id: ID, done: boolean) {
+    const prev = this.data.todos!.find((x) => x.id === id);
+    if (!prev) return;
+    const now = Date.now();
+    const { doneAt: _, ...rest } = prev;
+    const next: Todo = { ...rest, done, ...(done ? { doneAt: now } : {}), updatedAt: now };
+    await this.repo.putTodo(next);
+    this.set({ ...this.data, todos: this.data.todos!.map((x) => (x.id === id ? next : x)) });
+  }
+
+  async deleteTodos(ids: ID[]) {
+    for (const id of ids) await this.repo.deleteTodo(id);
+    const s = new Set(ids);
+    this.set({ ...this.data, todos: this.data.todos!.filter((x) => !s.has(x.id)) });
   }
 
   // ---- 人のグループ(1人が複数に入れる) ----
@@ -439,11 +486,11 @@ export class Store {
         return { ...rest, ...(groupIds.length ? { groupIds } : {}) } as Entry;
       });
     for (const e of touchedE) await this.repo.putEntry(e);
-    const events = await this.fixEvents((e) => {
+    const { events, todos } = await this.fixEvents((e) => {
       if (!e.groupIds?.includes(id)) return null;
       const { groupIds: g, ...rest } = e;
       const left = g!.filter((x) => x !== id);
-      return { ...rest, ...(left.length ? { groupIds: left } : {}), updatedAt: now };
+      return { ...rest, ...(left.length ? { groupIds: left } : {}), updatedAt: now } as unknown as typeof e;
     });
     await this.repo.deleteGroup(id);
     const m = new Map(touched.map((p) => [p.id, p]));
@@ -454,6 +501,7 @@ export class Store {
       people: this.data.people.map((p) => m.get(p.id) ?? p),
       entries: this.data.entries.map((e) => me.get(e.id) ?? e),
       events,
+      todos,
     });
   }
 
@@ -558,7 +606,7 @@ export class Store {
     const profile = mergeProfiles(dst.profile, src.profile);
     const merged: Person = { ...dst, relation: dst.relation ?? src.relation, memo, ...(groupIds.length ? { groupIds } : {}), profile, updatedAt: now };
     if (!profile) delete merged.profile;
-    const events = await this.fixEvents((e) => (e.personIds.includes(sourceId) ? { ...e, personIds: [...new Set(e.personIds.map((x) => (x === sourceId ? targetId : x)))], updatedAt: now } : null));
+    const { events, todos } = await this.fixEvents((e) => (e.personIds.includes(sourceId) ? { ...e, personIds: [...new Set(e.personIds.map((x) => (x === sourceId ? targetId : x)))], updatedAt: now } : null));
     if (!merged.relation) delete merged.relation;
     await this.repo.putPerson(merged);
     await this.repo.deletePerson(sourceId);
@@ -568,6 +616,7 @@ export class Store {
       people: this.data.people.filter((p) => p.id !== sourceId).map((p) => (p.id === targetId ? merged : p)),
       entries: this.data.entries.map((e) => map.get(e.id) ?? e),
       events,
+      todos,
     });
   }
 
@@ -785,6 +834,7 @@ export class Store {
       folders: drop(this.data.folders, r.folderIds),
       groups: this.data.groups,
       events: this.data.events,
+      todos: this.data.todos,
     }, 'replace');
   }
 
