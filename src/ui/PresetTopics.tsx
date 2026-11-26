@@ -9,7 +9,7 @@ import { currentLang, t } from '../i18n';
 
 const nameOf = (x: PresetTopic) => (currentLang() === 'ja' ? x.name : x.en);
 
-/** 用意したタグリストから選んでまとめて登録する画面(#/topics/presets)。タグタブの案内と、設定の「機能とカスタマイズ」のタグから開く */
+/** 用意したタグリストから選んでまとめて登録する画面(#/topics/presets)。タグタブの案内と、設定の「タグ」から開く */
 export function PresetTopicsScreen() {
   const store = useStore();
   const data = useData();
@@ -93,7 +93,7 @@ export function PresetHint() {
       <p>{t('会話によく出るタグ（趣味・食べ物・仕事など）を選んで、まとめて登録できます。')}</p>
       <div className="preset-bar">
         <button className="btn primary small-btn" onClick={() => go('/topics/presets')}>{t('タグを選んで登録')}</button>
-        <button className="link muted" onClick={() => { setFeature('presetHint', false); toast(t('設定の「機能とカスタマイズ」のタグからいつでも開けます')); }}>{t('今後表示しない')}</button>
+        <button className="link muted" onClick={() => { setFeature('presetHint', false); toast(t('設定の「タグ」からいつでも開けます')); }}>{t('今後表示しない')}</button>
       </div>
     </section>
   );

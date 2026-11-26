@@ -1,16 +1,145 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { diffSince, readBackup, type BackupKind, type ParsedBackup } from '../core/backup';
-import { go, useData, useStore } from './hooks';
+import { back, go, useData, useStore } from './hooks';
 import { Header } from './components';
 import { exportBackup, getLastBackup, getManifest } from './backupUi';
 import { useAiSettings } from './AiTools';
-import { FEATURE_KEYS, FEATURE_LABELS, setFeature, useFeatures } from './features';
+import { FEATURE_GROUPS, FEATURE_LABELS, setFeature, useFeatures } from './features';
 import { REWARD_CREDITS, RewardAd, useCredits } from './ads';
 import { confirmRemoveSamples, useHasSamples } from './samples';
 import { setThemePref, useThemePref, type ThemePref } from './theme';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
+// 設定トップはiPhoneの設定アプリのようにカテゴリの一覧だけを並べ、中身はカテゴリごとの画面に分ける(縦に長くならないように)。
+// 機能のカテゴリ(話題・人・タグ…)は features.ts の FEATURE_GROUPS から並ぶ。中身は FeaturesScreen。
 export function SettingsScreen() {
+  const data = useData();
+  const store = useStore();
+  const feat = useFeatures();
+  const hasSamples = useHasSamples();
+  const theme = useThemePref();
+  const [ai] = useAiSettings();
+  const last = getLastBackup();
+  const themeLabel = theme === 'light' ? t('ライト') : theme === 'dark' ? t('ダーク') : t('端末に合わせる');
+
+  return (
+    <div className="screen">
+      <Header title={t('設定')} />
+      <div className="form">
+        <div className="stats">
+          <div><b>{data.entries.length}</b><span>{t('話題')}</span></div>
+          <div><b>{data.people.length}</b><span>{t('人')}</span></div>
+          <div><b>{data.topics.length}</b><span>{t('タグ')}</span></div>
+          <div><b>{data.folders.length}</b><span>{t('フォルダ')}</span></div>
+        </div>
+
+        <ul className="rows">
+          <Row label={t('言語と画面の色')} sub={themeLabel} to="/settings/display" />
+        </ul>
+
+        <ul className="rows">
+          {FEATURE_GROUPS.map((g) => (
+            <Row key={g.key} label={t(g.title)} to={'/settings/features/' + g.key}
+              sub={t('{n}/{total}個オン', { n: g.items.filter((k) => feat[k]).length, total: g.items.length })} />
+          ))}
+          <Row label="AI" sub={ai.enabled ? t('オン') : t('オフ')} to="/settings/features/ai" />
+        </ul>
+
+        <ul className="rows">
+          <Row label={t('有料機能（プレミアム）')} to="/settings/premium" />
+          {feat.import && <Row label={t('他のアプリから取り込む')} to="/import" />}
+          <Row label={t('バックアップ')} sub={last ? new Date(last).toLocaleDateString(locale()) : t('まだありません')} to="/settings/backup" />
+        </ul>
+
+        <ul className="rows">
+          <Row label={t('使い方ガイド')} to="/settings/guide" />
+          {hasSamples ? (
+            <li className="row-item" onClick={() => confirmRemoveSamples(store)}>
+              <span className="name">{t('見本を消す')}</span>
+            </li>
+          ) : (
+            <li className="row-item" onClick={async () => { await store.addSamples(); go('/'); }}>
+              <span className="name">{t('見本を入れる')}</span>
+            </li>
+          )}
+        </ul>
+
+        <p className="muted small center">{t('会話資産 試作版')} v0.12</p>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, sub, to }: { label: string; sub?: string; to: string }) {
+  return (
+    <li className="row-item" onClick={() => go(to)}>
+      <span className="name">{label}</span>
+      <span className="sub">{sub}</span>
+      <span className="chev">›</span>
+    </li>
+  );
+}
+
+/** 設定の中の1画面(左上に「‹ 設定」) */
+export function SettingsSub({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="screen">
+      <Header title={title} left={<button className="link" onClick={() => back('/settings')}>{t('‹ 設定')}</button>} />
+      <div className="form">{children}</div>
+    </div>
+  );
+}
+
+export function DisplaySettingsScreen() {
+  const theme = useThemePref();
+  return (
+    <SettingsSub title={t('言語と画面の色')}>
+      <section className="panel">
+        <h2>{t('言語')} / Language</h2>
+        <select className="select block" value={langPref()} onChange={(e) => setLangPref(e.target.value as LangPref)}>
+          <option value="auto">{t('自動（端末の言語）')}</option>
+          {LANGS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
+        </select>
+      </section>
+      <section className="panel">
+        <h2>{t('画面の色')}</h2>
+        <select className="select block" value={theme} onChange={(e) => setThemePref(e.target.value as ThemePref)}>
+          <option value="auto">{t('端末に合わせる')}</option>
+          <option value="light">{t('ライト')}</option>
+          <option value="dark">{t('ダーク')}</option>
+        </select>
+      </section>
+    </SettingsSub>
+  );
+}
+
+export function PremiumSettingsScreen() {
+  const feat = useFeatures();
+  const credits = useCredits();
+  const [watching, setWatching] = useState(false);
+  return (
+    <SettingsSub title={t('有料機能（プレミアム）')}>
+      <section className="panel">
+        <p className="muted small">{t('将来は月額課金で使える予定の機能です。今はお試しで誰でも切り替えられます。')}</p>
+        <label className="toggle feature">
+          <input type="checkbox" checked={feat.noAds} onChange={(e) => setFeature('noAds', e.target.checked)} />
+          <span>
+            {t(FEATURE_LABELS.noAds.label)}
+            <span className="muted small block-note">{t(FEATURE_LABELS.noAds.note)}</span>
+          </span>
+        </label>
+        <div className="credit-row">
+          <span>{t('AIクレジット')} <b>{credits}</b></span>
+          <button className="btn small-btn" onClick={() => setWatching(true)}>{t('動画広告を見て{n}クレジットもらう', { n: REWARD_CREDITS })}</button>
+        </div>
+        <p className="muted small">{t('クレジットは今後のAI機能で使う予定です（今はまだ減りません）。')}</p>
+        {watching && <RewardAd onClose={() => setWatching(false)} />}
+      </section>
+    </SettingsSub>
+  );
+}
+
+export function BackupSettingsScreen() {
   const data = useData();
   const store = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -21,12 +150,6 @@ export function SettingsScreen() {
   // 前回の書き出しからの変更数(増分で書き出す件数)
   const [manifest, setManifest] = useState(getManifest());
   const changes = useMemo(() => diffSince(data, manifest).count, [data, manifest]);
-  const feat = useFeatures();
-  const hasSamples = useHasSamples();
-  const theme = useThemePref();
-  const credits = useCredits();
-  const [watching, setWatching] = useState(false);
-  const [ai] = useAiSettings();
   const [withImages, setWithImages] = useState(true);
   const [exporting, setExporting] = useState(false);
   const imageCount = data.entries.reduce((n, e) => n + (e.imageIds?.length ?? 0), 0);
@@ -75,84 +198,8 @@ export function SettingsScreen() {
   const deletedCount = pending ? Object.values(pending.deleted).reduce((n, l) => n + l.length, 0) : 0;
 
   return (
-    <div className="screen">
-      <Header title={t('設定')} />
-      <div className="form">
-        <div className="stats">
-          <div><b>{data.entries.length}</b><span>{t('話題')}</span></div>
-          <div><b>{data.people.length}</b><span>{t('人')}</span></div>
-          <div><b>{data.topics.length}</b><span>{t('タグ')}</span></div>
-          <div><b>{data.folders.length}</b><span>{t('フォルダ')}</span></div>
-        </div>
-
+    <SettingsSub title={t('バックアップ')}>
         <section className="panel">
-          <h2>{t('言語')} / Language</h2>
-          <select className="select block" value={langPref()} onChange={(e) => setLangPref(e.target.value as LangPref)}>
-            <option value="auto">{t('自動（端末の言語）')}</option>
-            {LANGS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
-          </select>
-        </section>
-
-        <section className="panel">
-          <h2>{t('画面の色')}</h2>
-          <select className="select block" value={theme} onChange={(e) => setThemePref(e.target.value as ThemePref)}>
-            <option value="auto">{t('端末に合わせる')}</option>
-            <option value="light">{t('ライト')}</option>
-            <option value="dark">{t('ダーク')}</option>
-          </select>
-        </section>
-
-        <ul className="rows">
-          <li className="row-item" onClick={() => go('/settings/features')}>
-            <span className="name">{t('機能とカスタマイズ')}</span>
-            <span className="sub">
-              {t('{n}/{total}個オン', { n: FEATURE_KEYS.filter((k) => feat[k]).length, total: FEATURE_KEYS.length })}
-              {t('・AI {v}', { v: ai.enabled ? t('オン') : t('オフ') })}
-            </span>
-            <span className="chev">›</span>
-          </li>
-          <li className="row-item" onClick={() => go('/settings/guide')}>
-            <span className="name">{t('使い方ガイド')}</span>
-            <span className="sub">{t('画面の構成と使える機能')}</span>
-            <span className="chev">›</span>
-          </li>
-          {hasSamples ? (
-            <li className="row-item" onClick={() => confirmRemoveSamples(store)}>
-              <span className="name">{t('見本を消す')}</span>
-            </li>
-          ) : (
-            <li className="row-item" onClick={async () => { await store.addSamples(); go('/'); }}>
-              <span className="name">{t('見本を入れる')}</span>
-            </li>
-          )}
-        </ul>
-
-        <section className="panel" id="premium">
-          <h2>{t('有料機能（プレミアム）')}</h2>
-          <p className="muted small">{t('将来は月額課金で使える予定の機能です。今はお試しで誰でも切り替えられます。')}</p>
-          <label className="toggle feature">
-            <input type="checkbox" checked={feat.noAds} onChange={(e) => setFeature('noAds', e.target.checked)} />
-            <span>
-              {t(FEATURE_LABELS.noAds.label)}
-              <span className="muted small block-note">{t(FEATURE_LABELS.noAds.note)}</span>
-            </span>
-          </label>
-          <div className="credit-row">
-            <span>{t('AIクレジット')} <b>{credits}</b></span>
-            <button className="btn small-btn" onClick={() => setWatching(true)}>{t('動画広告を見て{n}クレジットもらう', { n: REWARD_CREDITS })}</button>
-          </div>
-          <p className="muted small">{t('クレジットは今後のAI機能で使う予定です（今はまだ減りません）。')}</p>
-          {watching && <RewardAd onClose={() => setWatching(false)} />}
-        </section>
-
-        {feat.import && <section className="panel">
-          <h2>{t('他のアプリから取り込む')}</h2>
-          <p className="muted small">{t('iPhoneのメモ・テキストやLINEのトーク履歴を、話題としてまとめて取り込めます。')}</p>
-          <button className="btn block" onClick={() => go('/import')}>{t('取り込みを始める')}</button>
-        </section>}
-
-        <section className="panel">
-          <h2>{t('バックアップ')}</h2>
           <p className="muted">
             {t('データはこの端末の中だけに保存されています。iPhoneでは長く開かないと消えることがあるので、ときどき書き出して「ファイル」アプリやiCloud Driveに保存してください。')}
           </p>
@@ -223,9 +270,6 @@ export function SettingsScreen() {
           )}
         </section>
 
-        <p className="muted small center">{t('会話資産 試作版')} v0.12</p>
-      </div>
-    </div>
+    </SettingsSub>
   );
 }
-
