@@ -15,10 +15,12 @@ import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSe
 import { currentLang, t } from '../i18n';
 export { folderChoices } from './folders';
 import { PresetHint } from './PresetTopics';
+import { SampleHint } from './samples';
 import { useFeatures } from './features';
 import { Fab, createItems, useAddRequest } from './fab';
 import { Icon } from './icons';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
+import { PersonSchedule, TodayEvents } from './schedule';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
 export function FolderScreen({ folderId }: { folderId: ID | null }) {
@@ -95,6 +97,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
         right={<span className="header-actions">{!editing && !adding && !selecting && !flat && <FolderAddButton onClick={() => setAdding(true)} />}{!editing && <SelectButton />}{folder && !selecting && <button className="link" onClick={() => setEditing(!editing)}>{editing ? t('閉じる') : t('編集')}</button>}</span>}
       />
       <Crumbs scope="entry" path={path} />
+      {!folder && !selecting && <TodayEvents />}
       {editing && folder ? (
         <FolderEdit id={folder.id} onDone={() => setEditing(false)} />
       ) : (
@@ -110,6 +113,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
             </>
           ) : (
             <>
+              {!folderId && !selecting && <SampleHint />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t('{n}件', { n: memos.length })}
@@ -603,6 +607,7 @@ export function PersonScreen({ id }: { id: ID }) {
             </div>
           )}
           {feat.profile && <PersonProfileSection person={person} entries={mine} />}
+          {feat.schedule && <PersonSchedule person={person} />}
           <FoldHeader label={t('{name}に話したこと', { name: person.name })} count={mine.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
           {entriesOpen && <>
           {mine.length > 3 && <SearchBox value={q} onChange={setQ} placeholder={t('{name}に話したことを検索', { name: person.name })} />}

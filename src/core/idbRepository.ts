@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Repository } from './repository';
-import type { AppData, Entry, EntryImage, Folder, Group, Person, Topic } from './types';
+import type { AppData, Entry, EntryImage, Folder, Group, Person, ScheduleEvent, Topic } from './types';
 
 interface Schema extends DBSchema {
   people: { key: string; value: Person };
@@ -8,11 +8,12 @@ interface Schema extends DBSchema {
   entries: { key: string; value: Entry };
   folders: { key: string; value: Folder };
   groups: { key: string; value: Group };
+  events: { key: string; value: ScheduleEvent };
   /** 添付画像。loadAll では読まない(一覧の読み込みを重くしないため) */
   images: { key: string; value: EntryImage };
 }
 
-const STORES = ['people', 'topics', 'entries', 'folders', 'groups'] as const;
+const STORES = ['people', 'topics', 'entries', 'folders', 'groups', 'events'] as const;
 const ALL_STORES = [...STORES, 'images'] as const;
 
 /**
@@ -47,7 +48,7 @@ export class IdbRepository implements Repository {
   constructor(private name = 'kaiwa-shisan') {}
 
   private openOnce(onLost: () => void): Promise<IDBPDatabase<Schema>> {
-    return openDB<Schema>(this.name, 4, {
+    return openDB<Schema>(this.name, 5, {
       upgrade(db) {
         for (const s of ALL_STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
       },
@@ -117,15 +118,16 @@ export class IdbRepository implements Repository {
   }
 
   private async readAll(db: IDBPDatabase<Schema>): Promise<AppData> {
-    const [people, topics, entries, folders, groups] = await Promise.all([
+    const [people, topics, entries, folders, groups, events] = await Promise.all([
       db.getAll('people'),
       db.getAll('topics'),
       db.getAll('entries'),
       db.getAll('folders'),
       db.getAll('groups'),
+      db.getAll('events'),
     ]);
     // v1のデータには folderId がないので補う
-    return { people, topics, entries: entries.map((e) => ({ ...e, folderId: e.folderId ?? null })), folders: folders.map((f) => ({ ...f, parentId: f.parentId ?? null })), groups };
+    return { people, topics, entries: entries.map((e) => ({ ...e, folderId: e.folderId ?? null })), folders: folders.map((f) => ({ ...f, parentId: f.parentId ?? null })), groups, events };
   }
 
   async putPerson(p: Person) { await this.write((db) => db.put('people', p)); }
@@ -138,6 +140,8 @@ export class IdbRepository implements Repository {
   async deleteFolder(id: string) { await this.write((db) => db.delete('folders', id)); }
   async putGroup(g: Group) { await this.write((db) => db.put('groups', g)); }
   async deleteGroup(id: string) { await this.write((db) => db.delete('groups', id)); }
+  async putEvent(e: ScheduleEvent) { await this.write((db) => db.put('events', e)); }
+  async deleteEvent(id: string) { await this.write((db) => db.delete('events', id)); }
 
   async putImage(img: EntryImage) { await this.run((db) => db.put('images', img)); }
   getImage(id: string) { return this.run((db) => db.get('images', id)); }
@@ -156,6 +160,7 @@ export class IdbRepository implements Repository {
     for (const e of data.entries) tx.objectStore('entries').put(e);
     for (const f of data.folders) tx.objectStore('folders').put(f);
     for (const g of data.groups ?? []) tx.objectStore('groups').put(g);
+    for (const ev of data.events ?? []) tx.objectStore('events').put(ev);
     await tx.done;
   }
 }

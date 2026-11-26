@@ -16,8 +16,9 @@
   --ad-h: 0px;
   color-scheme: light;
 }
+/* ダーク: 端末がダークで「ライト」指定でないとき、または「ダーク」指定のとき (設定 → 画面の色) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #171614;
     --surface: #22211e;
     --ink: #ece8df;
@@ -31,6 +32,20 @@
     --danger: #ff8a80;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #171614;
+  --surface: #22211e;
+  --ink: #ece8df;
+  --muted: #9c968a;
+  --line: #34322d;
+  --accent: #7cc3b1;
+  --fav: #f2c14e;
+  --accent-soft: #243832;
+  --topic: #e0a865;
+  --topic-soft: #3a2e1f;
+  --danger: #ff8a80;
+  color-scheme: dark;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); }
@@ -196,7 +211,7 @@ html, body { overscroll-behavior-y: none; }
 
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
   height: calc(var(--tabbar-h) + var(--safe-b)); padding-bottom: var(--safe-b);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
@@ -582,3 +597,33 @@ html.kb-open .ad-banner { display: none; }
 .reward-got { font-size: 18px; font-weight: 700; }
 .credit-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
 .credit-row b { font-size: 18px; margin-left: 4px; }
+
+/* ---- 予定 ---- */
+.schedule { display: flex; flex-direction: column; }
+.schedule-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 10px; }
+.seg { display: inline-flex; background: var(--line); border-radius: 10px; padding: 2px; }
+.seg button { border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 14px; padding: 6px 14px; min-height: 36px; border-radius: 8px; cursor: pointer; }
+.seg button.on { background: var(--surface); font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.cal { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; }
+.cal-head .icon-btn { font-size: 22px; min-width: 44px; min-height: 44px; }
+.cal-title { border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; padding: 8px 12px; cursor: pointer; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-w { text-align: center; font-size: 12px; color: var(--muted); padding: 2px 0 4px; }
+.cal-w.sun { color: var(--danger); }
+.cal-w.sat { color: var(--accent); }
+.cal-d { border: 0; background: none; color: var(--ink); font: inherit; font-size: 15px; min-height: 44px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; cursor: pointer; padding: 2px 0; }
+.cal-d:active { background: var(--bg); }
+.cal-d.today span:first-child { color: var(--accent); font-weight: 800; }
+.cal-d.sel { background: var(--accent-soft); }
+.cal-dots { color: var(--accent); font-size: 12px; height: 12px; letter-spacing: 1px; }
+.schedule-day { display: flex; align-items: center; justify-content: space-between; }
+.schedule-empty { margin: 4px 2px 8px; }
+.schedule-note { margin: 18px 2px 0; }
+.event-row { display: flex; flex-direction: column; align-items: stretch; text-align: left; width: 100%; font: inherit; color: var(--ink); cursor: pointer; padding-right: 14px; }
+.event-time { font-size: 13px; color: var(--accent); font-weight: 700; }
+.today-events { margin-bottom: 12px; gap: 8px; }
+.time-range { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.seg button:active { background: color-mix(in srgb, var(--surface) 70%, var(--line)); }
+.time-range { display: flex; justify-content: flex-start; }
+.field.row .time-range input { min-width: 0; width: 8.5em; display: inline-block; }

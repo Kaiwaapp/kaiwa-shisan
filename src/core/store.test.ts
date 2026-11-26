@@ -440,3 +440,33 @@ describe('手動の並び順・増分エクスポート・読み仮名', () => {
     expect(d.readingOf('さとう')).toBe('');
   });
 });
+
+describe('見本', () => {
+  it('見本だけを消し、自分の記録と、その記録に使った見本の話題は残す', async () => {
+    const s = await fresh();
+    expect(s.isEmpty).toBe(true);
+    await s.addSamples();
+    expect(s.hasSamples).toBe(true);
+    const travel = s.snapshot.topics.find((t) => t.name === '旅行')!;
+    const sampleEntry = s.snapshot.entries.find((e) => e.sample && e.personIds.length)!;
+    // 見本の記録を編集したら自分の記録になる
+    await s.saveEntry({ text: sampleEntry.text + '追記', personIds: sampleEntry.personIds, topicIds: sampleEntry.topics.map((x) => x.topicId), talkedOn: sampleEntry.talkedOn }, sampleEntry.id);
+    const mine = await s.saveEntry({ text: '自分の記録', personIds: [], topicIds: [travel.id], talkedOn: '2026-11-26' });
+    await s.removeSamples();
+    expect(s.hasSamples).toBe(false);
+    const d = s.snapshot;
+    expect(d.entries.map((e) => e.id).sort()).toEqual([mine.id, sampleEntry.id].sort());
+    expect(d.topics.some((t) => t.id === travel.id && !t.sample)).toBe(true);
+    // 編集した見本の記録に付いていた人は残り、使われていない見本の人は消える
+    expect(d.people.length).toBe(new Set(sampleEntry.personIds).size);
+  });
+
+  it('同じ名前の話題があれば作らずに使う', async () => {
+    const s = await fresh();
+    const mine = await s.addTopic('旅行');
+    await s.addSamples();
+    expect(s.snapshot.topics.filter((t) => t.name === '旅行')).toEqual([mine]);
+    await s.removeSamples();
+    expect(s.snapshot.topics).toEqual([mine]);
+  });
+});
