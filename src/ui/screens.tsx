@@ -9,7 +9,7 @@ import {
 import { back, formatDate, go, useData, usePref, useStore } from './hooks';
 import { folderDescendants, folderPath, foldersOf } from '../core/store';
 import { Crumbs, FoldHeader, FolderEdit, FolderRows, FolderSelect, TitleIcons, useFold, UpButton, makeDeepCount, rootHref } from './folders';
-import { reorderProps, SelectButton, SelectionBar, toast, useInteract, usePress, useReorderList, SelectMark, type ItemRef } from './interact';
+import { PressHint, reorderProps, SelectButton, SelectionBar, toast, useInteract, usePress, useReorderList, SelectMark, type ItemRef } from './interact';
 import type { Folder } from '../core/types';
 import { EntryList, EntryPreview, FavToggle, Header, LoadMore, SearchBox, SortSelect, useIncremental } from './components';
 import { currentLang, t } from '../i18n';
@@ -117,6 +117,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
           ) : (
             <>
               {!folderId && !selecting && <SampleHint />}
+              {!folderId && <PressHint />}
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t('{n}件', { n: memos.length })}
@@ -435,6 +436,7 @@ export function NameFolderScreen({ kind, folderId, rel }: { kind: NameKind; fold
               {relOn && <RelationBar value={relFilter} onChange={setRelFilter} />}
               {kind === 'person' && !folderId && feat.groups && !relPicked && <GroupBar />}
               {kind === 'topic' && !folderId && <PresetHint />}
+              {!folderId && <PressHint />}
               {relPicked ? (
                 <>
                   <div className="toolbar">

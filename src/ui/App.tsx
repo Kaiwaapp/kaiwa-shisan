@@ -10,7 +10,6 @@ import { PresetTopicsScreen } from './PresetTopics';
 import { GroupScreen } from './groups';
 import { BackupSettingsScreen, DisplaySettingsScreen, PremiumSettingsScreen, SettingsScreen } from './SettingsScreen';
 import { FeaturesScreen } from './FeaturesScreen';
-import { GuideScreen } from './GuideScreen';
 import { ProfileFieldsScreen } from './profile';
 import { RelationsScreen } from './RelationParts';
 import { t, useLang } from '../i18n';
@@ -22,6 +21,8 @@ import { EventEditor, ScheduleScreen, TodoEditor } from './schedule';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
+// 使い方ガイドは文と画像が多いので、開いたときだけ読み込む
+const GuideScreen = lazy(() => import('./GuideScreen'));
 
 const TABS: { key: string; label: string; icon: IconName }[] = [
   { key: '', label: '話題', icon: 'entry' },
@@ -148,7 +149,7 @@ function Shell() {
   else if (head === 'schedule' && feat.schedule) screen = <ScheduleScreen todo={sub === 'todo' && feat.todo} />;
   else if (head === 'settings' && sub === 'profile') screen = <ProfileFieldsScreen />;
   else if (head === 'settings' && sub === 'relations') screen = <RelationsScreen />;
-  else if (head === 'settings' && sub === 'guide') screen = <GuideScreen />;
+  else if (head === 'settings' && sub === 'guide') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><GuideScreen /></Suspense>;
   else if (head === 'settings' && sub === 'features' && third) screen = <FeaturesScreen key={third} group={third === 'ai' ? undefined : third} />;
   else if (head === 'settings' && sub === 'display') screen = <DisplaySettingsScreen />;
   else if (head === 'settings' && sub === 'premium') screen = <PremiumSettingsScreen />;
