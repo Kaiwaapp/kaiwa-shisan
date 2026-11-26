@@ -26,6 +26,8 @@ export interface Person {
   profile?: PersonProfile;
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い(新しいものが上) */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
 /** 初めから用意しているプロフィール項目。表示名は画面側(ui/profileFields.ts)で付け、設定で変えられる */
@@ -101,6 +103,8 @@ export interface Topic {
   favorite?: boolean;
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
 /** タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
@@ -141,6 +145,8 @@ export interface Entry {
   imageIds?: ID[];
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い */
   order?: number;
+  /** 初回に入れた見本。「見本を消す」で消す。ユーザーが編集したら外す */
+  sample?: boolean;
 }
 
 /**
@@ -174,12 +180,37 @@ export interface Folder {
   order?: number;
 }
 
+/** 予定の通知(カレンダーに書き出したときのアラーム)。start=開始時刻(終日は当日9時)、1h=1時間前、1d=前日(終日は前日9時) */
+export type EventAlarm = 'start' | '1h' | '1d';
+
+/** 予定1件。人(複数)・グループに紐づけられる */
+export interface ScheduleEvent {
+  id: ID;
+  title: string;
+  /** 日付 (YYYY-MM-DD) */
+  date: string;
+  /** 開始時刻 (HH:MM)。なければ終日 */
+  time?: string;
+  /** 終了時刻 (HH:MM)。開始時刻があるときだけ */
+  endTime?: string;
+  personIds: ID[];
+  groupIds?: ID[];
+  place?: string;
+  /** 話したいこと・メモ */
+  memo?: string;
+  alarm?: EventAlarm;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AppData {
   people: Person[];
   topics: Topic[];
   entries: Entry[];
   folders: Folder[];
   groups: Group[];
+  /** 予定。古いデータ・バックアップにはない */
+  events?: ScheduleEvent[];
 }
 
 export const newId = (): ID =>

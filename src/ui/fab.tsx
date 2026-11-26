@@ -3,8 +3,9 @@ import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode 
 import { go } from './hooks';
 import { Sheet } from './interact';
 import { t } from '../i18n';
+import { Icon } from './icons';
 
-export interface CreateItem { icon: string; label: string; run: () => void }
+export interface CreateItem { icon: ReactNode; label: string; run: () => void }
 
 /** 一覧の画面にある「フォルダ／グループの作成」欄を開くよう頼む(メニューから使う) */
 type AddKind = 'folder' | 'group';
@@ -34,11 +35,11 @@ export function createItems(o: {
   group?: boolean;
 }): CreateItem[] {
   const items: CreateItem[] = [o.first];
-  if (o.entry) items.push({ icon: '✎', label: t('話題を追加'), run: () => go(o.entry!) });
-  if (o.people) items.push({ icon: '☺', label: t('人を追加'), run: () => go(o.people!) });
-  if (o.topics) items.push({ icon: '#', label: t('タグを追加'), run: () => go(o.topics!) });
-  if (o.group) items.push({ icon: '◎', label: t('グループを作成'), run: () => requestAdd('group') });
-  if (o.folder) items.push({ icon: '▤', label: t('フォルダを作成'), run: () => requestAdd('folder') });
+  if (o.entry) items.push({ icon: <Icon name="entry" />, label: t('話題を追加'), run: () => go(o.entry!) });
+  if (o.people) items.push({ icon: <Icon name="person" />, label: t('人を追加'), run: () => go(o.people!) });
+  if (o.topics) items.push({ icon: <Icon name="topic" />, label: t('タグを追加'), run: () => go(o.topics!) });
+  if (o.group) items.push({ icon: <Icon name="group" />, label: t('グループを作成'), run: () => requestAdd('group') });
+  if (o.folder) items.push({ icon: <Icon name="folder" />, label: t('フォルダを作成'), run: () => requestAdd('folder') });
   return items;
 }
 

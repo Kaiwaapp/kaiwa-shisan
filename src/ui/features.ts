@@ -31,17 +31,22 @@ export interface Features {
   readingTopic: boolean;
   /** タグ: タグタブに「おすすめのタグから登録」の案内を出す(案内の「今後表示しない」でオフになる) */
   presetHint: boolean;
+  /** 予定(予定タブと人ごとの予定) */
+  schedule: boolean;
+  /** 話題タブの一番上に今日・明日の予定を出す */
+  scheduleToday: boolean;
   /** 有料機能(将来は月額課金): バナー広告を出さない。今は誰でも切り替えられる。設定画面の「有料機能」の欄に出す */
   noAds: boolean;
 }
 
-export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard', 'presetHint'] as const;
+export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard', 'presetHint', 'schedule', 'scheduleToday'] as const;
 
 /** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
   { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent', 'confirmDiscard'] },
   { key: 'person', title: '人', items: ['readingPerson', 'groups', 'profile'] },
   { key: 'topic', title: 'タグ', items: ['readingTopic', 'presetHint'] },
+  { key: 'schedule', title: '予定', items: ['schedule', 'scheduleToday'] },
   { key: 'common', title: '全体', items: ['folders', 'favorites', 'import'] },
 ];
 
@@ -60,12 +65,14 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   readingPerson: { label: '人の名前に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   readingTopic: { label: 'タグに入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   presetHint: { label: 'おすすめのタグの案内', note: 'タグタブに、用意したタグリストから登録する案内を出す' },
+  schedule: { label: '予定', note: '予定タブと、人の画面の予定欄。予定に人を紐づけて、カレンダーやリストで見られます' },
+  scheduleToday: { label: '今日・明日の予定を表示', note: 'アプリを開いたとき、話題タブの一番上に今日と明日の予定を出す' },
   noAds: { label: 'バナー広告を表示しない', note: '画面下のバナー広告を消します。' },
   confirmDiscard: { label: '保存せずに戻るときの確認', note: '話題を入力したままキャンセルしたとき、保存されないことを確認する' },
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, noAds: false };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, noAds: false };
 
 const load = (): Features => {
   try {
