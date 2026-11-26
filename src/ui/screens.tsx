@@ -17,6 +17,7 @@ export { folderChoices } from './folders';
 import { PresetHint } from './PresetTopics';
 import { useFeatures } from './features';
 import { Fab, createItems, useAddRequest } from './fab';
+import { Icon } from './icons';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
 
 // ---- 記録タブ: iPhoneのメモのように、フォルダと記録が並ぶ(フォルダは入れ子可) ----
@@ -736,7 +737,7 @@ function AddEntryFab({ to, label }: { to: string; label: string }) {
   if (selecting) return null;
   // 長押しで、その人／話題に関係なく記録・人・話題を作ることもできる
   const items = createItems({
-    first: { icon: '✎', label, run: () => go(to) },
+    first: { icon: <Icon name="entry" />, label, run: () => go(to) },
     entry: '/new', people: '/people/new', topics: '/topics/new',
   });
   return <Fab label={label} onTap={() => go(to)} items={items} />;
