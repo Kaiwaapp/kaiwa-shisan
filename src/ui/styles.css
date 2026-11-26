@@ -560,6 +560,17 @@ body.dragging { cursor: grabbing; }
 .guide-list li { display: flex; gap: 6px; align-items: flex-start; }
 .guide-list .guide-num { margin-top: 1px; }
 /* 番号を付けきれない操作(長押しなど)の一覧 */
+/* 長押しした後の画面: 2枚ずつ並べ、長押しした場所に輪を付ける */
+.guide-holds { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; }
+.guide-holds h3 { margin: 0; font-size: 15px; }
+.guide-hold-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.guide-hold { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.guide-hold .guide-shot { width: 100%; max-width: none; }
+.guide-hold figcaption { font-size: 13px; line-height: 1.5; }
+.guide-press {
+  position: absolute; width: 26px; height: 26px; transform: translate(-50%, -50%); border-radius: 50%;
+  border: 3px solid var(--accent); background: rgba(255,255,255,.35); box-shadow: 0 0 0 2px #fff;
+}
 .guide-more { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.5; }
 .field .toggle.small-toggle, .field .toggle.small-toggle span { font-weight: 400; color: var(--ink); font-size: 14px; }
 /* 設定 > 機能とカスタマイズ: グループの見出し(折りたたみ)とその下の欄 */
