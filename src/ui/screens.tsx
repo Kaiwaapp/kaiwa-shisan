@@ -20,6 +20,8 @@ import { useFeatures } from './features';
 import { Fab, createItems, useAddRequest } from './fab';
 import { Icon } from './icons';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
+import { RelationBadge, RelationBar, RelationPicker } from './RelationParts';
+import { relationName, useRelations } from './relations';
 import { PersonSchedule, TodayEvents } from './schedule';
 
 // ---- 話題タブ: iPhoneのメモのように、フォルダと話題が並ぶ(フォルダは入れ子可) ----
@@ -289,6 +291,7 @@ function NameRow({ kind, x, sort, showFolder, list }: {
   const { lifted, handlers } = usePress(item, () => go(base + x.id));
   const selecting = useInteract().sel.active;
   const feat = useFeatures();
+  const relations = useRelations();
   return (
     <li className={`row-item pressable with-fav ${lifted ? 'lifted' : ''}`} {...reorderProps(list, kind, x.id)} {...handlers}>
       <span className={kind === 'topic' ? 'name topic-name' : 'name'}>
@@ -298,6 +301,9 @@ function NameRow({ kind, x, sort, showFolder, list }: {
         {x.reading && <span className="reading">{x.reading}</span>}
         {showFolder && feat.folders && x.folderId && (
           <span className="reading">▤ {folderPath(data.folders, x.folderId).map((f) => f.name).join(' / ')}</span>
+        )}
+        {feat.relations && kind === 'person' && relationName((x as { relation?: string }).relation, relations) && (
+          <span className="reading">{relationName((x as { relation?: string }).relation, relations)}</span>
         )}
         {feat.groups && kind === 'person' && (x as { groupIds?: ID[] }).groupIds?.length ? (
           <span className="reading">{groupsOf(data.groups, x as { groupIds?: ID[] }).map((g) => g.name).join('・')}</span>
@@ -335,10 +341,12 @@ function PinnedSplit({ kind, items, sort, showFolder, restTitle }: {
   );
 }
 
-export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId: ID | null }) {
+export function NameFolderScreen({ kind, folderId, rel }: { kind: NameKind; folderId: ID | null; rel?: string | null }) {
   const data = useData();
   const store = useStore();
   const [q, setQ] = useState('');
+  // 関係での絞り込み(人タブの一番上だけ)。絞り込み中はフォルダに関係なく全員から出す
+  const [relFilter, setRelFilter] = useState<string | null>(rel ?? null);
   const [sort, setSort] = usePref<NameSort>(kind + 'Sort', 'last');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -373,6 +381,8 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
       ? kids.sort((a, b) => span(a.id, 'first').localeCompare(span(b.id, 'first')) || byName(a, b))
       : kids.sort((a, b) => span(b.id, 'last').localeCompare(span(a.id, 'last')) || byName(a, b));
   }, [folders, folderId, sort, deepCount, all, flat]);
+  const relOn = kind === 'person' && !folderId && feat.relations;
+  const relPicked = relOn && relFilter ? all.filter((x) => (x as { relation?: string }).relation === relFilter) : null;
   const here = flat ? all : all.filter((x) => (x.folderId ?? null) === folderId);
   const results = useMemo(() => {
     if (!q.trim()) return null;
@@ -421,8 +431,19 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
             </>
           ) : (
             <>
-              {kind === 'person' && !folderId && feat.groups && <GroupBar />}
+              {relOn && <RelationBar value={relFilter} onChange={setRelFilter} />}
+              {kind === 'person' && !folderId && feat.groups && !relPicked && <GroupBar />}
               {kind === 'topic' && !folderId && <PresetHint />}
+              {relPicked ? (
+                <>
+                  <div className="toolbar">
+                    <span className="count">{t(unit, { n: relPicked.length })}</span>
+                    <SortSelect value={sort} options={NAME_SORTS} onChange={setSort} />
+                  </div>
+                  <NameRows kind={kind} items={relPicked} sort={sort} showFolder />
+                  {relPicked.length === 0 && <div className="empty">{t('見つかりませんでした')}</div>}
+                </>
+              ) : (<>
               <div className="toolbar">
                 <span className="count">
                   {children.length > 0 && t('{n}フォルダ・', { n: children.length })}{t(unit, { n: here.length })}
@@ -446,6 +467,7 @@ export function NameFolderScreen({ kind, folderId }: { kind: NameKind; folderId:
                       : t(kind === 'person' ? 'フォルダに入っていない人はいません' : 'フォルダに入っていないタグはありません')}
                 </div>
               )}
+              </>)}
             </>
           )}
         </>
@@ -539,6 +561,7 @@ export function PersonScreen({ id }: { id: ID }) {
   const [memo, setMemo] = useState('');
   const [pfolder, setPfolder] = useState<ID | null>(null);
   const [pgroups, setPgroups] = useState<ID[]>([]);
+  const [prel, setPrel] = useState<string | undefined>(undefined);
 
   // グループに話した話題も、そのグループの人の話題として出す
   const mine = useMemo(() => (person ? data.entries.filter((e) => entryHasPerson(e, person)) : []), [data, person]);
@@ -559,7 +582,7 @@ export function PersonScreen({ id }: { id: ID }) {
       <Header
         title={person.name}
         left={<button className="link" onClick={() => back('/people')}>{t('‹ 人')}</button>}
-        right={<span className="header-actions">{!editing && <FavToggle kind="person" id={id} on={!!person.favorite} className="in-header" />}<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setPgroups(person.groupIds ?? []); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
+        right={<span className="header-actions">{!editing && <FavToggle kind="person" id={id} on={!!person.favorite} className="in-header" />}<button className="link" onClick={() => { setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setPgroups(person.groupIds ?? []); setPrel(person.relation); setEditing(!editing); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
       />
       {editing ? (
         <div className="form">
@@ -573,6 +596,11 @@ export function PersonScreen({ id }: { id: ID }) {
               <input value={reading} onChange={(e) => setReading(e.target.value)} placeholder={t('例：たなか')} />
             </section>
           )}
+          {feat.relations && <section className="field">
+            <label>{t('関係')}</label>
+            <RelationPicker value={prel} onChange={setPrel} />
+            <button className="link small-link muted" onClick={() => go('/settings/relations')}>{t('選択肢を変える ›')}</button>
+          </section>}
           {feat.folders && <section className="field">
             <label>{t('フォルダ')}</label>
             <FolderSelect scope="person" value={pfolder} onChange={setPfolder} />
@@ -585,7 +613,7 @@ export function PersonScreen({ id }: { id: ID }) {
             <label>{t('メモ（関係・好きなものなど）')}</label>
             <textarea className="textarea" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
           </section>
-          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder, groupIds: pgroups.filter((g) => data.groups.some((x) => x.id === g)) }); setEditing(false); }}>
+          <button className="btn primary block" disabled={!name.trim()} onClick={async () => { await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder, groupIds: pgroups.filter((g) => data.groups.some((x) => x.id === g)), ...(feat.relations ? { relation: prel } : {}) }); setEditing(false); }}>
             {t('保存')}
           </button>
           <MergeBox kind="person" id={id} name={person.name} />
@@ -599,9 +627,10 @@ export function PersonScreen({ id }: { id: ID }) {
         </div>
       ) : (
         <>
-          {feat.groups && (person.groupIds?.length ?? 0) > 0 && (
+          {((feat.groups && (person.groupIds?.length ?? 0) > 0) || (feat.relations && person.relation)) && (
             <div className="chips person-groups">
-              {groupsOf(data.groups, person).map((g) => (
+              {feat.relations && <RelationBadge id={person.relation} />}
+              {feat.groups && groupsOf(data.groups, person).map((g) => (
                 <button key={g.id} className="chip group small" onClick={() => go(groupHref(g.id))}>{g.name}</button>
               ))}
             </div>

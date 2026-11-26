@@ -330,7 +330,7 @@ export class Store {
     return p;
   }
 
-  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds' | 'profile'>>) {
+  async updatePerson(id: ID, patch: Partial<Pick<Person, 'name' | 'memo' | 'reading' | 'folderId' | 'groupIds' | 'profile' | 'relation'>>) {
     const p = this.data.people.find((x) => x.id === id);
     if (!p) return;
     const next = { ...p, ...patch, sample: undefined, updatedAt: Date.now() };
@@ -556,9 +556,10 @@ export class Store {
     const memo = [dst.memo, src.memo].filter((m) => m.trim()).join('\n');
     const groupIds = [...new Set([...(dst.groupIds ?? []), ...(src.groupIds ?? [])])];
     const profile = mergeProfiles(dst.profile, src.profile);
-    const merged: Person = { ...dst, memo, ...(groupIds.length ? { groupIds } : {}), profile, updatedAt: now };
+    const merged: Person = { ...dst, relation: dst.relation ?? src.relation, memo, ...(groupIds.length ? { groupIds } : {}), profile, updatedAt: now };
     if (!profile) delete merged.profile;
     const events = await this.fixEvents((e) => (e.personIds.includes(sourceId) ? { ...e, personIds: [...new Set(e.personIds.map((x) => (x === sourceId ? targetId : x)))], updatedAt: now } : null));
+    if (!merged.relation) delete merged.relation;
     await this.repo.putPerson(merged);
     await this.repo.deletePerson(sourceId);
     const map = new Map(touched.map((e) => [e.id, e]));

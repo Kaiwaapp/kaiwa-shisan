@@ -12,6 +12,7 @@ import { SettingsScreen } from './SettingsScreen';
 import { FeaturesScreen } from './FeaturesScreen';
 import { GuideScreen } from './GuideScreen';
 import { ProfileFieldsScreen } from './profile';
+import { RelationsScreen } from './RelationParts';
 import { t, useLang } from '../i18n';
 import { Fab, createItems } from './fab';
 import { useFeatures } from './features';
@@ -105,10 +106,11 @@ function Shell() {
     else if (sub === 'fav') screen = <NameAllScreen key={kind + 'fav'} kind={kind} fav />;
     else if (sub === 'f' && third) screen = <NameFolderScreen key={kind + third} kind={kind} folderId={third} />;
     else if (sub) screen = kind === 'person' ? <PersonScreen key={sub} id={sub} /> : <TopicScreen key={sub} id={sub} />;
-    else screen = <NameFolderScreen key={kind + 'root'} kind={kind} folderId={null} />;
+    else screen = <NameFolderScreen key={kind + 'root' + (query.get('rel') ?? '')} kind={kind} folderId={null} rel={query.get('rel')} />;
   }
   else if (head === 'schedule' && feat.schedule) screen = <ScheduleScreen />;
   else if (head === 'settings' && sub === 'profile') screen = <ProfileFieldsScreen />;
+  else if (head === 'settings' && sub === 'relations') screen = <RelationsScreen />;
   else if (head === 'settings' && sub === 'guide') screen = <GuideScreen />;
   else if (head === 'settings') screen = sub === 'features' ? <FeaturesScreen /> : <SettingsScreen />;
   else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen /></Suspense>;

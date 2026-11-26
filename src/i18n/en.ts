@@ -642,6 +642,24 @@ const en: Record<string, string> = {
   '見本の話題・人・タグが入っています。使い方がわかったら消してください。': 'Sample topics, people and tags are included. Remove them once you get the hang of it.',
   '見本を消す': 'Remove samples',
   '見本を入れる': 'Add samples',
+  // 人の関係
+  '友達': 'Friend',
+  '家族': 'Family',
+  '恋人': 'Partner',
+  '職場': 'Work',
+  '知人': 'Acquaintance',
+  'その他': 'Other',
+  '関係': 'Relationship',
+  '関係の選択肢': 'Relationship options',
+  '関係の選択肢を編集': 'Edit relationship options',
+  '選択肢を変える ›': 'Change options ›',
+  '選択肢の名前': 'Option name',
+  '新しい選択肢（例：大学）': 'New option (e.g. College)',
+  '使わない選択肢': 'Unused options',
+  '初めの選択肢に戻す': 'Restore default options',
+  '人の編集で選ぶ関係です。名前を変えたり、並べ替えたり、自分で足したりできます。消した選択肢は「使わない選択肢」に移るだけで、人に付けた関係は消えません。': 'Relationships you pick when editing a person. You can rename, reorder, or add your own. Removed options move to "Unused options"; relationships already set on people are kept.',
+  '選択肢を初めの状態に戻しますか？\n自分で足した選択肢は「使わない選択肢」に移ります。': 'Restore the default options?\nOptions you added will move to "Unused options".',
+  '人に友達・家族などの関係を付けて、人タブで絞り込む': 'Tag people as friend, family, etc. and filter the People tab by it',
 };
 
 export default en;
