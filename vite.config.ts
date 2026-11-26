@@ -30,9 +30,9 @@ export default defineConfig({
         // ホーム画面アイコンの長押しメニュー(Android・PCのChrome/Edge。iPhoneのSafariは未対応)
         shortcuts: [
           {
-            name: '新規記録',
-            short_name: '新規記録',
-            description: '新しい記録をすぐに書き始める',
+            name: '新しい話題',
+            short_name: '新しい話題',
+            description: '新しい話題をすぐに書き始める',
             url: `${base}#/new`,
             icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }],
           },

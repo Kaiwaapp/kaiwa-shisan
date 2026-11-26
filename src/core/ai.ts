@@ -1,4 +1,4 @@
-// AI機能(試作)。スクショの文字起こしと、話題・相手の自動提案。
+// AI機能(試作)。スクショの文字起こしと、タグ・相手の自動提案。
 // 試作では、ユーザー自身のAPIキーを端末内に保存し、ブラウザから直接 Claude API を呼ぶ。
 // 将来の課金版では、この関数の中身をサーバー経由の呼び出しに差し替える想定。
 // SDKは大きいので、AIを実際に呼ぶ時だけ読み込む(起動を軽くするため)
@@ -20,9 +20,9 @@ export interface AiSettings {
   apiKey: string;
   /** スクショ文字起こし */
   ocr: boolean;
-  /** 文字起こしした画像を記録に自動で添付する(「機能とカスタマイズ」で画像の添付がオンのとき) */
+  /** 文字起こしした画像を話題に自動で添付する(「機能とカスタマイズ」で画像の添付がオンのとき) */
   ocrAttach: boolean;
-  /** 話題・相手の自動提案 */
+  /** タグ・相手の自動提案 */
   suggest: boolean;
   /** フォルダの自動整理 */
   organize: boolean;
@@ -180,7 +180,7 @@ export interface Suggestion {
   people: string[];
 }
 
-/** 本文から話題タグと話した相手を提案する。既存の名前があればそれを優先して使う */
+/** 本文からタグと話した相手を提案する。既存の名前があればそれを優先して使う */
 export async function suggestTags(
   apiKey: string,
   text: string,
@@ -206,15 +206,15 @@ export async function suggestTags(
       },
     },
     system:
-      'あなたは会話メモの整理係です。ユーザーが誰かと話した内容のメモを読み、あとで「この話を別の人にもしよう」と探しやすくなる話題タグと、話した相手を提案します。\n' +
-      '- topics: 話題タグを1〜4個。短い名詞(例: 旅行、転職、子育て、キャンプ)。既存の話題に合うものがあれば、その名前をそのまま使う。\n' +
+      'あなたは会話メモの整理係です。ユーザーが誰かと話した内容のメモを読み、あとで「この話を別の人にもしよう」と探しやすくなるタグと、話した相手を提案します。\n' +
+      '- topics: タグを1〜4個。短い名詞(例: 旅行、転職、子育て、キャンプ)。既存のタグに合うものがあれば、その名前をそのまま使う。\n' +
       '- people: メモから話した相手だとはっきり分かる人だけ。既存の人に合う人がいれば、その名前をそのまま使う。自分自身や、話の中に出てくるだけの第三者は入れない。分からなければ空にする。' +
-      (currentLang() === 'en' ? '\n- 新しく作る話題名は英語にする。' : ''),
+      (currentLang() === 'en' ? '\n- 新しく作るタグ名は英語にする。' : ''),
     messages: [
       {
         role: 'user',
         content:
-          `既存の話題: ${list(known.topics)}\n既存の人: ${list(known.people)}\n\n` +
+          `既存のタグ: ${list(known.topics)}\n既存の人: ${list(known.people)}\n\n` +
           `<memo>\n${text}\n</memo>`,
       },
     ],
@@ -237,7 +237,7 @@ export async function suggestTags(
 export interface OrganizeItem {
   /** AIに見せる説明(本文の冒頭・名前など) */
   text: string;
-  /** 補足(話題名など)。お試し表示の振り分けにも使う */
+  /** 補足(タグ名など)。お試し表示の振り分けにも使う */
   hints: string[];
 }
 
@@ -247,9 +247,9 @@ export interface FolderAssignment {
   folder: string;
 }
 
-const KIND_LABEL = { entry: '会話の記録', person: '人', topic: '話題' } as const;
+const KIND_LABEL = { entry: '会話の話題', person: '人', topic: 'タグ' } as const;
 
-/** 記録・人・話題を、どのフォルダに入れるとよいかを提案する */
+/** 話題・人・タグを、どのフォルダに入れるとよいかを提案する */
 export async function suggestFolders(
   apiKey: string,
   kind: 'entry' | 'person' | 'topic',
@@ -290,8 +290,8 @@ export async function suggestFolders(
       '- 既存のフォルダに合うものは、そのフォルダの道のり(「親 / 子」の形)をそのまま使う。\n' +
       '- 合うものがなければ、新しいフォルダ名を短い名詞で作る(例: 仕事、家族、趣味、旅行)。似たものは同じフォルダにまとめ、1件だけのフォルダはなるべく作らない。フォルダの数は多くても10個程度。\n' +
       '- どこにも入れないほうがよいものは一覧に含めない。\n' +
-      (kind === 'person' ? '- 人は、関係(家族、職場、学生時代の友人など)で分ける。[]内はその人とよく話す話題。\n' : '') +
-      (kind === 'entry' ? '- []内は記録に付いている話題と相手。\n' : '') +
+      (kind === 'person' ? '- 人は、関係(家族、職場、学生時代の友人など)で分ける。[]内はその人とよく話すタグ。\n' : '') +
+      (kind === 'entry' ? '- []内は話題に付いているタグと相手。\n' : '') +
       (currentLang() === 'en' ? '- 新しく作るフォルダ名は英語にする。\n' : ''),
     messages: [
       {
@@ -315,7 +315,7 @@ export async function suggestFolders(
   return { assignments: list.map((a) => ({ index: a.index, folder: a.folder.trim() })), yen: record(msg.usage) };
 }
 
-/** お試し表示: APIを使わず、フォルダ名が本文や話題に含まれていればそこへ、なければ最初の話題名のフォルダへ */
+/** お試し表示: APIを使わず、フォルダ名が本文やタグに含まれていればそこへ、なければ最初のタグ名のフォルダへ */
 export async function demoFolders(items: OrganizeItem[], folders: string[]): Promise<{ assignments: FolderAssignment[]; yen: number }> {
   await wait(600);
   const n = (x: string) => x.normalize('NFKC').toLowerCase();

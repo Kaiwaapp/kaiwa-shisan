@@ -23,9 +23,9 @@ import { EventEditor, ScheduleScreen } from './schedule';
 const ImportScreen = lazy(() => import('./ImportScreen'));
 
 const TABS: { key: string; label: string; icon: IconName }[] = [
-  { key: '', label: '記録', icon: 'entry' },
+  { key: '', label: '話題', icon: 'entry' },
   { key: 'people', label: '人', icon: 'person' },
-  { key: 'topics', label: '話題', icon: 'topic' },
+  { key: 'topics', label: 'タグ', icon: 'topic' },
   { key: 'schedule', label: '予定', icon: 'schedule' },
   { key: 'settings', label: '設定', icon: 'settings' },
 ];
@@ -121,10 +121,10 @@ function Shell() {
 
   const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : head === 'schedule' && !feat.schedule ? '' : (head ?? '');
   const onSchedule = head === 'schedule' && feat.schedule;
-  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('話題を追加') : onSchedule ? t('予定を追加') : t('記録を追加');
+  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('タグを追加') : onSchedule ? t('予定を追加') : t('話題を追加');
   const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
 
-  // 人タブ・話題タブでは人／話題を追加(開いているフォルダに入れる)。記録の追加は記録タブと各詳細画面の＋から
+  // 人タブ・タグタブでは人／タグを追加(開いているフォルダに入れる)。話題の追加は話題タブと各詳細画面の＋から
   const inFolder = sub === 'f' && third ? `?folder=${third}` : '';
   const fabTap = () => {
     if (onSchedule) go('/event/new');

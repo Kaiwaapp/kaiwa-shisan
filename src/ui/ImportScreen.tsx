@@ -94,7 +94,7 @@ export default function ImportScreen() {
 function SourceStep({ onPick }: { onPick: (s: Source) => void }) {
   return (
     <div className="form">
-      <p className="muted small pad">{t('今まで使っていたアプリの内容を、記録としてまとめて取り込めます。取り込む前に内容を確認・修正できます。')}</p>
+      <p className="muted small pad">{t('今まで使っていたアプリの内容を、話題としてまとめて取り込めます。取り込む前に内容を確認・修正できます。')}</p>
       <ul className="rows">
         <li className="row-item" onClick={() => onPick('text')}>
           <span className="name"><span className="src-icon">✎</span>{t('メモ・テキスト')}<span className="src-sub">{t('iPhoneのメモ、メモ帳アプリ、.txt')}</span></span>
@@ -304,8 +304,8 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
         edit(d.key, { topics: s.topics });
       }
       setMsg(chosen.length > AI_MAX
-        ? t('最初の{n}件に話題を付けました', { n: AI_MAX })
-        : t('{n}件に話題を付けました', { n: targets.length }));
+        ? t('最初の{n}件にタグを付けました', { n: AI_MAX })
+        : t('{n}件にタグを付けました', { n: targets.length }));
     } catch (e) {
       setMsg(aiErrorMessage(e));
     } finally {
@@ -386,7 +386,7 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
               </select>
             </section>
             <section className="field">
-              <label>{t('話した相手（全部の記録に付ける・任意）')}</label>
+              <label>{t('話した相手（全部の話題に付ける・任意）')}</label>
               <input value={peopleText} onChange={(e) => setPeopleText(e.target.value)} placeholder={t('例: さや、もえ')} />
             </section>
             <p className="muted small">{t('先頭の行が日付（2026/11/18 など）なら、その日を「最初に話した日」にします。')}</p>
@@ -403,10 +403,10 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
         )}
         {suggestReady(ai) ? (
           <button className="btn small" disabled={aiBusy || !chosen.length} onClick={runAi}>
-            {aiBusy ? t('考え中…') : isDemo(ai) ? t('✨ AIで話題を付ける（お試し表示）') : t('✨ AIで話題を付ける')}
+            {aiBusy ? t('考え中…') : isDemo(ai) ? t('✨ AIでタグを付ける（お試し表示）') : t('✨ AIでタグを付ける')}
           </button>
         ) : (
-          <p className="muted small">{t('設定でAI機能をONにすると、話題を自動で付けられます。')}</p>
+          <p className="muted small">{t('設定でAI機能をONにすると、タグを自動で付けられます。')}</p>
         )}
       </section>
 
@@ -431,7 +431,7 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
         )}
       </section>
 
-      <div className="section-title">{t('取り込む記録（チェックを外すと除外・タイトルは任意）')}</div>
+      <div className="section-title">{t('取り込む話題（チェックを外すと除外・タイトルは任意）')}</div>
       <ul className="import-list">
         {drafts.slice(0, limit).map((d) => (
           <li key={d.key} className={`import-item ${d.include ? '' : 'off'}`}>
@@ -491,7 +491,7 @@ function DoneStep({ r, folderId, n, onAgain }: { r: ImportResult; folderId: stri
     <div className="form">
       <p className="notice">{t('{n}件を取り込みました', { n })}</p>
       {r.personIds.length > 0 && <p className="muted small">{t('新しく追加した人: {n}人', { n: r.personIds.length })}</p>}
-      <button className="btn primary block" onClick={() => go(folderHref('entry', folderId))}>{t('取り込んだ記録を見る')}</button>
+      <button className="btn primary block" onClick={() => go(folderHref('entry', folderId))}>{t('取り込んだ話題を見る')}</button>
       <button className="btn block" onClick={onAgain}>{t('ほかのデータを取り込む')}</button>
       <button className="btn danger block" onClick={async () => { await store.undoImport(r); setUndone(true); }}>{t('この取り込みを取り消す')}</button>
     </div>

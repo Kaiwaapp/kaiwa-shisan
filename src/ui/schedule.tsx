@@ -209,7 +209,7 @@ function EventRow({ e, data, hidePersonId, withDate }: { e: ScheduleEvent; data:
   );
 }
 
-/** 記録タブの一番上に出す、今日・明日の予定(アプリを開いたときに気づけるように) */
+/** 話題タブの一番上に出す、今日・明日の予定(アプリを開いたときに気づけるように) */
 export function TodayEvents() {
   const data = useData();
   const feat = useFeatures();

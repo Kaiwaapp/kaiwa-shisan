@@ -70,7 +70,7 @@ export async function copyText(text: string, el?: Element | null) {
 interface UiState {
   menu: ItemRef | null;
   move: ItemRef[] | null;
-  /** 中の記録をまとめて削除するフォルダ */
+  /** 中の話題をまとめて削除するフォルダ */
   clear: ID | null;
   /** グループに入れる人 */
   group?: ItemRef[] | null;
@@ -136,7 +136,7 @@ export function InteractProvider({ children }: { children: ReactNode }) {
 }
 
 // ---------------- 操作の実体 ----------------
-const KIND_LABEL: Record<ItemKind, string> = { entry: '記録', person: '人', topic: '話題', folder: 'フォルダ' };
+const KIND_LABEL: Record<ItemKind, string> = { entry: '話題', person: '人', topic: 'タグ', folder: 'フォルダ' };
 
 export async function deleteItems(store: Store, items: ItemRef[]): Promise<boolean> {
   if (items.length === 0) return false;
@@ -147,7 +147,7 @@ export async function deleteItems(store: Store, items: ItemRef[]): Promise<boole
     const msg =
       names + (others.length > 5 ? '\n' + t('ほか{n}件', { n: others.length - 5 }) : '') + '\n' + t('を削除しますか？') + '\n' +
       (others.some((i) => i.kind === 'folder') ? t('フォルダの中身は消えず、1つ上の階層に移ります。\n') : '') +
-      (others.some((i) => i.kind === 'person' || i.kind === 'topic') ? t('人・話題を消しても記録は残ります。') : '');
+      (others.some((i) => i.kind === 'person' || i.kind === 'topic') ? t('人・タグを消しても話題は残ります。') : '');
     if (!confirm(msg)) return false;
   }
   if (entries.length) await store.trashEntries(entries.map((i) => i.id));
@@ -223,7 +223,7 @@ function ItemMenu() {
       )}
       {feat.folders && <button className="sheet-item" onClick={() => openMove([item])}><span className="ic">▤</span>{t('フォルダへ移動')}</button>}
       {item.kind === 'folder' && item.scope === 'entry' && (
-        <button className="sheet-item danger" onClick={() => openClear(item.id)}><span className="ic">🗑</span>{t('中の記録をすべて削除')}</button>
+        <button className="sheet-item danger" onClick={() => openClear(item.id)}><span className="ic">🗑</span>{t('中の話題をすべて削除')}</button>
       )}
       <button className="sheet-item danger" onClick={act(() => deleteItems(store, [item]))}><span className="ic">🗑</span>{item.kind === 'folder' ? t('フォルダを削除') : t('削除')}</button>
     </Sheet>
@@ -307,7 +307,7 @@ function GroupSheet() {
   );
 }
 
-/** フォルダ内の記録をまとめて削除する確認シート(件数を出し、中のフォルダを含めるか選ぶ) */
+/** フォルダ内の話題をまとめて削除する確認シート(件数を出し、中のフォルダを含めるか選ぶ) */
 function ClearSheet() {
   const { ui, close, clearSel } = useInteract();
   const store = useStore();
@@ -324,18 +324,18 @@ function ClearSheet() {
     toast(t('{n}件を「最近削除した項目」に移しました', { n }));
   };
   return (
-    <Sheet onClose={close} title={t('「{name}」の記録をすべて削除', { name: folder.name })}>
-      <p className="muted small sheet-note">{t('記録は「最近削除した項目」に移り、30日間は戻せます。フォルダは残ります。')}</p>
+    <Sheet onClose={close} title={t('「{name}」の話題をすべて削除', { name: folder.name })}>
+      <p className="muted small sheet-note">{t('話題は「最近削除した項目」に移り、30日間は戻せます。フォルダは残ります。')}</p>
       {deep === 0 ? (
-        <p className="muted small sheet-note">{t('削除する記録はありません')}</p>
+        <p className="muted small sheet-note">{t('削除する話題はありません')}</p>
       ) : deep === direct ? (
-        <button className="sheet-item danger" onClick={() => run(false)}><span className="ic">🗑</span>{t('{n}件の記録を削除', { n: direct })}</button>
+        <button className="sheet-item danger" onClick={() => run(false)}><span className="ic">🗑</span>{t('{n}件の話題を削除', { n: direct })}</button>
       ) : (
         <>
           {direct > 0 && (
-            <button className="sheet-item danger" onClick={() => run(false)}><span className="ic">🗑</span>{t('このフォルダの記録だけ削除（{n}件）', { n: direct })}</button>
+            <button className="sheet-item danger" onClick={() => run(false)}><span className="ic">🗑</span>{t('このフォルダの話題だけ削除（{n}件）', { n: direct })}</button>
           )}
-          <button className="sheet-item danger" onClick={() => run(true)}><span className="ic">🗑</span>{t('中のフォルダの記録も削除（{n}件）', { n: deep })}</button>
+          <button className="sheet-item danger" onClick={() => run(true)}><span className="ic">🗑</span>{t('中のフォルダの話題も削除（{n}件）', { n: deep })}</button>
         </>
       )}
     </Sheet>
@@ -626,7 +626,7 @@ export function SelectMark({ item }: { item: ItemRef }) {
 }
 
 /** 選択モード中、画面下に出す操作バー */
-export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 記録のフォルダ内なら、未選択時に「すべて削除」を出す */ folderId?: ID | null }) {
+export function SelectionBar({ all, folderId }: { all: ItemRef[]; /** 話題のフォルダ内なら、未選択時に「すべて削除」を出す */ folderId?: ID | null }) {
   const { sel, clearSel, openMove, toggle, openClear, openGroup } = useInteract();
   const store = useStore();
   const feat = useFeatures();

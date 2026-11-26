@@ -164,7 +164,7 @@ export function diffSince(data: AppData, manifest: ExportManifest | null): { cha
   return { changed, deleted, count };
 }
 
-/** images: 書き出す画像。変わった記録に付いている画像だけを入れる */
+/** images: 書き出す画像。変わった話題に付いている画像だけを入れる */
 export const toIncremental = (data: AppData, manifest: ExportManifest | null, images?: EntryImage[]): BackupFile => {
   const { changed, deleted } = diffSince(data, manifest);
   const ids = new Set(changed.entries.flatMap((e) => e.imageIds ?? []));
@@ -179,7 +179,7 @@ export const toIncremental = (data: AppData, manifest: ExportManifest | null, im
 /**
  * 増分ファイルを今のデータに反映する。変更は「同じか新しい更新日時」なら上書き
  * (ピン留めなど更新日時を変えない変更も反映するため)。
- * 削除は、このファイルの書き出しより後にこちらで編集したものは残す。記録は「最近削除した項目」へ移す
+ * 削除は、このファイルの書き出しより後にこちらで編集したものは残す。話題は「最近削除した項目」へ移す
  */
 export function applyIncremental(current: AppData, file: ParsedBackup, now = Date.now()): AppData {
   const put = <T extends { id: string; updatedAt: number }>(a: T[], b: T[]): T[] => {

@@ -27,18 +27,18 @@ export function useHasSamples() {
 }
 
 export async function confirmRemoveSamples(store: Store) {
-  if (!confirm(t('見本の記録・人・話題を消します。自分で書いた記録は消えません。よろしいですか？'))) return;
+  if (!confirm(t('見本の話題・人・タグを消します。自分で書いた話題は消えません。よろしいですか？'))) return;
   await store.removeSamples();
   toast(t('見本を消しました'));
 }
 
-/** 記録タブの一番上に出す案内 */
+/** 話題タブの一番上に出す案内 */
 export function SampleHint() {
   const store = useStore();
   if (!useHasSamples()) return null;
   return (
     <section className="panel preset-hint">
-      <p>{t('見本の記録・人・話題が入っています。使い方がわかったら消してください。')}</p>
+      <p>{t('見本の話題・人・タグが入っています。使い方がわかったら消してください。')}</p>
       <div className="preset-bar">
         <button className="btn small-btn" onClick={() => confirmRemoveSamples(store)}>{t('見本を消す')}</button>
       </div>

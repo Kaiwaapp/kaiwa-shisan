@@ -29,7 +29,7 @@ function showPremium() {
   setTimeout(() => document.getElementById('premium')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
 }
 
-/** 表示確認用のダミーのバナー広告(320x50)。タブバーの上に出し、記録の編集画面などには出さない */
+/** 表示確認用のダミーのバナー広告(320x50)。タブバーの上に出し、話題の編集画面などには出さない */
 export function AdBanner() {
   return (
     <aside className="ad-banner" aria-label={t('広告')}>

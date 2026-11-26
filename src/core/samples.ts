@@ -1,5 +1,5 @@
-// 初めて開いたときに入れておく見本(記録・人・話題)。sample: true の印を付け、「見本を消す」でまとめて消せるようにする。
-// 記録の内容は翻訳しない方針なので日本語のみ。
+// 初めて開いたときに入れておく見本(話題・人・タグ)。sample: true の印を付け、「見本を消す」でまとめて消せるようにする。
+// 話題の内容は翻訳しない方針なので日本語のみ。
 import { newId, today, type AppData, type Entry, type ID, type Person, type Topic } from './types';
 
 const DAY = 86400000;
@@ -27,7 +27,7 @@ export function buildSamples(now = Date.now()): Pick<AppData, 'people' | 'topics
     createdAt: now - daysAgo * DAY, updatedAt: now - daysAgo * DAY, viewedAt: now - ++n * 1000, sample: true,
   });
   const entries = [
-    entry('これは見本の記録です。話したことを1件ずつ書き、話した相手と話題を付けておくと、あとで「人」や「話題」から探せます。\n見本は設定や記録タブの案内から、まとめて消せます。', [], [], 0, '会話資産の使い方（見本）'),
+    entry('これは見本の話題です。話したことを1件ずつ書き、話した相手とタグを付けておくと、あとで「人」や「タグ」から探せます。\n見本は設定や話題タブの案内から、まとめて消せます。', [], [], 0, '会話資産の使い方（見本）'),
     entry('去年の夏に一人で行った京都旅行。朝6時の伏見稲荷が誰もいなくて最高だった話。写真を見せたらかなりウケた', [yui, saki], [travel], 1),
     entry('最近ハマっている浅煎りのコーヒー。近所の焙煎所で豆を量り売りしてもらっている', [yui], [cafe], 2),
     entry('学生時代に映画サークルで自主制作した話。監督をやって大失敗したオチが鉄板', [saki], [movie], 3),

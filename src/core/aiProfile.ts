@@ -1,5 +1,5 @@
 // AIでプロフィールを自動入力(試作)。プロフィールの画面でボタンを押したときだけ読み込む。
-// 材料は3通り: その人の記録 / 貼り付けた文章(マッチングアプリのプロフィールなど) / スクショ。
+// 材料は3通り: その人の話題 / 貼り付けた文章(マッチングアプリのプロフィールなど) / スクショ。
 import { client, imageToBase64, record, textOf, wait } from './ai';
 import { currentLang, t } from '../i18n';
 import { cleanProfile, type PersonProfile } from './types';
@@ -25,7 +25,7 @@ const FIELD_HELP: Record<string, string> = {
   metAt: '知り合ったきっかけ・場所。例: マッチングアプリ、友人の紹介',
 };
 
-/** 記録は新しい順に、合計でこの文字数まで送る(料金を抑える) */
+/** 話題は新しい順に、合計でこの文字数まで送る(料金を抑える) */
 const MAX_CHARS = 12000;
 
 export function recordsText(texts: string[]): string {

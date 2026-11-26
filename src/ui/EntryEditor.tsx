@@ -36,7 +36,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   const [newTopics, setNewTopics] = useState<string[]>([]);
   const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? today());
   const [saving, setSaving] = useState(false);
-  // 新しい記録のお気に入り(保存時に付ける)。既存の記録は☆を押した時点で保存する
+  // 新しい話題のお気に入り(保存時に付ける)。既存の話題は☆を押した時点で保存する
   const [newFav, setNewFav] = useState(false);
   const [aiTopicIds, setAiTopicIds] = useState<ID[]>([]);
   const [aiNewTopics, setAiNewTopics] = useState<string[]>([]);
@@ -62,7 +62,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     }
   };
 
-  // 候補は「最後に選択した順」。まだ選んだことがなければ、最後に記録で使った日時
+  // 候補は「最後に選択した順」。まだ選んだことがなければ、最後に話題で使った日時
   const used = useMemo(() => {
     const r = new Map<ID, number>();
     for (const e of data.entries) {
@@ -140,8 +140,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   if (id && !existing) {
     return (
       <div className="screen">
-        <Header title={t('記録')} left={<button className="link" onClick={() => back()}>{t('戻る')}</button>} />
-        <div className="empty">{t('この記録は見つかりませんでした。')}</div>
+        <Header title={t('話題')} left={<button className="link" onClick={() => back()}>{t('戻る')}</button>} />
+        <div className="empty">{t('この話題は見つかりませんでした。')}</div>
       </div>
     );
   }
@@ -156,7 +156,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     e.preventDefault();
     void attachImages(files);
   };
-  /** stay: 保存したあと画面を移らず、この記録の編集画面に留まる */
+  /** stay: 保存したあと画面を移らず、この話題の編集画面に留まる */
   const save = async (stay = false) => {
     if (saving) return;
     // 押せない理由がわかるように、ボタンは無効にせずにお知らせする
@@ -170,7 +170,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     }
     setSaving(true);
     saved.current = true;
-    // 新しい記録は開いていたフォルダに入れる。既存の記録はフォルダを変えない(移動は長押し・ドラッグで)
+    // 新しい話題は開いていたフォルダに入れる。既存の話題はフォルダを変えない(移動は長押し・ドラッグで)
     const folderId = existing ? undefined : (initialFolder ?? null);
     let entry;
     try {
@@ -192,7 +192,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     back();
   };
   const remove = async () => {
-    if (!id || !confirm(t('この記録を削除しますか？\n30日間は「最近削除した項目」から戻せます。'))) return;
+    if (!id || !confirm(t('この話題を削除しますか？\n30日間は「最近削除した項目」から戻せます。'))) return;
     await store.deleteEntry(id);
     back();
   };
@@ -200,7 +200,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   return (
     <div className="screen editor">
       <Header
-        title={existing ? t('記録を編集') : t('新しい記録')}
+        title={existing ? t('話題を編集') : t('新しい話題')}
         left={<button className="link" onClick={cancel}>{t('キャンセル')}</button>}
         right={
           <span className="header-actions">
@@ -295,7 +295,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           />
         </section>
         <section className="field">
-          <label>{t('話題')}</label>
+          <label>{t('タグ')}</label>
           <ComboPicker
             kind="topic"
             options={topicOpts}
@@ -311,7 +311,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
         </section>
         {existing && (
           <button className="btn danger block" onClick={remove}>
-            {t('この記録を削除')}
+            {t('この話題を削除')}
           </button>
         )}
       </div>

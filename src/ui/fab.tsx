@@ -1,4 +1,4 @@
-// 長押しでメニューを出すボタン。右下の「＋」(長押しで何を作るか選ぶ)と記録の保存ボタン(長押しで保存後の動きを選ぶ)で使う。
+// 長押しでメニューを出すボタン。右下の「＋」(長押しで何を作るか選ぶ)と話題の保存ボタン(長押しで保存後の動きを選ぶ)で使う。
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { go } from './hooks';
 import { Sheet } from './interact';
@@ -35,9 +35,9 @@ export function createItems(o: {
   group?: boolean;
 }): CreateItem[] {
   const items: CreateItem[] = [o.first];
-  if (o.entry) items.push({ icon: <Icon name="entry" />, label: t('記録を追加'), run: () => go(o.entry!) });
+  if (o.entry) items.push({ icon: <Icon name="entry" />, label: t('話題を追加'), run: () => go(o.entry!) });
   if (o.people) items.push({ icon: <Icon name="person" />, label: t('人を追加'), run: () => go(o.people!) });
-  if (o.topics) items.push({ icon: <Icon name="topic" />, label: t('話題を追加'), run: () => go(o.topics!) });
+  if (o.topics) items.push({ icon: <Icon name="topic" />, label: t('タグを追加'), run: () => go(o.topics!) });
   if (o.group) items.push({ icon: <Icon name="group" />, label: t('グループを作成'), run: () => requestAdd('group') });
   if (o.folder) items.push({ icon: <Icon name="folder" />, label: t('フォルダを作成'), run: () => requestAdd('folder') });
   return items;

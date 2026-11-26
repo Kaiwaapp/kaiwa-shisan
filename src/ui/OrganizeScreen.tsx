@@ -82,7 +82,7 @@ export function OrganizeScreen({ scope }: { scope: FolderScope }) {
       setPlan(filtered);
       setInfo(
         isDemo(s)
-          ? t('お試し表示です(APIキー未設定のため、フォルダ名や話題名で簡易的に振り分けています)')
+          ? t('お試し表示です(APIキー未設定のため、フォルダ名やタグ名で簡易的に振り分けています)')
           : t('提案しました({v})', { v: yenText(r.yen) }),
       );
     } catch (e) {

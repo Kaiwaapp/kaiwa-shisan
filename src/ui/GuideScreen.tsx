@@ -8,28 +8,28 @@ import { t } from '../i18n';
 type Spot = { x: number; y: number; text: string };
 const GUIDE: { img: string; title: string; lead: string; spots: Spot[] }[] = [
   {
-    img: 'entries', title: '記録', lead: '話した内容を1件ずつためる画面',
+    img: 'entries', title: '話題', lead: '話した内容を1件ずつためる画面',
     spots: [
-      { x: 50, y: 10, text: '本文・人・話題で検索（読み仮名でも）' },
+      { x: 50, y: 10, text: '本文・人・タグで検索（読み仮名でも）' },
       { x: 81.5, y: 3.2, text: 'フォルダを作って分ける' },
       { x: 90, y: 25.5, text: '☆でお気に入り。長押しで移動・並べ替え・削除' },
-      { x: 88, y: 88, text: '＋で新しい記録' },
+      { x: 88, y: 88, text: '＋で新しい話題' },
     ],
   },
   {
-    img: 'new', title: '新しい記録', lead: '話した内容と相手・話題を入れて保存',
+    img: 'new', title: '新しい話題', lead: '話した内容と相手・タグを入れて保存',
     spots: [
       { x: 50, y: 26, text: '話した内容を書く' },
       { x: 83, y: 41, text: '本文をコピーして別の人にも同じ話を' },
       { x: 16, y: 72, text: '話した相手。よく使う人はタップで選べる' },
-      { x: 16, y: 87.5, text: '話題を付ける' },
+      { x: 16, y: 87.5, text: 'タグを付ける' },
       { x: 92, y: 3.4, text: '保存' },
     ],
   },
   {
     img: 'people', title: '人', lead: '話した相手の一覧',
     spots: [
-      { x: 16, y: 20.5, text: 'グループでまとめる（記録の相手にまとめて選べる）' },
+      { x: 16, y: 20.5, text: 'グループでまとめる（話題の相手にまとめて選べる）' },
       { x: 15, y: 30.6, text: '人を開くと、その人に話したことが見られる' },
     ],
   },
@@ -37,7 +37,7 @@ const GUIDE: { img: string; title: string; lead: string; spots: Spot[] }[] = [
     img: 'person', title: '人の画面', lead: 'この人に何を話したか',
     spots: [
       { x: 21, y: 9.5, text: 'プロフィール（年齢・仕事・趣味など）' },
-      { x: 18, y: 24, text: 'この人に話した記録' },
+      { x: 18, y: 24, text: 'この人に話した話題' },
       { x: 18, y: 71, text: '関係や好きなもののメモ' },
     ],
   },
@@ -52,10 +52,10 @@ const GUIDE: { img: string; title: string; lead: string; spots: Spot[] }[] = [
     ],
   },
   {
-    img: 'topic', title: '話題', lead: 'その話を誰にしたか',
+    img: 'topic', title: 'タグ', lead: 'その話を誰にしたか',
     spots: [
-      { x: 29, y: 13.5, text: 'この話題を話した相手' },
-      { x: 18, y: 26, text: 'この話題の記録' },
+      { x: 29, y: 13.5, text: 'このタグを話した相手' },
+      { x: 18, y: 26, text: 'このタグの話題' },
     ],
   },
   {
@@ -63,7 +63,7 @@ const GUIDE: { img: string; title: string; lead: string; spots: Spot[] }[] = [
     spots: [
       { x: 92, y: 33.8, text: '機能とカスタマイズ：機能のオンオフと読み仮名などの設定' },
       { x: 92, y: 40, text: 'このガイド' },
-      { x: 30, y: 48, text: 'メモやLINEから記録を取り込む' },
+      { x: 30, y: 48, text: 'メモやLINEから話題を取り込む' },
       { x: 19, y: 69.5, text: 'バックアップの書き出し・読み込み' },
     ],
   },
@@ -72,7 +72,7 @@ const GUIDE: { img: string; title: string; lead: string; spots: Spot[] }[] = [
     spots: [
       { x: 9, y: 19.4, text: '見出しをタップで折りたたむ' },
       { x: 11, y: 24.8, text: 'チェックを外すと画面に出なくなる' },
-      { x: 7, y: 76.4, text: '人・話題・全体・AIのグループごとに並ぶ' },
+      { x: 7, y: 76.4, text: '人・タグ・全体・AIのグループごとに並ぶ' },
     ],
   },
 ];
