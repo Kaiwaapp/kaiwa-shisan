@@ -8,23 +8,24 @@ import { t } from '../i18n';
 // 画面や機能を変えたら画像と番号の位置も撮り直し、ここにも書き足す。文言の英訳は en.ts へ。
 // 開いたときだけ読み込む(App.tsx で lazy)。
 type Spot = { x: number; y: number; text: string };
-type Section = { key: string; img?: string; title: string; lead: string; spots?: Spot[]; more?: string[] };
+/** 長押し(やドラッグ)した後の画面。x,y は長押しした場所(%)で、そこに印を付ける */
+type Hold = { img: string; x: number; y: number; text: string };
+type Section = { key: string; img?: string; title: string; lead: string; spots?: Spot[]; more?: string[]; holds?: Hold[]; holdMore?: string[] };
 
 const GUIDE: Section[] = [
   {
-    key: 'gesture', title: '長押しとドラッグ', lead: '見た目には出ていない操作です。どれも、ボタンからも同じことができます',
-    more: [
-      '一覧の行を長押しして指を離す：その行のメニュー（ピン留め・本文をコピー・共有・フォルダへ移動・グループに追加・名前を変更・削除）',
-      '長押ししたまま動かす：フォルダや「一番上」に重ねると移動。人はグループのチップに重ねるとグループに追加',
-      '並び順が「手動」のとき：長押ししたまま上下に動かすと並べ替え',
-      '右下の＋を長押し：話題・人・タグ・フォルダ・グループから作るものを選ぶ',
-      '話題の保存を長押し：「保存して戻る」か「保存してこの画面に留まる」を選ぶ',
-      'PCでは、長押しのかわりに右クリックでも同じメニューが出ます',
-      '長押しのメニューの操作は、一覧の「選択」から何件かまとめてもできます',
-    ],
-  },
-  {
     key: 'entries', img: 'entries', title: '話題', lead: '話した内容を1件ずつためる画面',
+    holds: [
+      { img: 'hold-row', x: 46.7, y: 39.4, text: '話題を長押しすると、ピン留め・本文をコピー・フォルダへ移動・削除のメニューが出る' },
+      { img: 'hold-dragfolder', x: 46.7, y: 51.7, text: '長押ししたまま動かして、フォルダに重ねるとそのフォルダへ移動' },
+      { img: 'hold-folder', x: 46.3, y: 26, text: 'フォルダを長押しすると、名前の変更・移動・削除のメニューが出る' },
+      { img: 'hold-fab', x: 88, y: 87.9, text: '＋を長押しすると、話題のほかに人・タグ・フォルダも作れる' },
+    ],
+    holdMore: [
+      '並び順が「手動」のときは、長押ししたまま上下に動かすと並べ替え',
+      'PCでは、長押しのかわりに右クリックでも同じメニューが出る',
+      'メニューの操作は「選択」から何件かまとめてもできる',
+    ],
     spots: [
       { x: 6.4, y: 3.2, text: '★ お気に入りだけを見る' },
       { x: 15.4, y: 2.9, text: 'All フォルダに関係なく全部を見る' },
@@ -48,6 +49,9 @@ const GUIDE: Section[] = [
   },
   {
     key: 'editor', img: 'new', title: '話題を書く', lead: '話した内容と相手・タグを入れて保存',
+    holds: [
+      { img: 'hold-save', x: 91.9, y: 3.4, text: '保存を長押しすると、「保存して戻る」か「保存してこの画面に留まる」を選べる' },
+    ],
     spots: [
       { x: 0, y: 10.6, text: 'タイトル（なくてもOK）' },
       { x: 0, y: 27.4, text: '話した内容を書く。スクショを貼り付けると画像として添付' },
@@ -71,6 +75,10 @@ const GUIDE: Section[] = [
   },
   {
     key: 'people', img: 'people', title: '人', lead: '話した相手の一覧',
+    holds: [
+      { img: 'hold-personrow', x: 30.4, y: 45.9, text: '人を長押しすると、ピン留め・グループに追加・フォルダへ移動・削除のメニューが出る' },
+      { img: 'hold-dragperson', x: 30.4, y: 40.2, text: '長押ししたまま動かして、グループのチップに重ねるとグループに追加' },
+    ],
     spots: [
       { x: 0, y: 16.2, text: '関係（友達・家族など）で絞り込む' },
       { x: 0, y: 25.7, text: 'グループ。見出しをタップでしまう・開く' },
@@ -189,6 +197,27 @@ export default function GuideScreen() {
               <ol className="guide-list">
                 {g.spots.map((s, i) => <li key={i}><span className="guide-num">{i + 1}</span>{t(s.text)}</li>)}
               </ol>
+            )}
+            {g.holds && (
+              <div className="guide-holds">
+                <h3>{t('長押しすると')}</h3>
+                <div className="guide-hold-grid">
+                  {g.holds.map((h) => (
+                    <figure key={h.img} className="guide-hold">
+                      <div className="guide-shot">
+                        <img src={`${base}guide/${h.img}.webp`} alt={t(h.text)} loading="lazy" width={393} height={852} />
+                        <span className="guide-press" style={{ left: `${h.x}%`, top: `${h.y}%` }} aria-hidden />
+                      </div>
+                      <figcaption>{t(h.text)}</figcaption>
+                    </figure>
+                  ))}
+                </div>
+                {g.holdMore && (
+                  <ul className="guide-more">
+                    {g.holdMore.map((m) => <li key={m}>{t(m)}</li>)}
+                  </ul>
+                )}
+              </div>
             )}
             {g.more && (
               <ul className="guide-more">
