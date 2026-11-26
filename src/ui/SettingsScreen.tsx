@@ -6,6 +6,7 @@ import { exportBackup, getLastBackup, getManifest } from './backupUi';
 import { useAiSettings } from './AiTools';
 import { FEATURE_KEYS, FEATURE_LABELS, setFeature, useFeatures } from './features';
 import { REWARD_CREDITS, RewardAd, useCredits } from './ads';
+import { setThemePref, useThemePref, type ThemePref } from './theme';
 import { LANGS, langPref, locale, setLangPref, t, type LangPref } from '../i18n';
 
 export function SettingsScreen() {
@@ -20,6 +21,7 @@ export function SettingsScreen() {
   const [manifest, setManifest] = useState(getManifest());
   const changes = useMemo(() => diffSince(data, manifest).count, [data, manifest]);
   const feat = useFeatures();
+  const theme = useThemePref();
   const credits = useCredits();
   const [watching, setWatching] = useState(false);
   const [ai] = useAiSettings();
@@ -86,6 +88,15 @@ export function SettingsScreen() {
           <select className="select block" value={langPref()} onChange={(e) => setLangPref(e.target.value as LangPref)}>
             <option value="auto">{t('自動（端末の言語）')}</option>
             {LANGS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
+          </select>
+        </section>
+
+        <section className="panel">
+          <h2>{t('画面の色')}</h2>
+          <select className="select block" value={theme} onChange={(e) => setThemePref(e.target.value as ThemePref)}>
+            <option value="auto">{t('端末に合わせる')}</option>
+            <option value="light">{t('ライト')}</option>
+            <option value="dark">{t('ダーク')}</option>
           </select>
         </section>
 
