@@ -9,9 +9,11 @@ import { guessReading, installReadingCapture } from './ui/reading';
 import { getFeatures } from './ui/features';
 import { installTapFocus } from './ui/focus';
 import { seedSamplesOnce } from './ui/samples';
+import { installTheme } from './ui/theme';
 
 registerSW({ immediate: true });
 installTapFocus();
+installTheme();
 
 // iOSでデータが自動削除されにくくなるよう永続化を要求(ホーム画面追加時に効きやすい)
 navigator.storage?.persist?.().catch(() => {});

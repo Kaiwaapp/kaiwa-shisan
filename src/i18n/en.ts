@@ -64,6 +64,10 @@ const en: Record<string, string> = {
   'バックアップで置き換えました': 'Replaced with backup',
   '言語': 'Language',
   '自動（端末の言語）': 'Automatic (device language)',
+  '画面の色': 'Appearance',
+  '端末に合わせる': 'Match device',
+  'ライト': 'Light',
+  'ダーク': 'Dark',
   'バックアップ': 'Backup',
   'データはこの端末の中だけに保存されています。iPhoneでは長く開かないと消えることがあるので、ときどき書き出して「ファイル」アプリやiCloud Driveに保存してください。':
     'Your data is stored only on this device. On iPhone it may be cleared if the app goes unused for a long time, so export a backup now and then and keep it in the Files app or iCloud Drive.',
