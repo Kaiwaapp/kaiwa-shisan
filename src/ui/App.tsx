@@ -16,17 +16,18 @@ import { t, useLang } from '../i18n';
 import { Fab, createItems } from './fab';
 import { useFeatures } from './features';
 import { AdBanner } from './ads';
+import { Icon, type IconName } from './icons';
 import { EventEditor, ScheduleScreen } from './schedule';
 
 // 取り込み画面は開いたときだけ読み込む(普段の起動を重くしない)
 const ImportScreen = lazy(() => import('./ImportScreen'));
 
-const TABS = [
-  { key: '', label: '記録', icon: '✎' },
-  { key: 'people', label: '人', icon: '☺' },
-  { key: 'topics', label: '話題', icon: '#' },
-  { key: 'schedule', label: '予定', icon: '▦' },
-  { key: 'settings', label: '設定', icon: '⚙' },
+const TABS: { key: string; label: string; icon: IconName }[] = [
+  { key: '', label: '記録', icon: 'entry' },
+  { key: 'people', label: '人', icon: 'person' },
+  { key: 'topics', label: '話題', icon: 'topic' },
+  { key: 'schedule', label: '予定', icon: 'schedule' },
+  { key: 'settings', label: '設定', icon: 'settings' },
 ];
 
 export function App({ store }: { store: Store }) {
@@ -133,7 +134,7 @@ function Shell() {
   // 長押しメニュー: その画面で作れるもの。フォルダは一覧(フォルダを出す画面)のときだけ、グループは人タブの一番上だけ
   const onFolderList = head === 'people' || head === 'topics' ? (!sub || sub === 'f') : (!head || head === 'f');
   const fabItems = createItems({
-    first: { icon: head === 'people' ? '☺' : head === 'topics' ? '#' : onSchedule ? '▦' : '✎', label: fabLabel, run: fabTap },
+    first: { icon: <Icon name={head === 'people' ? 'person' : head === 'topics' ? 'topic' : onSchedule ? 'schedule' : 'entry'} />, label: fabLabel, run: fabTap },
     entry: head === 'people' || head === 'topics' || onSchedule ? '/new' : undefined,
     people: head !== 'people' ? '/people/new' : undefined,
     topics: head !== 'topics' ? '/topics/new' : undefined,
@@ -153,7 +154,7 @@ function Shell() {
             className={`tab ${tab === tb.key ? 'on' : ''}`}
             onClick={() => switchTab(tb.key)}
           >
-            <span className="tab-icon">{tb.icon}</span>
+            <span className="tab-icon"><Icon name={tb.icon} /></span>
             <span className="tab-label">{t(tb.label)}</span>
           </button>
         ))}

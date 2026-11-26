@@ -18,6 +18,7 @@ import { PresetHint } from './PresetTopics';
 import { SampleHint } from './samples';
 import { useFeatures } from './features';
 import { Fab, createItems, useAddRequest } from './fab';
+import { Icon } from './icons';
 import { GroupBar, GroupToggles, groupHref, groupsOf } from './groups';
 import { PersonSchedule, TodayEvents } from './schedule';
 
@@ -741,7 +742,7 @@ function AddEntryFab({ to, label }: { to: string; label: string }) {
   if (selecting) return null;
   // 長押しで、その人／話題に関係なく記録・人・話題を作ることもできる
   const items = createItems({
-    first: { icon: '✎', label, run: () => go(to) },
+    first: { icon: <Icon name="entry" />, label, run: () => go(to) },
     entry: '/new', people: '/people/new', topics: '/topics/new',
   });
   return <Fab label={label} onTap={() => go(to)} items={items} />;
