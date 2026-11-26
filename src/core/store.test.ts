@@ -14,7 +14,7 @@ const fresh = async () => {
 };
 
 describe('Store', () => {
-  it('話題をまとめて登録し、同じ名前の話題は登録しない', async () => {
+  it('タグをまとめて登録し、同じ名前のタグは登録しない', async () => {
     const s = await fresh();
     await s.addTopic('旅行');
     const n = await s.addTopicsBulk([{ name: '旅行' }, { name: '映画', reading: 'えいが' }, { name: '映画' }]);
@@ -23,7 +23,7 @@ describe('Store', () => {
     expect(s.snapshot.topics[1].reading).toBe('えいが');
   });
 
-  it('記録を保存して再読み込みできる', async () => {
+  it('話題を保存して再読み込みできる', async () => {
     const repo = new IdbRepository('persist');
     const s = new Store(repo);
     await s.init();
@@ -48,7 +48,7 @@ describe('Store', () => {
     expect(searchEntries(s.snapshot, '旅行').map((e) => e.id)).toEqual([e1.id]);
     const back = parseBackup(JSON.stringify(toBackup(s.snapshot)));
     expect(back.entries.find((e) => e.id === e1.id)?.title).toBe('夏の旅行');
-    // タイトルだけの記録も保存できる
+    // タイトルだけの話題も保存できる
     const e3 = await s.saveEntry({ title: 'タイトルだけ', text: '', personIds: [], topicIds: [], talkedOn: '2026-11-22' });
     expect(entryLabel(e3)).toBe('タイトルだけ');
   });
@@ -60,7 +60,7 @@ describe('Store', () => {
     expect(entryPreview({ text: '  ' })).toEqual({ head: '', rest: '' });
   });
 
-  it('AIの提案から付けた話題は source が ai になる', async () => {
+  it('AIの提案から付けたタグは source が ai になる', async () => {
     const s = await fresh();
     const t = await s.addTopic('旅行');
     const m = await s.addTopic('仕事');
@@ -72,14 +72,14 @@ describe('Store', () => {
     expect(src).toEqual({ 旅行: 'ai', 仕事: 'manual', 紅葉: 'ai' });
   });
 
-  it('同じ名前の人・話題は重複作成しない', async () => {
+  it('同じ名前の人・タグは重複作成しない', async () => {
     const s = await fresh();
     const a = await s.addPerson('ヤマダ');
     const b = await s.addPerson('やまだ');
     expect(a.id).toBe(b.id);
   });
 
-  it('人を削除しても記録は残る', async () => {
+  it('人を削除しても話題は残る', async () => {
     const s = await fresh();
     const a = await s.addPerson('A');
     const b = await s.addPerson('B');
@@ -88,7 +88,7 @@ describe('Store', () => {
     expect(s.snapshot.entries[0].personIds).toEqual([b.id]);
   });
 
-  it('本文・人名・話題名で検索できる', async () => {
+  it('本文・人名・タグ名で検索できる', async () => {
     const s = await fresh();
     const a = await s.addPerson('佐藤');
     const t = await s.addTopic('旅行');
@@ -112,7 +112,7 @@ describe('Store', () => {
     expect(() => parseBackup('{"a":1}')).toThrow();
   });
 
-  it('新規の人・話題は保存時に作られる', async () => {
+  it('新規の人・タグは保存時に作られる', async () => {
     const s = await fresh();
     await s.saveEntry({ text: 'x', personIds: [], topicIds: [], newPeople: ['山田'], newTopics: ['#映画'], talkedOn: '2026-11-20' });
     expect(s.snapshot.people.map((p) => p.name)).toEqual(['山田']);
@@ -120,7 +120,7 @@ describe('Store', () => {
     expect(s.snapshot.entries[0].personIds).toEqual([s.snapshot.people[0].id]);
   });
 
-  it('人を統合すると記録が付け替わり、重複しない', async () => {
+  it('人を統合すると話題が付け替わり、重複しない', async () => {
     const s = await fresh();
     const a = await s.addPerson('たなか');
     const b = await s.addPerson('田中さん');
@@ -133,7 +133,7 @@ describe('Store', () => {
     expect(s.snapshot.entries.every((e) => e.personIds.length === 1 && e.personIds[0] === b.id)).toBe(true);
   });
 
-  it('話題を統合できる', async () => {
+  it('タグを統合できる', async () => {
     const s = await fresh();
     const a = await s.addTopic('ごはん');
     const b = await s.addTopic('グルメ');
@@ -143,7 +143,7 @@ describe('Store', () => {
     expect(s.snapshot.entries[0].topics).toEqual([{ topicId: b.id, source: 'manual' }]);
   });
 
-  it('フォルダを消すと中の記録は未分類になる', async () => {
+  it('フォルダを消すと中の話題は未分類になる', async () => {
     const s = await fresh();
     const f = await s.addFolder('仕事');
     const e = await s.saveEntry({ text: '1', personIds: [], topicIds: [], talkedOn: '2026-11-20', folderId: f.id });
@@ -210,7 +210,7 @@ describe('Store', () => {
     expect(searchEntries(s.snapshot, 'えぐち')).toHaveLength(1);
   });
 
-  it('人用・話題用のフォルダ', async () => {
+  it('人用・タグ用のフォルダ', async () => {
     const s = await fresh();
     const pf = await s.addFolder('友人', null, 'person');
     const ef = await s.addFolder('友人');
@@ -243,7 +243,7 @@ describe('Store', () => {
     expect(s.trash).toHaveLength(0);
     expect(s.snapshot.entries).toHaveLength(1);
   });
-  it('お気に入り(記録・人・話題)。記録を編集してもお気に入り・ピン留めは残る', async () => {
+  it('お気に入り(話題・人・タグ)。話題を編集してもお気に入り・ピン留めは残る', async () => {
     const s = await fresh();
     const e = await s.saveEntry({ text: 'a', personIds: [], topicIds: [], talkedOn: '2026-01-01' });
     const p = await s.addPerson('ゆい');
@@ -263,7 +263,7 @@ describe('Store', () => {
     const n = await s.saveEntry({ text: 'b', personIds: [], topicIds: [], talkedOn: '2026-01-01', favorite: true });
     expect(n.favorite).toBe(true);
   });
-  it('フォルダ内の記録をまとめて削除(中のフォルダを含むか選べる)', async () => {
+  it('フォルダ内の話題をまとめて削除(中のフォルダを含むか選べる)', async () => {
     const s = await fresh();
     const f = await s.addFolder('F');
     const sub = await s.addFolder('Sub', f.id);
@@ -370,7 +370,7 @@ describe('起動時の読み込み', () => {
     expect(s.loaded).toBe(true);
     expect(s.loadFailed).toBe(false);
   });
-  it('記録にグループ自体を付けられ、メンバーの記録・検索・回数にも出る。グループを消すと外れる', async () => {
+  it('話題にグループ自体を付けられ、メンバーの話題・検索・回数にも出る。グループを消すと外れる', async () => {
     const s = await fresh();
     const g = await s.addGroup('職場');
     const a = await s.addPerson('佐藤', null, [g.id]);
@@ -389,7 +389,7 @@ describe('起動時の読み込み', () => {
     expect(s.snapshot.entries[0].groupIds).toBeUndefined();
   });
 
-  it('記録の新しい相手は、同じ名前の人がいても別の人として作る', async () => {
+  it('話題の新しい相手は、同じ名前の人がいても別の人として作る', async () => {
     const s = await fresh();
     const a = await s.addPerson('田中');
     const e = await s.saveEntry({ text: 'x', personIds: [a.id], newPeople: ['田中'], topicIds: [], talkedOn: '2026-11-20' });

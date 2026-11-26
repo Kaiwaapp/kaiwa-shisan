@@ -1,5 +1,5 @@
-// 用意しておく話題のリスト(話題タブの案内・設定から選んでまとめて登録する)。
-// マッチングアプリなどで初めて話す相手との会話によく出る話題。reading は読み仮名(検索用)、en は英語表示のときの名前。
+// 用意しておくタグのリスト(タグタブの案内・設定から選んでまとめて登録する)。
+// マッチングアプリなどで初めて話す相手との会話によく出るタグ。reading は読み仮名(検索用)、en は英語表示のときの名前。
 export interface PresetTopic { name: string; reading: string; en: string }
 export interface PresetCategory { title: string; topics: PresetTopic[] }
 

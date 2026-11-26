@@ -10,11 +10,11 @@ export interface Person {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
-  /** 記録の相手・話題として最後に選んだ日時(候補の並び順用) */
+  /** 話題の相手・タグとして最後に選んだ日時(候補の並び順用) */
   selectedAt?: number;
   /** 読み仮名(検索用) */
   reading?: string;
-  /** 入っているフォルダ(人用・話題用)。null/未設定は一番上 */
+  /** 入っているフォルダ(人用・タグ用)。null/未設定は一番上 */
   folderId?: ID | null;
   /** ピン留め(一覧の上に固定) */
   pinned?: boolean;
@@ -78,7 +78,7 @@ export interface Group {
   name: string;
   createdAt: number;
   updatedAt: number;
-  /** 記録の相手として最後に選んだ日時(候補の並び順用) */
+  /** 話題の相手として最後に選んだ日時(候補の並び順用) */
   selectedAt?: number;
 }
 
@@ -89,11 +89,11 @@ export interface Topic {
   updatedAt: number;
   /** 最後に開いた日時(並べ替え用) */
   viewedAt?: number;
-  /** 記録の相手・話題として最後に選んだ日時(候補の並び順用) */
+  /** 話題の相手・タグとして最後に選んだ日時(候補の並び順用) */
   selectedAt?: number;
   /** 読み仮名(検索用) */
   reading?: string;
-  /** 入っているフォルダ(人用・話題用)。null/未設定は一番上 */
+  /** 入っているフォルダ(人用・タグ用)。null/未設定は一番上 */
   folderId?: ID | null;
   /** ピン留め(一覧の上に固定) */
   pinned?: boolean;
@@ -103,7 +103,7 @@ export interface Topic {
   order?: number;
 }
 
-/** 話題タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
+/** タグの付け方。試作は manual のみ。将来の課金機能でAIが提案したものは 'ai'。 */
 export type TagSource = 'manual' | 'ai';
 
 export interface TopicTag {
@@ -111,7 +111,7 @@ export interface TopicTag {
   source: TagSource;
 }
 
-/** 記録1件 = タイトル(任意) + 自由記述テキスト + 話した相手(複数) + 話題タグ */
+/** 話題1件 = タイトル(任意) + 自由記述テキスト + 話した相手(複数) + タグ */
 export interface Entry {
   id: ID;
   /** タイトル(任意)。未設定なら一覧では本文の1行目を見出しに使う */
@@ -144,7 +144,7 @@ export interface Entry {
 }
 
 /**
- * 記録に添付した画像。一覧の読み込みを軽くするため、記録とは別の保存場所に置き、開いたときだけ読む。
+ * 話題に添付した画像。一覧の読み込みを軽くするため、話題とは別の保存場所に置き、開いたときだけ読む。
  * 端末の中だけに保存する(縮小・JPEG圧縮したもの)
  */
 export interface EntryImage {
@@ -164,7 +164,7 @@ export interface Folder {
   name: string;
   /** 親フォルダ。null は一番上 */
   parentId: ID | null;
-  /** 何を入れるフォルダか。未設定は記録用 */
+  /** 何を入れるフォルダか。未設定は話題用 */
   scope?: FolderScope;
   createdAt: number;
   updatedAt: number;
@@ -211,6 +211,6 @@ export const entryPreview = (e: { title?: string; text: string }): { head: strin
   return { head: lines[i].trim(), rest: oneLine(lines.slice(i + 1).join('\n')) };
 };
 
-/** その記録の相手に入っている人か(直接、またはグループのメンバーとして) */
+/** その話題の相手に入っている人か(直接、またはグループのメンバーとして) */
 export const entryHasPerson = (e: Pick<Entry, 'personIds' | 'groupIds'>, p: Pick<Person, 'id' | 'groupIds'>): boolean =>
   e.personIds.includes(p.id) || !!e.groupIds?.some((g) => p.groupIds?.includes(g));

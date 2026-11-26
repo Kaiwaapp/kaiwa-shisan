@@ -33,7 +33,7 @@ export function useAiSettings(): [AiSettings, (patch: Partial<AiSettings>) => vo
 export const yenText = (y: number) =>
   y < 0.01 ? t('0.01円未満') : t('約{v}円', { v: y < 1 ? y.toFixed(2) : y.toFixed(1) });
 
-/** 記録の編集画面で使う。スクショ文字起こしボタン・貼り付け対応・話題/相手の提案 */
+/** 話題の編集画面で使う。スクショ文字起こしボタン・貼り付け対応・タグ/相手の提案 */
 export function useEntryAi(opts: {
   text: string;
   setText: (f: (prev: string) => string) => void;
@@ -44,7 +44,7 @@ export function useEntryAi(opts: {
   chosenTopics: string[];
   addPerson: (name: string) => void;
   addTopic: (name: string) => void;
-  /** 文字起こしした画像を記録に添付する(設定でオンのときに呼ぶ)。未指定なら添付しない */
+  /** 文字起こしした画像を話題に添付する(設定でオンのときに呼ぶ)。未指定なら添付しない */
   attachImage?: (img: Blob) => void;
 }) {
   const [s] = useAiSettings();
@@ -127,7 +127,7 @@ export function useEntryAi(opts: {
       )}
       {showSuggest && (
         <button className="btn small" disabled={!!busy || !opts.text.trim()} onClick={suggest}>
-          {busy === 'suggest' ? t('考え中…') : t('✨ 話題と相手を提案')}
+          {busy === 'suggest' ? t('考え中…') : t('✨ タグと相手を提案')}
         </button>
       )}
     </div>
@@ -207,7 +207,7 @@ export function AiSettingsPanel() {
     <section className="panel">
       <h2>{t('AI機能（試作）')}</h2>
       <p className="muted small">
-        {t('スクショの文字起こし、話題・相手の提案、フォルダの整理、プロフィールの自動入力をAI（Claude Haiku）が手伝います。APIキーがなければ「お試し表示」で画面と動きだけ確認できます。')}
+        {t('スクショの文字起こし、タグ・相手の提案、フォルダの整理、プロフィールの自動入力をAI（Claude Haiku）が手伝います。APIキーがなければ「お試し表示」で画面と動きだけ確認できます。')}
       </p>
       <label className="toggle toggle-main">
         <input type="checkbox" checked={s.enabled} onChange={(e) => update({ enabled: e.target.checked })} />
@@ -223,16 +223,16 @@ export function AiSettingsPanel() {
             <label className="toggle nested">
               <input type="checkbox" checked={s.ocrAttach} onChange={(e) => update({ ocrAttach: e.target.checked })} />
               <span>
-                {t('文字起こしした画像を記録に添付する')}
+                {t('文字起こしした画像を話題に添付する')}
                 <span className="muted small block-note">
-                  {feat.images ? t('オフにすると、文字だけを記録に入れて画像は残しません') : t('「機能とカスタマイズ」で画像の添付がオフのため、今は添付されません')}
+                  {feat.images ? t('オフにすると、文字だけを話題に入れて画像は残しません') : t('「機能とカスタマイズ」で画像の添付がオフのため、今は添付されません')}
                 </span>
               </span>
             </label>
           )}
           <label className="toggle">
             <input type="checkbox" checked={s.suggest} onChange={(e) => update({ suggest: e.target.checked })} />
-            <span>{t('話題と相手を自動で提案')}</span>
+            <span>{t('タグと相手を自動で提案')}</span>
           </label>
           <label className="toggle">
             <input type="checkbox" checked={s.organize} onChange={(e) => update({ organize: e.target.checked })} />
@@ -244,9 +244,9 @@ export function AiSettingsPanel() {
           </label>
           {s.organize && (
             <div className="ai-bar">
-              <button className="btn small" onClick={() => go('/organize/entry')}>{t('📁 記録を整理')}</button>
+              <button className="btn small" onClick={() => go('/organize/entry')}>{t('📁 話題を整理')}</button>
               <button className="btn small" onClick={() => go('/organize/person')}>{t('📁 人を整理')}</button>
-              <button className="btn small" onClick={() => go('/organize/topic')}>{t('📁 話題を整理')}</button>
+              <button className="btn small" onClick={() => go('/organize/topic')}>{t('📁 タグを整理')}</button>
             </div>
           )}
         </div>

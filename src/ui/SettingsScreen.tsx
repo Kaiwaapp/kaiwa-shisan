@@ -75,9 +75,9 @@ export function SettingsScreen() {
       <Header title={t('設定')} />
       <div className="form">
         <div className="stats">
-          <div><b>{data.entries.length}</b><span>{t('記録')}</span></div>
+          <div><b>{data.entries.length}</b><span>{t('話題')}</span></div>
           <div><b>{data.people.length}</b><span>{t('人')}</span></div>
-          <div><b>{data.topics.length}</b><span>{t('話題')}</span></div>
+          <div><b>{data.topics.length}</b><span>{t('タグ')}</span></div>
           <div><b>{data.folders.length}</b><span>{t('フォルダ')}</span></div>
         </div>
 
@@ -125,7 +125,7 @@ export function SettingsScreen() {
 
         {feat.import && <section className="panel">
           <h2>{t('他のアプリから取り込む')}</h2>
-          <p className="muted small">{t('iPhoneのメモ・テキストやLINEのトーク履歴を、記録としてまとめて取り込めます。')}</p>
+          <p className="muted small">{t('iPhoneのメモ・テキストやLINEのトーク履歴を、話題としてまとめて取り込めます。')}</p>
           <button className="btn block" onClick={() => go('/import')}>{t('取り込みを始める')}</button>
         </section>}
 
@@ -163,7 +163,7 @@ export function SettingsScreen() {
           {pending && pending.kind === 'incremental' && (
             <div className="confirm">
               <p>
-                {t('増分のファイル（{d}時点）: 追加・変更 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個、削除{x}件', {
+                {t('増分のファイル（{d}時点）: 追加・変更 話題{e}件・人{p}人・タグ{t}件・フォルダ{f}個、削除{x}件', {
                   d: new Date(pending.exportedAt).toLocaleString(locale()),
                   e: pending.data.entries.length, p: pending.data.people.length, t: pending.data.topics.length, f: pending.data.folders.length, x: deletedCount,
                 })}
@@ -176,7 +176,7 @@ export function SettingsScreen() {
           {pending && pending.kind === 'full' && (
             <div className="confirm">
               <p>
-                {t('読み込むファイル: 記録{e}件・人{p}人・話題{t}件・フォルダ{f}個', { e: pending.data.entries.length, p: pending.data.people.length, t: pending.data.topics.length, f: pending.data.folders.length })}
+                {t('読み込むファイル: 話題{e}件・人{p}人・タグ{t}件・フォルダ{f}個', { e: pending.data.entries.length, p: pending.data.people.length, t: pending.data.topics.length, f: pending.data.folders.length })}
                 {!!pending.data.images?.length && <>{t('・画像{n}枚', { n: pending.data.images.length })}</>}
               </p>
               <button className="btn primary block" onClick={() => apply('merge')}>{t('今のデータに統合する')}</button>

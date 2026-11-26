@@ -8,14 +8,14 @@ import { currentLang, t } from '../i18n';
 import { useAutoReading } from './reading';
 import { setFeature, useFeatures } from './features';
 
-/** 人タブ・話題タブの右下「＋」から開く、人／話題の新規追加画面 */
+/** 人タブ・タグタブの右下「＋」から開く、人／タグの新規追加画面 */
 export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; folderId: ID | null }) {
   const store = useStore();
   const data = useData();
   const [name, setName] = useState('');
   const [memo, setMemo] = useState('');
   const [saving, setSaving] = useState(false);
-  // 設定の人・話題の欄と同じチェック。ここで変えると設定にも反映される
+  // 設定の人・タグの欄と同じチェック。ここで変えると設定にも反映される
   const readingKey = kind === 'person' ? 'readingPerson' : 'readingTopic';
   const autoOn = useFeatures()[readingKey];
   const clean = name.trim().replace(kind === 'topic' ? /^#/ : /^$/, '');
@@ -39,20 +39,20 @@ export function NewNameScreen({ kind, folderId }: { kind: 'person' | 'topic'; fo
       if (reading.trim()) await store.updateTopic(x.id, { reading: reading.trim() });
       id = x.id;
     }
-    // 追加画面を履歴に残さず、作った人／話題の画面に置き換える(戻ると一覧へ)
+    // 追加画面を履歴に残さず、作った人／タグの画面に置き換える(戻ると一覧へ)
     location.replace(base + id);
   };
 
   return (
     <div className="screen editor">
       <Header
-        title={kind === 'person' ? t('新しい人') : t('新しい話題')}
+        title={kind === 'person' ? t('新しい人') : t('新しいタグ')}
         left={<button className="link" onClick={() => back(kind === 'person' ? '/people' : '/topics')}>{t('キャンセル')}</button>}
         right={<button className="link strong" disabled={!clean || saving} onClick={() => save()}>{dup ? t('開く') : t('追加')}</button>}
       />
       <div className="form">
         <section className="field">
-          <label>{kind === 'person' ? t('名前') : t('話題の名前')}</label>
+          <label>{kind === 'person' ? t('名前') : t('タグの名前')}</label>
           <input
             value={name}
             ref={autoFocusRef}

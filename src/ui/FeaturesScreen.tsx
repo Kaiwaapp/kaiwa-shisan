@@ -5,7 +5,7 @@ import { FoldHeader, useFold } from './folders';
 import { FEATURE_GROUPS, FEATURE_LABELS, setFeature, useFeatures, type Features } from './features';
 import { t } from '../i18n';
 
-// 設定 > 機能とカスタマイズ。機能のオンオフと、人・話題などの設定を機能のグループごとにまとめ、グループごとに折りたためる。
+// 設定 > 機能とカスタマイズ。機能のオンオフと、人・タグなどの設定を機能のグループごとにまとめ、グループごとに折りたためる。
 // 新しい設定は features.ts の FEATURE_GROUPS(と FEATURE_LABELS)に足せばここに並ぶ。
 // AIの機能は AiTools.tsx の AiSettingsPanel(AI機能を使う の下)に足す。
 export function FeaturesScreen() {
@@ -40,7 +40,7 @@ function FeatureGroup({ gkey, title, items }: { gkey: string; title: string; ite
                   </span>
                 </label>
                 {k === 'presetHint' && (
-                  <button className="btn block small-btn" onClick={() => go('/topics/presets')}>{t('おすすめの話題から登録')}</button>
+                  <button className="btn block small-btn" onClick={() => go('/topics/presets')}>{t('おすすめのタグから登録')}</button>
                 )}
                 {k === 'profile' && feat.profile && (
                   <button className="btn block small-btn" onClick={() => go('/settings/profile')}>{t('プロフィールの項目を編集')}</button>

@@ -1,9 +1,9 @@
-// 他のアプリ(メモ帳・LINE・ChatGPT)から記録を取り込むための読み取り処理。
+// 他のアプリ(メモ帳・LINE・ChatGPT)から話題を取り込むための読み取り処理。
 // UIやReactに依存しない純粋な関数だけにして、取り込み画面を開いたときだけ読み込まれるようにする。
 
 import { today } from './types';
 
-/** 取り込む前の記録1件(プレビューで直せる) */
+/** 取り込む前の話題1件(プレビューで直せる) */
 export interface ImportDraft {
   /** プレビュー内での識別用 */
   key: string;
@@ -13,7 +13,7 @@ export interface ImportDraft {
   talkedOn: string;
   /** 話した相手の名前(保存時に既存の人と照合し、なければ作る) */
   people: string[];
-  /** 話題の名前(AIの提案など) */
+  /** タグの名前(AIの提案など) */
   topics: string[];
 }
 
@@ -58,7 +58,7 @@ export function splitText(raw: string, mode: TextSplit): string[] {
 export const guessSplit = (raw: string): TextSplit =>
   raw.split(/\r?\n/).some((l) => MARKER_RE.test(l)) ? 'marker' : 'blank';
 
-/** 1かたまりのテキストを記録の下書きにする。先頭行が日付だけならそれを話した日にする */
+/** 1かたまりのテキストを話題の下書きにする。先頭行が日付だけならそれを話した日にする */
 export function textToDrafts(raw: string, mode: TextSplit, people: string[] = []): ImportDraft[] {
   return splitText(raw, mode).map((chunk, i) => {
     let lines = chunk.split('\n');
@@ -140,7 +140,7 @@ export function guessSelf(chat: LineChat): string {
 
 const STAMP_RE = /^\[(スタンプ|写真|動画|ファイル|ボイスメッセージ|アルバム|ノート|位置情報|連絡先|Sticker|Photo|Video|File)\]$/;
 
-/** LINEのトークを、話した日ごとに1件の記録にする。相手は自分以外の発言者 */
+/** LINEのトークを、話した日ごとに1件の話題にする。相手は自分以外の発言者 */
 export function lineToDrafts(chat: LineChat, self: string, opts: { onlyMine: boolean }): ImportDraft[] {
   const days = new Map<string, LineMessage[]>();
   for (const m of chat.messages) {
@@ -237,7 +237,7 @@ export function parseAiExport(json: string): { service: AiService; conversations
   return { service, conversations };
 }
 
-/** AIとの会話を1件ずつの記録に。タイトルは会話のタイトルを使う */
+/** AIとの会話を1件ずつの話題に。タイトルは会話のタイトルを使う */
 export function aiToDrafts(
   convs: AiConversation[],
   opts: { onlyMine: boolean; aiName: string; maxReply: number },

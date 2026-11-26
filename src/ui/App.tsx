@@ -21,9 +21,9 @@ import { AdBanner } from './ads';
 const ImportScreen = lazy(() => import('./ImportScreen'));
 
 const TABS = [
-  { key: '', label: '記録', icon: '✎' },
+  { key: '', label: '話題', icon: '✎' },
   { key: 'people', label: '人', icon: '☺' },
-  { key: 'topics', label: '話題', icon: '#' },
+  { key: 'topics', label: 'タグ', icon: '#' },
   { key: 'settings', label: '設定', icon: '⚙' },
 ];
 
@@ -102,10 +102,10 @@ function Shell() {
   else screen = <FolderScreen key="root" folderId={null} />;
 
   const tab = head === 'f' || head === 'all' || head === 'fav' || head === 'trash' ? '' : head === 'import' ? 'settings' : (head ?? '');
-  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('話題を追加') : t('記録を追加');
+  const fabLabel = head === 'people' ? t('人を追加') : head === 'topics' ? t('タグを追加') : t('話題を追加');
   const showFab = !selecting && head !== 'settings' && head !== 'import' && head !== 'organize' && head !== 'trash' && (!sub || head === 'f' || sub === 'f' || sub === 'all' || sub === 'fav');
 
-  // 人タブ・話題タブでは人／話題を追加(開いているフォルダに入れる)。記録の追加は記録タブと各詳細画面の＋から
+  // 人タブ・タグタブでは人／タグを追加(開いているフォルダに入れる)。話題の追加は話題タブと各詳細画面の＋から
   const inFolder = sub === 'f' && third ? `?folder=${third}` : '';
   const fabTap = () => {
     if (head === 'people' || head === 'topics') go(`/${head}/new` + inFolder);

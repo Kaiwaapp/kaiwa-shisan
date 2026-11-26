@@ -11,7 +11,7 @@ interface Row { key: string; label: string; value: string; before: string; on: b
 
 export default function ProfileAi({ person, texts, fields, current, onApply }: {
   person: Person;
-  /** この人の記録の本文(新しい順) */
+  /** この人の話題の本文(新しい順) */
   texts: string[];
   fields: FieldSpec[];
   current: PersonProfile;
@@ -52,7 +52,7 @@ export default function ProfileAi({ person, texts, fields, current, onApply }: {
   };
 
   const fromRecords = () => {
-    if (!texts.length && !person.memo.trim()) { setErr(t('まだ{name}の記録がありません', { name: person.name })); return; }
+    if (!texts.length && !person.memo.trim()) { setErr(t('まだ{name}の話題がありません', { name: person.name })); return; }
     run({ kind: 'records', name: person.name, memo: person.memo, texts });
   };
 
@@ -82,7 +82,7 @@ export default function ProfileAi({ person, texts, fields, current, onApply }: {
     <div className="ai-tools profile-ai">
       <div className="ai-sug-head"><span className="muted small">{t('✨ AIで自動入力')}</span></div>
       <div className="ai-bar">
-        <button className="btn small" disabled={busy} onClick={fromRecords}>{t('記録から')}</button>
+        <button className="btn small" disabled={busy} onClick={fromRecords}>{t('話題から')}</button>
         <button className="btn small" disabled={busy} onClick={() => setMode(mode === 'paste' ? '' : 'paste')}>{t('文章を貼り付け')}</button>
         <button className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>{t('📷 スクショ')}</button>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) run({ kind: 'image', image: f }); e.target.value = ''; }} />

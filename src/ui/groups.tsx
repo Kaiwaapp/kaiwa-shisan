@@ -128,7 +128,7 @@ export function GroupScreen({ id }: { id: ID }) {
             {t('保存')}
           </button>
           <button className="btn danger block" onClick={async () => {
-            if (!confirm(t('グループ「{name}」を削除しますか？\n人や記録は消えず、グループへの紐づけだけ外れます。', { name: group.name }))) return;
+            if (!confirm(t('グループ「{name}」を削除しますか？\n人や話題は消えず、グループへの紐づけだけ外れます。', { name: group.name }))) return;
             await store.deleteGroup(id);
             back('/people');
           }}>
@@ -157,7 +157,7 @@ export function GroupScreen({ id }: { id: ID }) {
           )}
           {told.length > 0 && (
             <section className="field">
-              <label>{t('このグループに話した記録')}</label>
+              <label>{t('このグループに話した話題')}</label>
               <EntryList entries={told} data={data} empty={null} />
             </section>
           )}

@@ -17,7 +17,7 @@ describe('お試し表示の提案(括弧)', () => {
 });
 
 describe('お試し表示のフォルダ振り分け', () => {
-  it('フォルダ名が含まれればそこへ、なければ最初の話題へ', async () => {
+  it('フォルダ名が含まれればそこへ、なければ最初のタグへ', async () => {
     const { demoFolders } = await import('./ai');
     const r = await demoFolders(
       [{ text: '仕事の締め切りの話', hints: [] }, { text: 'キャンプ', hints: ['趣味'] }, { text: 'x', hints: [] }],
