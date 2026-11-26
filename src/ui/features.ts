@@ -23,6 +23,8 @@ export interface Features {
   import: boolean;
   /** 人のプロフィール(年齢・仕事・趣味など) */
   profile: boolean;
+  /** 人の関係(友達・家族など)と、人タブの関係での絞り込み */
+  relations: boolean;
   /** 記録の編集画面で、保存せずに戻るときの確認 */
   confirmDiscard: boolean;
   /** 人: 名前に入力した文字(変換前のかな)から読み仮名を作る。設定画面の「人」の欄に出す */
@@ -35,12 +37,12 @@ export interface Features {
   noAds: boolean;
 }
 
-export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'confirmDiscard', 'presetHint'] as const;
+export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title', 'memo', 'copy', 'images', 'import', 'profile', 'relations', 'confirmDiscard', 'presetHint'] as const;
 
 /** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
   { key: 'entry', title: '記録', items: ['title', 'memo', 'images', 'copy', 'recent', 'confirmDiscard'] },
-  { key: 'person', title: '人', items: ['readingPerson', 'groups', 'profile'] },
+  { key: 'person', title: '人', items: ['readingPerson', 'relations', 'groups', 'profile'] },
   { key: 'topic', title: '話題', items: ['readingTopic', 'presetHint'] },
   { key: 'common', title: '全体', items: ['folders', 'favorites', 'import'] },
 ];
@@ -56,6 +58,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   copy: { label: 'コピーボタン', note: '一覧と編集画面の本文コピーボタン' },
   images: { label: '画像の添付', note: '記録に写真やスクショを添付する機能' },
   import: { label: '他のアプリから取り込む', note: '設定の取り込みの項目' },
+  relations: { label: '関係', note: '人に友達・家族などの関係を付けて、人タブで絞り込む' },
   profile: { label: '人のプロフィール', note: '人の画面の年齢・仕事・趣味などの欄' },
   readingPerson: { label: '人の名前に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
   readingTopic: { label: '話題に入力した文字から読み仮名を作る', note: '日本語で入力したときの変換前のかなを、新しく作るときの読み仮名に入れます（検索用）。' },
@@ -65,7 +68,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, noAds: false };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, readingPerson: false, readingTopic: false, presetHint: true, noAds: false };
 
 const load = (): Features => {
   try {

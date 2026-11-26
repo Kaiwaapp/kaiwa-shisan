@@ -42,6 +42,9 @@ function FeatureGroup({ gkey, title, items }: { gkey: string; title: string; ite
                 {k === 'presetHint' && (
                   <button className="btn block small-btn" onClick={() => go('/topics/presets')}>{t('おすすめの話題から登録')}</button>
                 )}
+                {k === 'relations' && feat.relations && (
+                  <button className="btn block small-btn" onClick={() => go('/settings/relations')}>{t('関係の選択肢を編集')}</button>
+                )}
                 {k === 'profile' && feat.profile && (
                   <button className="btn block small-btn" onClick={() => go('/settings/profile')}>{t('プロフィールの項目を編集')}</button>
                 )}

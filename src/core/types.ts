@@ -24,6 +24,8 @@ export interface Person {
   groupIds?: ID[];
   /** プロフィール(年齢・仕事・趣味など)。空の項目は持たない */
   profile?: PersonProfile;
+  /** 関係(友達・家族など)。設定の選択肢のID。1人に1つ */
+  relation?: string;
   /** 手動の並び順(小さいほど上)。未設定は -createdAt 扱い(新しいものが上) */
   order?: number;
 }
