@@ -640,7 +640,8 @@ const en: Record<string, string> = {
   '📅 カレンダーに追加（.ics）': "📅 Add to calendar (.ics)",
   '見本の話題・人・タグを消します。自分で書いた話題は消えません。よろしいですか？': 'Remove the sample topics, people and tags? Topics you wrote stay.',
   '見本を消しました': 'Samples removed',
-  '見本の話題・人・タグが入っています。使い方がわかったら消してください。': 'Sample topics, people and tags are included. Remove them once you get the hang of it.',
+  '見本の話題・人・タグが入っています。見本には「#見本」タグが付いています。': 'Sample topics, people and tags are included. Samples have the "#見本" tag.',
+  '見本は「#見本」タグから見られます': 'Find samples under the "#見本" tag',
   '見本を消す': 'Remove samples',
   '見本を入れる': 'Add samples',
   // 人の関係

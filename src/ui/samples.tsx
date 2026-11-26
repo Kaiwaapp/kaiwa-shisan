@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { Store } from '../core/store';
-import { useStore } from './hooks';
+import { usePref, useStore } from './hooks';
 import { toast } from './interact';
 import { t } from '../i18n';
 
@@ -32,15 +32,18 @@ export async function confirmRemoveSamples(store: Store) {
   toast(t('見本を消しました'));
 }
 
-/** 話題タブの一番上に出す案内 */
+/** 話題タブの一番上に出す案内。「今後表示しない」で閉じられる(見本は設定からも消せる) */
 export function SampleHint() {
   const store = useStore();
-  if (!useHasSamples()) return null;
+  const has = useHasSamples();
+  const [hidden, setHidden] = usePref<'0' | '1'>('sampleHintHidden', '0');
+  if (!has || hidden === '1') return null;
   return (
     <section className="panel preset-hint">
-      <p>{t('見本の話題・人・タグが入っています。使い方がわかったら消してください。')}</p>
+      <p>{t('見本の話題・人・タグが入っています。見本には「#見本」タグが付いています。')}</p>
       <div className="preset-bar">
         <button className="btn small-btn" onClick={() => confirmRemoveSamples(store)}>{t('見本を消す')}</button>
+        <button className="link muted" onClick={() => { setHidden('1'); toast(t('見本は「#見本」タグから見られます')); }}>{t('今後表示しない')}</button>
       </div>
     </section>
   );
