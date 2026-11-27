@@ -307,7 +307,7 @@ function PickRow({ children, more, onMore, resetKey, wrap }: { children: ReactNo
  * 入力すると候補が絞り込まれ、先頭に「新しく追加」が出る(新規は話題の保存時に作られる)。
  * 人のときはグループの列も出し、グループを選ぶとグループ自体が付く。
  */
-export function ComboPicker({ kind, options, selected, newNames, onChange, groups = [], selectedGroups = [], onGroupsChange, suggest = true, allowSameName = false }: {
+export function ComboPicker({ kind, options, selected, newNames, onChange, groups = [], selectedGroups = [], onGroupsChange, suggest = true, allowSameName = false, onRemoveNew }: {
   kind: 'person' | 'topic';
   options: { id: ID; name: string; reading?: string; rank: number; hint?: string }[];
   selected: ID[];
@@ -321,6 +321,7 @@ export function ComboPicker({ kind, options, selected, newNames, onChange, group
   suggest?: boolean;
   /** 同じ名前がすでにあっても「別の人として追加」できるようにする */
   allowSameName?: boolean;
+  onRemoveNew?: (index: number) => void;
 }) {
   const [q, setQ] = useState('');
   const prefix = kind === 'topic' ? '#' : '';
@@ -392,7 +393,10 @@ export function ComboPicker({ kind, options, selected, newNames, onChange, group
             );
           })}
           {newNames.map((n, i) => (
-            <button key={'new:' + i + n} type="button" className={`chip ${kind} on`} onClick={() => onChange(selected, newNames.filter((_, j) => j !== i))}>
+            <button key={'new:' + i + n} type="button" className={`chip ${kind} on`} onClick={() => {
+              onRemoveNew?.(i);
+              onChange(selected, newNames.filter((_, j) => j !== i));
+            }}>
               {prefix}{n} <span className="new">{t('新規')}</span> <span className="x">×</span>
             </button>
           ))}

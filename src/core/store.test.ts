@@ -14,6 +14,19 @@ const fresh = async () => {
 };
 
 describe('Store', () => {
+  it('話題から追加した同名の人と新規タグにそれぞれの読み仮名を保存する', async () => {
+    const s = await fresh();
+    s.readingGuess = () => 'じどう';
+    const entry = await s.saveEntry({
+      text: 'テスト', personIds: [], topicIds: [], talkedOn: '2026-11-26',
+      newPeople: [{ name: '和田', reading: ' わだ ' }, { name: '和田', reading: '' }],
+      newTopics: [{ name: '旅行', reading: 'りょこう' }, '散歩'],
+    });
+    expect(entry.personIds).toHaveLength(2);
+    expect(s.snapshot.people.map((p) => p.reading)).toEqual(['わだ', undefined]);
+    expect(s.snapshot.topics.map((t) => t.reading)).toEqual(['りょこう', 'じどう']);
+  });
+
   it('タグをまとめて登録し、同じ名前のタグは登録しない', async () => {
     const s = await fresh();
     await s.addTopic('旅行');

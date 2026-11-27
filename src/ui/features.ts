@@ -11,6 +11,8 @@ export interface Features {
   groups: boolean;
   /** 話題の相手・タグの下に出す直近の候補 */
   recent: boolean;
+  /** 話題の中から新規追加した人・タグの読み仮名欄 */
+  entryReadingFields: boolean;
   /** 話題のタイトル欄 */
   title: boolean;
   /** 話題のメモ欄(本文とは別の覚え書き) */
@@ -49,7 +51,7 @@ export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title'
 
 /** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
-  { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent', 'stayAfterSave'] },
+  { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent', 'entryReadingFields', 'stayAfterSave'] },
   { key: 'person', title: '人', items: ['readingPerson', 'relations', 'groups', 'profile'] },
   { key: 'topic', title: 'タグ', items: ['readingTopic', 'presetHint'] },
   { key: 'schedule', title: '予定', items: ['schedule', 'scheduleToday', 'todo'] },
@@ -61,6 +63,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   folders: { label: 'フォルダ', note: 'オフにすると、話題・人・タグをフォルダに分けずに全部並べます' },
   favorites: { label: 'お気に入り', note: '☆ボタンと★のお気に入り一覧' },
   groups: { label: 'グループ', note: '人のグループと、話題の相手を「グループから」選ぶ機能' },
+  entryReadingFields: { label: '読み仮名の入力欄を表示', note: '話題から新しく追加する人・タグの読み仮名を入力できます' },
   recent: { label: '直近の候補', note: '話題の相手・タグの入力欄の下に、入力しなくても候補を出す' },
   title: { label: '話題のタイトル', note: '話題の編集画面のタイトル欄' },
   memo: { label: '話題のメモ', note: '話題の本文とは別に、相手の反応などを書いておく欄' },
@@ -81,7 +84,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, stayAfterSave: false, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, todo: true, noAds: false };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, entryReadingFields: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, stayAfterSave: false, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, todo: true, noAds: false };
 
 const load = (): Features => {
   try {
