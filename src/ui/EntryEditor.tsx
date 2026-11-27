@@ -45,6 +45,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   const store = useStore();
   const data = useData();
   const feat = useFeatures();
+  const showTitle = feat.title || !!initialReply;
   const existing = id ? data.entries.find((e) => e.id === id) : undefined;
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
   const [title, setTitle] = useState(existing?.title ?? initialReply?.title ?? '');
@@ -253,7 +254,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
         }
       />
       <div className="form">
-        {(feat.title || !!initialReply) && <input
+        {showTitle && <input
           className="title-input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -278,12 +279,12 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           ref={!existing ? autoFocusRef : undefined}
           rows={6}
         />
-        {((text.trim() && (feat.copy || 'share' in navigator)) || (existing && feat.title && feat.copy && title.trim())) && (
+        {((text.trim() && (feat.copy || 'share' in navigator)) || (showTitle && feat.copy && title.trim())) && (
           <div className="copy-row">
             {text.trim() && 'share' in navigator && (
               <button type="button" className="link small-link copy-line" onClick={() => navigator.share({ ...(title.trim() ? { title } : {}), text: title.trim() ? `${title}\n${text}` : text }).catch(() => {})}>{t('↑ 共有')}</button>
             )}
-            {existing && feat.title && feat.copy && title.trim() && (
+            {showTitle && feat.copy && title.trim() && (
               <button type="button" className="link small-link copy-line" onClick={(e) => copyText(title, e.currentTarget)}>{t('⧉ タイトルをコピー')}</button>
             )}
             {feat.copy && text.trim() && <button type="button" className="link small-link copy-line" onClick={(e) => copyText(text, e.currentTarget)}>{t('⧉ 本文をコピー')}</button>}
@@ -292,7 +293,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
         {feat.memo && (memoOpen
           ? <textarea className="textarea memo-field" rows={4} ref={!memo ? autoFocusRef : undefined} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t('メモ（相手の反応など）')} aria-label={t('メモ')} />
           : <button type="button" className="link small-link memo-add" onClick={() => setMemoOpen(true)}>{t('＋ メモを書く')}</button>)}
-        {existing && feat.memo && feat.copy && memoOpen && memo.trim() && (
+        {feat.memo && feat.copy && memoOpen && memo.trim() && (
           <button type="button" className="link small-link copy-line" onClick={(e) => copyText(memo, e.currentTarget)}>{t('⧉ メモをコピー')}</button>
         )}
         {feat.images && (
