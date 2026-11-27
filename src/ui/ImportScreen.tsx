@@ -1,7 +1,7 @@
 // 他のアプリから取り込む画面(試作)。App.tsx から遅延読み込みされるので、普段の起動には影響しない。
 import { useMemo, useRef, useState } from 'react';
 import {
-  aiToDrafts, guessSelf, guessSplit, lineToDrafts, parseAiExport, parseLine, textToDrafts,
+  aiToDrafts, guessSelf, guessSplit, lineToDrafts, parseAiExport, parseLine, parseReplyDraft, textToDrafts,
   type AiConversation, type ImportDraft, type LineChat, type TextSplit,
 } from '../core/importers';
 import { isZip, readZipText } from '../core/unzip';
@@ -12,13 +12,14 @@ import { today } from '../core/types';
 import { back, formatDate, go, useData, useStore } from './hooks';
 import { Header, LoadMore, useIncremental } from './components';
 import { folderChoices, folderHref } from './folders';
+import { copyText } from './interact';
 import { exportBackup } from './backupUi';
 import { useAiSettings } from './AiTools';
 import { addDict, t } from '../i18n';
 import enImport from '../i18n/en-import';
 import './import.css';
 
-type Source = 'text' | 'line' | 'chatgpt' | 'claude';
+type Source = 'reply' | 'text' | 'line' | 'chatgpt' | 'claude';
 const AI_NAME: Record<'chatgpt' | 'claude', string> = { chatgpt: 'ChatGPT', claude: 'Claude' };
 const isAi = (s: Source): s is 'chatgpt' | 'claude' => s === 'chatgpt' || s === 'claude';
 /** AIの返事は長いので、既定では先頭だけ残す */
@@ -26,6 +27,7 @@ const REPLY_MAX = 200;
 type Step = 'source' | 'input' | 'preview' | 'done';
 
 const AI_MAX = 30;
+const splitNames = (text: string) => text.split(/[,、，]/).map((name) => name.trim()).filter(Boolean);
 
 addDict('en', enImport);
 
@@ -46,7 +48,7 @@ export default function ImportScreen() {
     else back('/settings');
   };
 
-  const title = step === 'source' || step === 'done' ? t('取り込み') : source === 'line' ? 'LINE' : isAi(source) ? AI_NAME[source] : t('メモ・テキスト');
+  const title = step === 'source' || step === 'done' ? t('取り込み') : source === 'reply' ? t('AIの返信案') : source === 'line' ? 'LINE' : isAi(source) ? AI_NAME[source] : t('メモ・テキスト');
 
   return (
     <div className="screen import">
@@ -61,7 +63,22 @@ export default function ImportScreen() {
           onNext={() => setStep('preview')}
         />
       )}
-      {step === 'input' && !isAi(source) && (
+      {step === 'input' && source === 'reply' && (
+        <div className="form">
+          <p className="muted small pad">{t('返信案ができたチャットに依頼文を送り、返ってきたJSONを貼り付けます。')}</p>
+          <button className="btn block" type="button" onClick={() => copyText(t('採用する返信案を会話資産に登録します。次のJSON形式だけで返してください。titleは短い見出し、textは採用する返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。') + '\n{"title":"","text":"","people":[],"tags":[]}')}>{t('チャットAIへの依頼文をコピー')}</button>
+          <label className="field">
+            {t('返信案のJSONを貼り付け')}
+            <textarea className="textarea" value={raw} onChange={(e) => { setRaw(e.target.value); setErr(''); }} />
+          </label>
+          {err && <p className="ai-msg error" role="alert">{err}</p>}
+          <button className="btn primary block" disabled={!raw.trim()} onClick={() => {
+            if (!parseReplyDraft(raw)) { setErr(t('返信案を読み取れませんでした。AIが返したJSONをコピーしてください。')); return; }
+            setStep('preview');
+          }}>{t('読み込んで確認する')}</button>
+        </div>
+      )}
+      {step === 'input' && source !== 'reply' && !isAi(source) && (
         <InputStep
           source={source}
           raw={raw}
@@ -95,6 +112,7 @@ function SourceStep({ onPick }: { onPick: (s: Source) => void }) {
   return (
     <div className="form">
       <p className="muted small pad">{t('今まで使っていたアプリの内容を、話題としてまとめて取り込めます。取り込む前に内容を確認・修正できます。')}</p>
+      <button className="btn block" type="button" onClick={() => onPick('reply')}>{t('AIの返信案')}</button>
       <ul className="rows">
         <li className="row-item" onClick={() => onPick('text')}>
           <span className="name"><span className="src-icon">✎</span>{t('メモ・テキスト')}<span className="src-sub">{t('iPhoneのメモ、メモ帳アプリ、.txt')}</span></span>
@@ -254,12 +272,12 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
   const [onlyMine, setOnlyMine] = useState(false);
   const [split, setSplit] = useState<TextSplit>(() => guessSplit(raw));
   const [peopleText, setPeopleText] = useState('');
-  const people = peopleText.split(/[,、，]/).map((s) => s.trim()).filter(Boolean);
+  const people = splitNames(peopleText);
 
   const [shortReply, setShortReply] = useState(true);
   const ai_ = isAi(source);
   const base = useMemo(
-    () => (ai_
+    () => (source === 'reply' ? [parseReplyDraft(raw)].filter((draft) => draft !== null) : ai_
       ? aiToDrafts(convs, { onlyMine, aiName: AI_NAME[source as 'chatgpt' | 'claude'], maxReply: shortReply ? REPLY_MAX : 0 })
       : chat ? lineToDrafts(chat, self, { onlyMine }) : textToDrafts(raw, split, [])),
     [ai_, convs, source, shortReply, chat, self, onlyMine, raw, split],
@@ -275,19 +293,19 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
   });
   const edit = (key: string, patch: Partial<ImportDraft>) => setEdits((x) => ({ ...x, [key]: { ...x[key], ...patch } }));
 
-  const chosen = drafts.filter((d) => d.include);
+  const chosen = drafts.filter((d) => d.include && (source !== 'reply' || d.text.trim()));
   const allPeople = [...new Set(chosen.flatMap((d) => d.people))];
   const known = new Set(data.people.map((p) => normalize(p.name)));
   const dates = chosen.map((d) => d.talkedOn).sort();
 
   // 取り込み先
   const defaultName = ai_ ? AI_NAME[source as 'chatgpt' | 'claude'] : chat ? `LINE ${chat.title || allPeople[0] || ''}`.trim() : `${t('取り込み')} ${formatDate(today())}`;
-  const [folderMode, setFolderMode] = useState<'new' | 'existing'>('new');
+  const [folderMode, setFolderMode] = useState<'new' | 'existing'>(source === 'reply' ? 'existing' : 'new');
   const [folderName, setFolderName] = useState(defaultName);
   const [folderId, setFolderId] = useState<string>('');
   const choices = folderChoices(foldersOf(data.folders, 'entry'));
 
-  const [backup, setBackup] = useState(true);
+  const [backup, setBackup] = useState(source !== 'reply');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
@@ -345,7 +363,7 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
         </span>
       </div>
 
-      <section className="panel">
+      {source !== 'reply' && <section className="panel">
         <h2>{t('読み方')}</h2>
         {ai_ ? (
           <>
@@ -408,7 +426,7 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
         ) : (
           <p className="muted small">{t('設定でAI機能をONにすると、タグを自動で付けられます。')}</p>
         )}
-      </section>
+      </section>}
 
       <section className="panel">
         <h2>{t('取り込み先')}</h2>
@@ -445,7 +463,19 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
                 placeholder={d.text.split('\n')[0].slice(0, 40)}
                 onChange={(e) => edit(d.key, { title: e.target.value })}
               />
-              <p className="import-text">{d.text}</p>
+              {source === 'reply' ? (
+                <>
+                  <label className="field">{t('返信文')}
+                    <textarea className="textarea" value={d.text} onChange={(e) => edit(d.key, { text: e.target.value })} />
+                  </label>
+                  <label className="field">{t('相手（読点またはカンマ区切り）')}
+                    <input defaultValue={d.people.join('、')} onChange={(e) => edit(d.key, { people: splitNames(e.target.value) })} />
+                  </label>
+                  <label className="field">{t('タグ（読点またはカンマ区切り）')}
+                    <input defaultValue={d.topics.join('、')} onChange={(e) => edit(d.key, { topics: splitNames(e.target.value).map((name) => name.replace(/^#/, '').trim()).filter(Boolean) })} />
+                  </label>
+                </>
+              ) : <p className="import-text">{d.text}</p>}
               <div className="chips">
                 <input
                   className="import-date"

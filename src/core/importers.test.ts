@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { deflateRawSync } from 'node:zlib';
 import { readZipText, isZip } from './unzip';
-import { aiToDrafts, parseAiExport, guessSelf, guessSplit, lineToDrafts, parseLine, splitText, textToDrafts } from './importers';
+import { aiToDrafts, parseAiExport, parseReplyDraft, guessSelf, guessSplit, lineToDrafts, parseLine, splitText, textToDrafts } from './importers';
 import { Store } from './store';
 import { IdbRepository } from './idbRepository';
 
@@ -167,3 +167,18 @@ function makeZip(files: [string, string, boolean][]): Uint8Array {
   const end = cat([le(0x06054b50, 4), le(0, 4), le(files.length, 2), le(files.length, 2), le(cd.length, 4), le(offset, 4), le(0, 2)]);
   return cat([...parts, cd, end]);
 }
+
+describe('AIの返信案の取り込み', () => {
+  it('返信を省略せず、相手とタグを取り込む', () => {
+    const text = '週末は空いています。\n'.repeat(30).trim();
+    const draft = parseReplyDraft('```json\n' + JSON.stringify({
+      title: '週末の予定', text, people: [' 田中 ', '田中'], tags: ['#予定', ' 趣味 '],
+    }) + '\n```');
+    expect(draft).toMatchObject({ title: '週末の予定', text, people: ['田中'], topics: ['予定', '趣味'] });
+  });
+
+  it('返信本文がないデータを受け付けない', () => {
+    expect(parseReplyDraft('{"text":" "}')).toBeNull();
+    expect(parseReplyDraft('テキスト')).toBeNull();
+  });
+});

@@ -688,6 +688,7 @@ const en: Record<string, string> = {
   "フォルダの中で＋を押すと、そのフォルダに話題を作る": "Tapping + inside a folder creates the topic in that folder",
   "フォルダを作る": "Create a folder",
   "プロフィールの項目と関係の選択肢は、設定の「人」で変えられる": "Change profile fields and relationship options in Settings > People",
+  "取り込みの「AIの返信案」から、チャットAIが作った返信文・相手・タグをまとめて登録できる": "Use AI reply draft in Import to save a reply, people, and tags prepared by a chat AI.",
   "メモやLINEなどから話題を取り込む": "Import topics from Notes, LINE, etc.",
   "一番下で見本を消す・入れる": "Remove or add the samples at the bottom",
   "一番下の「この話題を削除」で削除（30日間は戻せる）": "Delete with \"Delete this topic\" at the bottom (restorable for 30 days)",

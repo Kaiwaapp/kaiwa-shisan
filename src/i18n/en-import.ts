@@ -1,5 +1,14 @@
 /** 取り込み画面の英訳。画面と一緒に遅延読み込みされる */
 const enImport: Record<string, string> = {
+  '返信文': 'Reply',
+  '相手（読点またはカンマ区切り）': 'People (comma-separated)',
+  'タグ（読点またはカンマ区切り）': 'Tags (comma-separated)',
+  'AIの返信案': 'AI reply draft',
+  '返信案ができたチャットに依頼文を送り、返ってきたJSONを貼り付けます。': 'Send the prompt in the chat that drafted your reply, then paste the JSON it returns.',
+  '採用する返信案を会話資産に登録します。次のJSON形式だけで返してください。titleは短い見出し、textは採用する返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。': 'Prepare my selected reply for Conversation Assets. Return only JSON in the following format. Use a short heading for title, the exact selected reply for text, the other participants for people, and reusable topic labels for tags. Leave people empty if unknown. Omit the original conversation.',
+  'チャットAIへの依頼文をコピー': 'Copy prompt for chat AI',
+  '返信案のJSONを貼り付け': 'Paste reply JSON',
+  '返信案を読み取れませんでした。AIが返したJSONをコピーしてください。': 'Could not read the reply draft. Copy the JSON returned by the AI.',
   '取り込み': "Import",
   'メモ・テキスト': "Notes / Text",
   'LINEのトーク履歴として読み取れませんでした。「トーク履歴を送信」で保存した.txtを選んでください': "Couldn't read this as a LINE chat history. Choose the .txt saved with \"Send chat history\".",

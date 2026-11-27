@@ -17,6 +17,30 @@ export interface ImportDraft {
   topics: string[];
 }
 
+/** チャットAIで整えた返信案を1件の話題候補として読む。 */
+export function parseReplyDraft(raw: string): ImportDraft | null {
+  try {
+    const input = raw.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, '$1');
+    const value = JSON.parse(input);
+    if (!value || typeof value.text !== 'string' || !value.text.trim()) return null;
+    const names = (items: unknown, stripHash = false) => Array.isArray(items)
+      ? [...new Set(items.filter((item): item is string => typeof item === 'string')
+        .map((name) => (stripHash ? name.trim().replace(/^#/, '') : name).trim()).filter(Boolean))]
+      : [];
+    return {
+      key: 'reply',
+      include: true,
+      title: typeof value.title === 'string' ? value.title.trim() : '',
+      text: value.text.trim(),
+      talkedOn: today(),
+      people: names(value.people),
+      topics: names(value.tags, true),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type TextSplit = 'blank' | 'marker' | 'none';
 
 const DATE_RE = /^\s*(\d{4})[/.\-年](\d{1,2})[/.\-月](\d{1,2})日?/;
