@@ -32,6 +32,8 @@ const splitNames = (text: string) => text.split(/[,、，]/).map((name) => name.
 addDict('en', enImport);
 
 export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: ImportDraft) => void }) {
+  const { topics } = useData();
+  const [includeKnownTags, setIncludeKnownTags] = useState(false);
   const [step, setStep] = useState<Step>('source');
   const [source, setSource] = useState<Source>('text');
   const [raw, setRaw] = useState('');
@@ -75,12 +77,25 @@ export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: Imp
       )}
       {step === 'input' && source === 'reply' && (
         <div className="form">
-          <ol className="howto">
+          <ol className="import-steps">
             <li>{t('下のボタンで依頼文をコピーし、返信案を作ったChatGPTのチャットに送る')}</li>
             <li>{t('ChatGPTが返したJSONをコピーして、下の欄に貼り付ける')}</li>
             <li>{t('「記録画面に入力」で修正して保存するか、「読み込んで確認する」でそのまま取り込む')}</li>
           </ol>
-          <button className="btn block" type="button" onClick={() => copyText(t('採用する返信案を会話資産に登録します。次のJSON形式だけで返してください。titleは短い見出し、textは採用する返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。') + '\n{"title":"","text":"","people":[],"tags":[]}')}>{t('チャットAIへの依頼文をコピー')}</button>
+          {topics.length > 0 && (
+            <label className="toggle">
+              <input type="checkbox" checked={includeKnownTags} onChange={(e) => setIncludeKnownTags(e.target.checked)} />
+              <span>{t('既存のタグ名を依頼文に含める')}</span>
+            </label>
+          )}
+          <button className="btn block" type="button" onClick={(e) => {
+            const prompt = t('採用する返信案を会話資産に登録します。次のJSON形式だけで返してください。titleは短い見出し、textは採用する返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。') + '\n{"title":"","text":"","people":[],"tags":[]}';
+            const tags = includeKnownTags ? [...new Set(topics.map(({ name }) => name))] : [];
+            const hints = tags.length > 0
+              ? '\n\n' + t('既存タグの一覧です。意味が合うものは一覧の表記をそのまま使い、合うものがない場合は新しいタグを提案してください。') + '\n' + JSON.stringify(tags)
+              : '';
+            void copyText(prompt + hints, e.currentTarget);
+          }}>{t('チャットAIへの依頼文をコピー')}</button>
           <label className="field">
             {t('返信案のJSONを貼り付け')}
             <textarea className="textarea" value={raw} onChange={(e) => { setRaw(e.target.value); setErr(''); }} />
@@ -167,7 +182,7 @@ function InputStep({ source, raw, fileName, err, onRaw, onNext }: {
       {source === 'line' ? (
         <details className="howto" open={!raw}>
           <summary>{t('LINEのトーク履歴を保存する方法')}</summary>
-          <ol>
+          <ol className="import-steps">
             <li>{t('LINEで取り込みたい相手のトークを開く')}</li>
             <li>{t('右上の「≡」→「設定」→「トーク履歴を送信」')}</li>
             <li>{t('「ファイルに保存」を選んで保存する')}</li>
@@ -178,7 +193,7 @@ function InputStep({ source, raw, fileName, err, onRaw, onNext }: {
       ) : (
         <details className="howto">
           <summary>{t('iPhoneのメモをまとめて書き出す方法')}</summary>
-          <ol>
+          <ol className="import-steps">
             <li>{t('「ショートカット」アプリで新規ショートカットを作る')}</li>
             <li>{t('「メモを検索」を追加（フォルダで絞り込みも可）')}</li>
             <li>{t('「テキストを結合」を追加し、区切りを「カスタム」で === にする')}</li>
@@ -241,7 +256,7 @@ function AiInputStep({ service, fileName, count, onLoaded, onNext }: {
       {service === 'chatgpt' ? (
         <details className="howto" open={count === null}>
           <summary>{t('ChatGPTのデータを書き出す方法')}</summary>
-          <ol>
+          <ol className="import-steps">
             <li>{t('ChatGPTの「設定」→「データコントロール」→「データをエクスポートする」')}</li>
             <li>{t('届いたメールのリンクから.zipをダウンロードする')}</li>
             <li>{t('下の「ファイルを選ぶ」から、その.zipをそのまま選ぶ')}</li>
@@ -250,7 +265,7 @@ function AiInputStep({ service, fileName, count, onLoaded, onNext }: {
       ) : (
         <details className="howto" open={count === null}>
           <summary>{t('Claudeのデータを書き出す方法')}</summary>
-          <ol>
+          <ol className="import-steps">
             <li>{t('claude.aiの「設定」→「プライバシー」→「データをエクスポート」')}</li>
             <li>{t('届いたメールのリンクから.zipをダウンロードする')}</li>
             <li>{t('下の「ファイルを選ぶ」から、その.zipをそのまま選ぶ')}</li>
