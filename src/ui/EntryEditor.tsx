@@ -278,17 +278,23 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           ref={!existing ? autoFocusRef : undefined}
           rows={6}
         />
-        {text.trim() && (feat.copy || 'share' in navigator) && (
+        {((text.trim() && (feat.copy || 'share' in navigator)) || (existing && feat.title && feat.copy && title.trim())) && (
           <div className="copy-row">
-            {'share' in navigator && (
+            {text.trim() && 'share' in navigator && (
               <button type="button" className="link small-link copy-line" onClick={() => navigator.share({ ...(title.trim() ? { title } : {}), text: title.trim() ? `${title}\n${text}` : text }).catch(() => {})}>{t('↑ 共有')}</button>
             )}
-            {feat.copy && <button type="button" className="link small-link copy-line" onClick={(e) => copyText(text, e.currentTarget)}>{t('⧉ 本文をコピー')}</button>}
+            {existing && feat.title && feat.copy && title.trim() && (
+              <button type="button" className="link small-link copy-line" onClick={(e) => copyText(title, e.currentTarget)}>{t('⧉ タイトルをコピー')}</button>
+            )}
+            {feat.copy && text.trim() && <button type="button" className="link small-link copy-line" onClick={(e) => copyText(text, e.currentTarget)}>{t('⧉ 本文をコピー')}</button>}
           </div>
         )}
         {feat.memo && (memoOpen
           ? <textarea className="textarea memo-field" rows={4} ref={!memo ? autoFocusRef : undefined} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t('メモ（相手の反応など）')} aria-label={t('メモ')} />
           : <button type="button" className="link small-link memo-add" onClick={() => setMemoOpen(true)}>{t('＋ メモを書く')}</button>)}
+        {existing && feat.memo && feat.copy && memoOpen && memo.trim() && (
+          <button type="button" className="link small-link copy-line" onClick={(e) => copyText(memo, e.currentTarget)}>{t('⧉ メモをコピー')}</button>
+        )}
         {feat.images && (
           <div className="img-field">
             <ImageStrip ids={imageIds} pending={pendingImages} onRemove={(x) => setImageIds((xs) => xs.filter((y) => y !== x))} />
