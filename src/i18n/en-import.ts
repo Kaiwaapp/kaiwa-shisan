@@ -9,6 +9,8 @@ const enImport: Record<string, string> = {
   '「記録画面に入力」で修正して保存するか、「読み込んで確認する」でそのまま取り込む': 'Open the editor to fill in and save a topic, or review and import the draft here.',
   '記録画面に入力': 'Fill in the topic editor',
   '採用する返信案を会話資産に登録します。次のJSON形式だけで返してください。titleは短い見出し、textは採用する返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。': 'Prepare my selected reply for Conversation Assets. Return only JSON in the following format. Use a short heading for title, the exact selected reply for text, the other participants for people, and reusable topic labels for tags. Leave people empty if unknown. Omit the original conversation.',
+  '既存のタグ名を依頼文に含める': 'Include existing tag names in the prompt',
+  '既存タグの一覧です。意味が合うものは一覧の表記をそのまま使い、合うものがない場合は新しいタグを提案してください。': 'Use the exact wording of any existing tags that fit. Suggest a new tag when none fits.',
   'チャットAIへの依頼文をコピー': 'Copy prompt for chat AI',
   '返信案のJSONを貼り付け': 'Paste reply JSON',
   '返信案を読み取れませんでした。AIが返したJSONをコピーしてください。': 'Could not read the reply draft. Copy the JSON returned by the AI.',
