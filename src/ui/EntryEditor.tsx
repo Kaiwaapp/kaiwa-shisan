@@ -306,12 +306,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           <p className="muted small">{t('画像{n}枚が付いています（設定の「話題」で画像の添付をオンにすると表示されます）', { n: imageIds.length })}</p>
         )}
         {ai.panel}
-        {(newPeople.length > 0 || newTopics.length > 0) && (
-          <label className="toggle small-toggle">
-            <input type="checkbox" checked={feat.entryReadingFields} onChange={(e) => setFeature('entryReadingFields', e.target.checked)} />
-            {t('読み仮名の入力欄を表示')}
-          </label>
-        )}
+        <label className="toggle small-toggle">
+          <input type="checkbox" checked={feat.entryReadingFields} onChange={(e) => setFeature('entryReadingFields', e.target.checked)} />
+          {t('この画面で新規追加する人・タグの読み仮名欄を表示')}
+        </label>
         <section className="field">
           <label>{t('話した相手')}</label>
           <ComboPicker
