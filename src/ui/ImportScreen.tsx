@@ -31,7 +31,7 @@ const splitNames = (text: string) => text.split(/[,、，]/).map((name) => name.
 
 addDict('en', enImport);
 
-export default function ImportScreen() {
+export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: ImportDraft) => void }) {
   const [step, setStep] = useState<Step>('source');
   const [source, setSource] = useState<Source>('text');
   const [raw, setRaw] = useState('');
@@ -41,6 +41,16 @@ export default function ImportScreen() {
   const [result, setResult] = useState<{ r: ImportResult; folderId: string | null; n: number } | null>(null);
 
   const pick = (s: Source) => { setSource(s); setRaw(''); setConvs(null); setFileName(''); setErr(''); setStep('input'); };
+
+  const openReply = (editor: boolean) => {
+    const draft = parseReplyDraft(raw);
+    if (!draft) {
+      setErr(t('返信案を読み取れませんでした。AIが返したJSONをコピーしてください。'));
+      return;
+    }
+    if (editor) onOpenReply(draft);
+    else setStep('preview');
+  };
 
   const onBack = () => {
     if (step === 'input') setStep('source');
@@ -65,17 +75,19 @@ export default function ImportScreen() {
       )}
       {step === 'input' && source === 'reply' && (
         <div className="form">
-          <p className="muted small pad">{t('返信案ができたチャットに依頼文を送り、返ってきたJSONを貼り付けます。')}</p>
+          <ol className="howto">
+            <li>{t('下のボタンで依頼文をコピーし、返信案を作ったChatGPTのチャットに送る')}</li>
+            <li>{t('ChatGPTが返したJSONをコピーして、下の欄に貼り付ける')}</li>
+            <li>{t('「記録画面に入力」で修正して保存するか、「読み込んで確認する」でそのまま取り込む')}</li>
+          </ol>
           <button className="btn block" type="button" onClick={() => copyText(t('採用する返信案を会話資産に登録します。次のJSON形式だけで返してください。titleは短い見出し、textは採用する返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。') + '\n{"title":"","text":"","people":[],"tags":[]}')}>{t('チャットAIへの依頼文をコピー')}</button>
           <label className="field">
             {t('返信案のJSONを貼り付け')}
             <textarea className="textarea" value={raw} onChange={(e) => { setRaw(e.target.value); setErr(''); }} />
           </label>
           {err && <p className="ai-msg error" role="alert">{err}</p>}
-          <button className="btn primary block" disabled={!raw.trim()} onClick={() => {
-            if (!parseReplyDraft(raw)) { setErr(t('返信案を読み取れませんでした。AIが返したJSONをコピーしてください。')); return; }
-            setStep('preview');
-          }}>{t('読み込んで確認する')}</button>
+          <button className="btn primary block" disabled={!raw.trim()} onClick={() => openReply(true)}>{t('記録画面に入力')}</button>
+          <button className="btn block" disabled={!raw.trim()} onClick={() => openReply(false)}>{t('読み込んで確認する')}</button>
         </div>
       )}
       {step === 'input' && source !== 'reply' && !isAi(source) && (
