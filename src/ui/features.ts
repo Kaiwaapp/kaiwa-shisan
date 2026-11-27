@@ -67,7 +67,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   recent: { label: '直近の候補', note: '話題の相手・タグの入力欄の下に、入力しなくても候補を出す' },
   title: { label: '話題のタイトル', note: '話題の編集画面のタイトル欄' },
   memo: { label: '話題のメモ', note: '話題の本文とは別に、相手の反応などを書いておく欄' },
-  copy: { label: 'コピーボタン', note: '一覧と編集画面の本文コピーボタン' },
+  copy: { label: 'コピーボタン', note: '一覧と話題を開いた画面のコピーボタン' },
   images: { label: '画像の添付', note: '話題に写真やスクショを添付する機能' },
   import: { label: '他のアプリから取り込む', note: '設定の取り込みの項目' },
   relations: { label: '関係', note: '人に友達・家族などの関係を付けて、人タブで絞り込む' },
