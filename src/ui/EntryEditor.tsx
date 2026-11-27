@@ -10,6 +10,26 @@ import { t } from '../i18n';
 import { setFeature, useFeatures } from './features';
 import { compressImage, ImageStrip } from './images';
 import { HoldButton } from './fab';
+import { guessReading } from './reading';
+
+function NewNameReadings({ names, readings, onChange, auto, prefix = '' }: {
+  names: string[];
+  readings: (string | undefined)[];
+  onChange: (readings: (string | undefined)[]) => void;
+  auto: boolean;
+  prefix?: string;
+}) {
+  return names.map((name, i) => (
+    <label className="field" key={i}>
+      {t('{name}の読み仮名（任意）', { name: prefix + name })}
+      <input value={readings[i] ?? (auto ? guessReading(name) : '')} onChange={(e) => {
+        const next = Array.from({ length: names.length }, (_, j) => readings[j]);
+        next[i] = e.target.value;
+        onChange(next);
+      }} />
+    </label>
+  ));
+}
 
 
 export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
@@ -34,6 +54,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   const [newPeople, setNewPeople] = useState<string[]>([]);
   const [topicIds, setTopicIds] = useState<ID[]>(existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : []));
   const [newTopics, setNewTopics] = useState<string[]>([]);
+  const [personReadings, setPersonReadings] = useState<(string | undefined)[]>([]);
+  const [topicReadings, setTopicReadings] = useState<(string | undefined)[]>([]);
   const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? today());
   const [saving, setSaving] = useState(false);
   // 新しい話題のお気に入り(保存時に付ける)。既存の話題は☆を押した時点で保存する
@@ -174,7 +196,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     const folderId = existing ? undefined : (initialFolder ?? null);
     let entry;
     try {
-      entry = await store.saveEntry({ title, text, ...(feat.memo ? { memo } : {}), personIds, groupIds, newPeople, topicIds, newTopics, aiTopicIds, aiNewTopics, talkedOn, folderId, imageIds, newImages: [...pendingImages.values()], ...(existing ? {} : { favorite: newFav }) }, id);
+      entry = await store.saveEntry({ title, text, ...(feat.memo ? { memo } : {}), personIds, groupIds, newPeople: newPeople.map((name, i) => ({ name, reading: personReadings[i] })), topicIds, newTopics: newTopics.map((name, i) => ({ name, reading: topicReadings[i] })), aiTopicIds, aiNewTopics, talkedOn, folderId, imageIds, newImages: [...pendingImages.values()], ...(existing ? {} : { favorite: newFav }) }, id);
     } catch {
       // 保存に失敗したら入力はそのまま残して、もう一度押せるようにする
       saved.current = false;
@@ -284,6 +306,12 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           <p className="muted small">{t('画像{n}枚が付いています（設定の「話題」で画像の添付をオンにすると表示されます）', { n: imageIds.length })}</p>
         )}
         {ai.panel}
+        {(newPeople.length > 0 || newTopics.length > 0) && (
+          <label className="toggle small-toggle">
+            <input type="checkbox" checked={feat.entryReadingFields} onChange={(e) => setFeature('entryReadingFields', e.target.checked)} />
+            {t('読み仮名の入力欄を表示')}
+          </label>
+        )}
         <section className="field">
           <label>{t('話した相手')}</label>
           <ComboPicker
@@ -296,8 +324,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
             allowSameName
             selected={personIds}
             newNames={newPeople}
+            onRemoveNew={(i) => setPersonReadings((xs) => xs.filter((_, j) => j !== i))}
             onChange={(s, n) => { pick('person', personIds, s); setPersonIds(s); setNewPeople(n); }}
           />
+          {feat.entryReadingFields && <NewNameReadings names={newPeople} readings={personReadings} onChange={setPersonReadings} auto={feat.readingPerson} />}
         </section>
         <section className="field">
           <label>{t('タグ')}</label>
@@ -307,8 +337,10 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
             suggest={feat.recent}
             selected={topicIds}
             newNames={newTopics}
+            onRemoveNew={(i) => setTopicReadings((xs) => xs.filter((_, j) => j !== i))}
             onChange={(s, n) => { pick('topic', topicIds, s); setTopicIds(s); setNewTopics(n); }}
           />
+          {feat.entryReadingFields && <NewNameReadings names={newTopics} readings={topicReadings} onChange={setTopicReadings} auto={feat.readingTopic} />}
         </section>
         <section className="field row">
           <label htmlFor="talkedOn">{t('最初に話した日')}</label>

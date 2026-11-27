@@ -6,6 +6,8 @@ import { buildSamples } from './samples';
 
 type Listener = () => void;
 
+type NewEntryName = string | { name: string; reading?: string };
+
 export interface EntryInput {
   /** タイトル(任意)。空なら付けない */
   title?: string;
@@ -17,8 +19,8 @@ export interface EntryInput {
   groupIds?: ID[];
   topicIds: ID[];
   /** 保存時に新しく作る人・タグの名前。人は同名の人がいても別の人として作る */
-  newPeople?: string[];
-  newTopics?: string[];
+  newPeople?: NewEntryName[];
+  newTopics?: NewEntryName[];
   /** AIの提案から付けたタグ(既存のid・新規の名前)。source を 'ai' にする */
   aiTopicIds?: ID[];
   aiNewTopics?: string[];
@@ -137,15 +139,19 @@ export class Store {
     const prevSource = new Map(prev?.topics.map((t) => [t.topicId, t.source]));
     // 新規の人・タグは話題の保存時にはじめて作る(キャンセルしたらゴミが残らない)
     const personIds = [...input.personIds];
-    for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name, null, [], true)).id);
+    for (const item of input.newPeople ?? []) {
+      const { name, reading } = typeof item === 'string' ? { name: item } : item;
+      if (name.trim()) personIds.push((await this.addPerson(name, null, [], true, reading)).id);
+    }
     const alive = new Set(this.data.groups.map((g) => g.id));
     const groupIds = [...new Set(input.groupIds ?? prev?.groupIds ?? [])].filter((g) => alive.has(g));
     const topicIds = [...input.topicIds];
     const aiIds = new Set(input.aiTopicIds ?? []);
     const aiNew = new Set((input.aiNewTopics ?? []).map((n) => normalize(n.trim())));
-    for (const name of input.newTopics ?? []) {
+    for (const item of input.newTopics ?? []) {
+      const { name, reading } = typeof item === 'string' ? { name: item } : item;
       if (!name.trim()) continue;
-      const t = await this.addTopic(name);
+      const t = await this.addTopic(name, null, reading);
       topicIds.push(t.id);
       if (aiNew.has(normalize(name.trim()))) aiIds.add(t.id);
     }
@@ -320,11 +326,11 @@ export class Store {
   }
 
   /** 人を追加。同名の人がいればその人を返す。allowSame なら同名でも別の人として作る */
-  async addPerson(name: string, folderId: ID | null = null, groupIds: ID[] = [], allowSame = false): Promise<Person> {
+  async addPerson(name: string, folderId: ID | null = null, groupIds: ID[] = [], allowSame = false, manualReading?: string): Promise<Person> {
     const existing = allowSame ? undefined : this.findPersonByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const reading = this.readingGuess?.(name.trim(), 'person') || undefined;
+    const reading = (manualReading?.trim() ?? this.readingGuess?.(name.trim(), 'person')) || undefined;
     const p: Person = { id: newId(), name: name.trim(), memo: '', ...(reading ? { reading } : {}), folderId, ...(groupIds.length ? { groupIds } : {}), createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putPerson(p);
     this.set({ ...this.data, people: [...this.data.people, p] });
@@ -528,11 +534,11 @@ export class Store {
     return this.data.topics.find((t) => normalize(t.name) === n);
   }
 
-  async addTopic(name: string, folderId: ID | null = null): Promise<Topic> {
+  async addTopic(name: string, folderId: ID | null = null, manualReading?: string): Promise<Topic> {
     const existing = this.findTopicByName(name);
     if (existing) return existing;
     const now = Date.now();
-    const tr = this.readingGuess?.(name.trim().replace(/^#/, ''), 'topic') || undefined;
+    const tr = (manualReading?.trim() ?? this.readingGuess?.(name.trim().replace(/^#/, ''), 'topic')) || undefined;
     const t: Topic = { id: newId(), name: name.trim().replace(/^#/, ''), ...(tr ? { reading: tr } : {}), folderId, createdAt: now, updatedAt: now, selectedAt: now };
     await this.repo.putTopic(t);
     this.set({ ...this.data, topics: [...this.data.topics, t] });
