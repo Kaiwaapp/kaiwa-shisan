@@ -236,6 +236,7 @@ const en: Record<string, string> = {
   '統合する': 'Merge',
   '名前': 'Name',
   '人やタグを新規追加すると読み仮名を入力できます。チェックを外すと入力欄を隠せます。': 'When adding a new person or tag, you can enter its reading. Uncheck the box to hide the fields.',
+  'この画面で新規追加する人・タグの読み仮名欄を表示': 'Show reading fields for new people and tags on this screen',
   '読み仮名の入力欄を表示': 'Show reading fields',
   '話題から新しく追加する人・タグの読み仮名を入力できます': 'Enter readings for people and tags added from a topic',
   '{name}の読み仮名（任意）': 'Reading for {name} (optional)',
