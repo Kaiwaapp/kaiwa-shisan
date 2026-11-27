@@ -1,5 +1,17 @@
 /** 取り込み画面の英訳。画面と一緒に遅延読み込みされる */
 const enImport: Record<string, string> = {
+  '返信文': 'Reply',
+  '相手（読点またはカンマ区切り）': 'People (comma-separated)',
+  'タグ（読点またはカンマ区切り）': 'Tags (comma-separated)',
+  'AIの返信案': 'AI reply draft',
+  '下のボタンで依頼文をコピーし、返信案を作ったChatGPTのチャットに送る': 'Copy the prompt below and send it in the ChatGPT chat that drafted your reply.',
+  'ChatGPTが返したJSONをコピーして、下の欄に貼り付ける': 'Copy the JSON ChatGPT returns and paste it below.',
+  '「記録画面に入力」で修正して保存するか、「読み込んで確認する」でそのまま取り込む': 'Open the editor to fill in and save a topic, or review and import the draft here.',
+  '記録画面に入力': 'Fill in the topic editor',
+  '採用する返信案を会話資産に登録します。次のJSON形式だけで返してください。titleは短い見出し、textは採用する返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。': 'Prepare my selected reply for Conversation Assets. Return only JSON in the following format. Use a short heading for title, the exact selected reply for text, the other participants for people, and reusable topic labels for tags. Leave people empty if unknown. Omit the original conversation.',
+  'チャットAIへの依頼文をコピー': 'Copy prompt for chat AI',
+  '返信案のJSONを貼り付け': 'Paste reply JSON',
+  '返信案を読み取れませんでした。AIが返したJSONをコピーしてください。': 'Could not read the reply draft. Copy the JSON returned by the AI.',
   '取り込み': "Import",
   'メモ・テキスト': "Notes / Text",
   'LINEのトーク履歴として読み取れませんでした。「トーク履歴を送信」で保存した.txtを選んでください': "Couldn't read this as a LINE chat history. Choose the .txt saved with \"Send chat history\".",

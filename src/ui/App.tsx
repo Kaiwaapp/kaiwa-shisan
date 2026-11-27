@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useRef } from 'react';
 import { OrganizeScreen } from './OrganizeScreen';
+import type { ImportDraft } from '../core/importers';
+import { newId } from '../core/types';
 import type { Store } from '../core/store';
 import { StoreContext, go, switchTab, useLoadFailed, useLoaded, useRoute, useStore } from './hooks';
 import { InteractProvider, useInteract } from './interact';
@@ -80,6 +82,12 @@ function Shell() {
   const badge = useScheduleBadge();
   const fitRef = useFitRef();
   const [head, sub] = path;
+  const reply = useRef<{ key: string; draft: ImportDraft } | null>(null);
+  const openReply = (draft: ImportDraft) => {
+    const key = newId();
+    reply.current = { key, draft };
+    go('/new?reply=' + key);
+  };
 
   if (!loaded) return <Loading />;
 
@@ -89,6 +97,7 @@ function Shell() {
         <EntryEditor
           key={path.join('/') + query.toString()}
           id={head === 'edit' ? sub : undefined}
+          initialReply={head === 'new' && reply.current?.key === query.get('reply') ? reply.current?.draft : undefined}
           initialPerson={query.get('person') ?? undefined}
           initialTopic={query.get('topic') ?? undefined}
           initialFolder={query.get('folder') ?? undefined}
@@ -156,7 +165,7 @@ function Shell() {
   else if (head === 'settings' && sub === 'premium') screen = <PremiumSettingsScreen />;
   else if (head === 'settings' && sub === 'backup') screen = <BackupSettingsScreen />;
   else if (head === 'settings') screen = <SettingsScreen />;
-  else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen /></Suspense>;
+  else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen onOpenReply={openReply} /></Suspense>;
   else if (head === 'organize') screen = <OrganizeScreen key={sub} scope={sub === 'person' || sub === 'topic' ? sub : 'entry'} />;
   else if (head === 'all') screen = <AllEntriesScreen key="all" />;
   else if (head === 'fav') screen = <AllEntriesScreen key="fav" fav />;

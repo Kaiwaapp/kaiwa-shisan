@@ -4,6 +4,7 @@ import { today, type EntryImage, type ID } from '../core/types';
 import { back, useData, useStore } from './hooks';
 import { ComboPicker, FavButton, FavToggle, Header, sameNameHints } from './components';
 import { copyText, Sheet, toast } from './interact';
+import type { ImportDraft } from '../core/importers';
 import { normalize } from '../core/search';
 import { useEntryAi } from './AiTools';
 import { t } from '../i18n';
@@ -32,9 +33,10 @@ function NewNameReadings({ names, readings, onChange, auto, prefix = '' }: {
 }
 
 
-export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup }: {
+export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, initialGroup, initialReply }: {
   id?: ID;
   initialPerson?: ID;
+  initialReply?: ImportDraft;
   initialTopic?: ID;
   initialFolder?: ID;
   /** グループの画面から開いたとき、そのグループを最初から相手に入れる */
@@ -45,23 +47,28 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   const feat = useFeatures();
   const existing = id ? data.entries.find((e) => e.id === id) : undefined;
   useEffect(() => { if (id) store.markViewed('entry', id); }, [store, id]);
-  const [title, setTitle] = useState(existing?.title ?? '');
-  const [text, setText] = useState(existing?.text ?? '');
+  const [title, setTitle] = useState(existing?.title ?? initialReply?.title ?? '');
+  const [text, setText] = useState(existing?.text ?? initialReply?.text ?? '');
   const [memo, setMemo] = useState(existing?.memo ?? '');
   const [memoOpen, setMemoOpen] = useState(!!existing?.memo);
-  const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (initialPerson ? [initialPerson] : []));
+  const [replyNames] = useState(() => {
+    const people = initialReply?.people.map((name) => ({ name, id: data.people.find((p) => normalize(p.name) === normalize(name))?.id })) ?? [];
+    const tags = initialReply?.topics.map((name) => ({ name, id: data.topics.find((t) => normalize(t.name) === normalize(name))?.id })) ?? [];
+    return { people, tags };
+  });
+  const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (initialPerson ? [initialPerson] : replyNames.people.flatMap(({ id }) => id ? [id] : [])));
   const [groupIds, setGroupIds] = useState<ID[]>(() => existing?.groupIds ?? (initialGroup ? [initialGroup] : []));
-  const [newPeople, setNewPeople] = useState<string[]>([]);
-  const [topicIds, setTopicIds] = useState<ID[]>(existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : []));
-  const [newTopics, setNewTopics] = useState<string[]>([]);
+  const [newPeople, setNewPeople] = useState(() => replyNames.people.filter(({ id }) => !id).map(({ name }) => name));
+  const [topicIds, setTopicIds] = useState<ID[]>(() => existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : replyNames.tags.flatMap(({ id }) => id ? [id] : [])));
+  const [newTopics, setNewTopics] = useState(() => replyNames.tags.filter(({ id }) => !id).map(({ name }) => name));
   const [personReadings, setPersonReadings] = useState<(string | undefined)[]>([]);
   const [topicReadings, setTopicReadings] = useState<(string | undefined)[]>([]);
-  const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? today());
+  const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? initialReply?.talkedOn ?? today());
   const [saving, setSaving] = useState(false);
   // 新しい話題のお気に入り(保存時に付ける)。既存の話題は☆を押した時点で保存する
   const [newFav, setNewFav] = useState(false);
-  const [aiTopicIds, setAiTopicIds] = useState<ID[]>([]);
-  const [aiNewTopics, setAiNewTopics] = useState<string[]>([]);
+  const [aiTopicIds, setAiTopicIds] = useState<ID[]>(() => replyNames.tags.flatMap(({ id }) => id ? [id] : []));
+  const [aiNewTopics, setAiNewTopics] = useState(() => [...newTopics]);
   // 添付画像。新しく付けた画像は保存するまで端末に書き込まない(キャンセルしたら残らない)
   const [imageIds, setImageIds] = useState<ID[]>(existing?.imageIds ?? []);
   const [pendingImages, setPendingImages] = useState<Map<ID, EntryImage>>(() => new Map());
@@ -140,6 +147,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   // 開いた時点の内容。これと違えば「入力した」とみなし、キャンセル時に確認する
   const [initial] = useState(() => JSON.stringify([title, text, memo, personIds, groupIds, topicIds, talkedOn]));
   const dirty = !saving && (
+    !!initialReply ||
     JSON.stringify([title, text, memo, personIds, groupIds, topicIds, talkedOn]) !== initial || newPeople.length > 0 || newTopics.length > 0 || newFav
   );
   const [asking, setAsking] = useState(false);
@@ -245,7 +253,7 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
         }
       />
       <div className="form">
-        {feat.title && <input
+        {(feat.title || !!initialReply) && <input
           className="title-input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
