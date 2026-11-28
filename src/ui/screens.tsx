@@ -29,7 +29,12 @@ function ReplyImportShortcut() {
   const { replyShortcut } = useFeatures();
   const { sel } = useInteract();
   if (!replyShortcut || sel.active) return null;
-  return <button type="button" className="btn ghost block reply-import-shortcut" onClick={() => go('/import/reply')}>{t('AIの返信案を取り込む')}</button>;
+  return (
+    <button type="button" className="reply-import-shortcut" onClick={() => go('/import/reply')}>
+      <Icon name="import" />
+      <span>{t('AI返信を取り込む')}</span>
+    </button>
+  );
 }
 
 // ---- 話題タブ: iPhoneのメモのように、フォルダと話題が並ぶ(フォルダは入れ子可) ----
@@ -111,8 +116,10 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
         <FolderEdit id={folder.id} onDone={() => setEditing(false)} />
       ) : (
         <>
-          <SearchBox value={q} onChange={setQ} placeholder={folder ? t('「{name}」の中を検索', { name: folder.name }) : t('本文・人・タグで検索')} />
-          {!folderId && <ReplyImportShortcut />}
+          <div className="entry-search-row">
+            <SearchBox value={q} onChange={setQ} placeholder={folder ? t('「{name}」の中を検索', { name: folder.name }) : t('本文・人・タグで検索')} />
+            {!folderId && <ReplyImportShortcut />}
+          </div>
           {results ? (
             <>
               <div className="toolbar">
@@ -233,8 +240,10 @@ export function AllEntriesScreen({ fav }: { fav?: boolean }) {
   return (
     <div className="screen">
       <Header title={fav ? t('★ お気に入りの話題') : t('すべての話題')} left={<button className="link" onClick={() => back('/')}>{t('‹ 戻る')}</button>} />
-      <SearchBox value={q} onChange={setQ} placeholder={fav ? t('お気に入りの話題を検索') : t('本文・人・タグで検索（読み仮名も可）')} />
-      {!fav && <ReplyImportShortcut />}
+      <div className="entry-search-row">
+        <SearchBox value={q} onChange={setQ} placeholder={fav ? t('お気に入りの話題を検索') : t('本文・人・タグで検索（読み仮名も可）')} />
+        {!fav && <ReplyImportShortcut />}
+      </div>
       <div className="toolbar">
         <span className="count">{t('{n}件', { n: list.length })}</span>
         <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />
