@@ -7,6 +7,9 @@ import { focusNoScroll } from './focus';
 type Rect = { x: number; y: number; width: number; height: number };
 type Action = 'move' | 'resize';
 const EDGE = 8;
+const MIN_WIDTH = 220;
+const MIN_HEIGHT = 156;
+const PINCH_SENSITIVITY = 0.5;
 
 function visibleArea(): Rect {
   const viewport = window.visualViewport;
@@ -19,10 +22,10 @@ function visibleArea(): Rect {
 }
 
 function fitWindow(rect: Rect, area: Rect): Rect {
-  const maxWidth = Math.max(1, area.width - EDGE * 2);
-  const maxHeight = Math.max(1, area.height - EDGE * 2);
-  const width = Math.min(maxWidth, Math.max(220, rect.width));
-  const height = Math.min(maxHeight, Math.max(156, rect.height));
+  const maxWidth = Math.max(1, Math.min(area.width - EDGE * 2, Math.max(MIN_WIDTH, Math.min(420, area.width * 0.85))));
+  const maxHeight = Math.max(1, Math.min(area.height - EDGE * 2, Math.max(MIN_HEIGHT, Math.min(440, area.height * 0.55))));
+  const width = Math.min(maxWidth, Math.max(MIN_WIDTH, rect.width));
+  const height = Math.min(maxHeight, Math.max(MIN_HEIGHT, rect.height));
   return {
     x: Math.max(area.x + EDGE, Math.min(rect.x, area.x + area.width - width - EDGE)),
     y: Math.max(area.y + EDGE, Math.min(rect.y, area.y + area.height - height - EDGE)),
@@ -158,7 +161,9 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
     const other = [...drag.pointers].find(([id]) => id !== event.pointerId)?.[1];
     if (other) {
       const distance = Math.hypot(point.x - other.x, point.y - other.y);
-      const scale = Math.hypot(next.x - other.x, next.y - other.y) / Math.max(distance, 1);
+      const nextDistance = Math.hypot(next.x - other.x, next.y - other.y);
+      // 指が近い状態から広げても、指の間隔に比例して急拡大しない。
+      const scale = 1 + (nextDistance - distance) * PINCH_SENSITIVITY / Math.max(current.width, current.height);
       const resized = fitWindow({ ...current, width: current.width * scale, height: current.height * scale }, area);
       drag.rect = fitWindow({
         ...resized,
