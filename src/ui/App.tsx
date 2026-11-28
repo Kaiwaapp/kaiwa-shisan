@@ -61,15 +61,34 @@ function useFitRef() {
       let limit = window.innerHeight;
       app.querySelectorAll<HTMLElement>(':scope > .tabbar, :scope > .ad-banner').forEach((b) => { limit = Math.min(limit, b.getBoundingClientRect().top); });
       const pad = parseFloat(getComputedStyle(padded).paddingBottom) || 0;
-      const bottom = padded.getBoundingClientRect().top + window.scrollY + padded.scrollHeight - pad;
+      const bottom = padded.getBoundingClientRect().top + (getComputedStyle(padded).overflowY === 'auto' ? 0 : window.scrollY) + padded.scrollHeight - pad;
       app.classList.toggle('fits', bottom + FIT_GAP <= limit);
     };
-    const ro = new ResizeObserver(check);
-    const watch = () => { ro.disconnect(); ro.observe(app); for (const c of Array.from(app.children)) ro.observe(c); check(); };
+    let frame = 0;
+    // 観測中に .fits を変えて要素の高さを更新すると、ResizeObserver の通知が中断される。
+    const scheduleCheck = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        check();
+      });
+    };
+    const ro = new ResizeObserver(scheduleCheck);
+    const watch = () => {
+      ro.disconnect();
+      ro.observe(app);
+      for (const child of app.children) ro.observe(child);
+      scheduleCheck();
+    };
     const mo = new MutationObserver(watch);
     mo.observe(app, { childList: true });
-    window.addEventListener('resize', check);
-    stop.current = () => { ro.disconnect(); mo.disconnect(); window.removeEventListener('resize', check); };
+    window.addEventListener('resize', scheduleCheck);
+    stop.current = () => {
+      ro.disconnect();
+      mo.disconnect();
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', scheduleCheck);
+    };
     watch();
   }, []);
 }
@@ -199,7 +218,7 @@ function Shell() {
   });
 
   return (
-    <div className={`app${feat.noAds ? '' : ' with-ad'}`} ref={fitRef}>
+    <div className={`app tabbed-app${feat.noAds ? '' : ' with-ad'}`} ref={fitRef}>
       <main className="main">{screen}</main>
       {!feat.noAds && <AdBanner />}
       {showFab && <Fab label={fabLabel} onTap={fabTap} items={fabItems} />}

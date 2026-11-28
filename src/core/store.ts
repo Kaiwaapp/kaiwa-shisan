@@ -739,6 +739,15 @@ export class Store {
 
   /** 開いた日時を残す(「最後に見た順」用)。更新日時は変えない */
   async markViewed(kind: 'entry' | 'person' | 'topic' | 'folder', id: ID) {
+    try {
+      await this.recordView(kind, id);
+    } catch (error) {
+      // 閲覧日時は並べ替え用。記録に失敗しても表示中の画面には影響させない。
+      console.warn('Could not record the last viewed time', error);
+    }
+  }
+
+  private async recordView(kind: 'entry' | 'person' | 'topic' | 'folder', id: ID) {
     const now = Date.now();
     if (kind === 'folder') {
       const f = this.data.folders.find((x) => x.id === id);

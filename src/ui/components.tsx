@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { entryLabel, entryPreview, type AppData, type Entry, type Group, type ID, type Person } from '../core/types';
 import { nameMatches, normalize } from '../core/search';
 import { folderPath } from '../core/store';
-import { formatDate, go, useStore } from './hooks';
+import { formatDate, go, pageScroller, useStore } from './hooks';
 import { useFeatures } from './features';
 import { copyText, reorderProps, SelectMark, toast, useInteract, usePress, useReorderList, type ItemRef } from './interact';
 import { t } from '../i18n';
@@ -287,7 +287,7 @@ function liftAboveKeyboard(el: HTMLElement) {
   if (typeof matchMedia === 'undefined' || !matchMedia('(pointer: coarse)').matches) return;
   setTimeout(() => {
     const top = el.getBoundingClientRect().top;
-    if (top > 80) window.scrollBy({ top: top - 72, behavior: 'smooth' });
+    if (top > 80) pageScroller(el).scrollBy({ top: top - 72, behavior: 'smooth' });
   }, 300);
 }
 

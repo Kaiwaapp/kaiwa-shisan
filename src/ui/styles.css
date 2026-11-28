@@ -716,10 +716,32 @@ html.kb-open .ad-banner { display: none; }
   border-radius: 12px;
 }
 
-/* Safariのツールバーが開閉しても、固定操作は見えている画面の下端を基準にする。 */
+/* 本文だけをスクロールさせ、下部タブはSafariのツールバーに重ならないよう本文の外に置く。 */
 @media (max-width: 899px) {
-  .tabbar { top: calc(var(--visual-bottom, 100dvh) - var(--tabbar-h) - var(--safe-b)); bottom: auto; }
-  .fab { top: calc(var(--visual-bottom, 100dvh) - var(--tabbar-h) - var(--safe-b) - var(--ad-h) - 74px); bottom: auto; }
-  .ad-banner { top: calc(var(--visual-bottom, 100dvh) - var(--tabbar-h) - var(--safe-b) - var(--ad-h)); bottom: auto; }
-  .select-bar { top: calc(var(--visual-bottom, 100dvh) - var(--tabbar-h) - var(--safe-b) - var(--ad-h)); bottom: auto; translate: 0 -100%; }
+  html:has(.tabbed-app), body:has(.tabbed-app) { overflow: hidden; }
+  .tabbed-app {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-width: none;
+    height: 100dvh;
+  }
+  html.kb-open .tabbed-app { height: var(--visual-height, 100dvh); }
+  .tabbed-app > .main {
+    flex: 1;
+    width: 100%;
+    max-width: 680px;
+    margin-inline: auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-bottom: 16px;
+  }
+  .tabbed-app:has(.fab):not(.fits) > .main { padding-bottom: 88px; }
+  .tabbed-app > .tabbar, .tabbed-app > .ad-banner {
+    position: static;
+    flex-shrink: 0;
+  }
+  .tabbed-app .fab, .tabbed-app .select-bar { position: absolute; }
 }
