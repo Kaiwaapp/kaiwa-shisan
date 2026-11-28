@@ -23,35 +23,36 @@ export const itemKey = (i: { kind: ItemKind; id: ID }) => `${i.kind}:${i.id}`;
 export const scopeOfKind = (k: 'entry' | 'person' | 'topic'): FolderScope => k;
 
 // ---------------- トースト ----------------
-let showToast: ((m: string, ms?: number) => void) | null = null;
-/** 画面下に短いお知らせを出す。ms は表示する時間(長めの文のとき) */
-export const toast = (m: string, ms?: number) => showToast?.(m, ms);
+let showToast: ((message: string, duration?: number, error?: boolean) => void) | null = null;
+export const toast = (message: string, duration?: number) => showToast?.(message, duration);
+export const toastError = (message: string) => showToast?.(message, 6000, true);
 
 export function ToastHost() {
-  const [msg, setMsg] = useState<string | null>(null);
-  const t = useRef<number>(0);
+  const [toast, setToast] = useState<{ message: string; error: boolean } | null>(null);
+  const timer = useRef<number>(0);
   useEffect(() => {
-    showToast = (m, ms = 1800) => {
-      setMsg(m);
-      clearTimeout(t.current);
-      t.current = window.setTimeout(() => setMsg(null), ms);
+    showToast = (message, duration = 1800, error = false) => {
+      setToast({ message, error });
+      clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setToast(null), duration);
     };
-    return () => { showToast = null; };
+    const reportError = () => toastError(t('操作を完了できませんでした。もう一度お試しください。'));
+    window.addEventListener('error', reportError);
+    window.addEventListener('unhandledrejection', reportError);
+    return () => {
+      showToast = null;
+      clearTimeout(timer.current);
+      window.removeEventListener('error', reportError);
+      window.removeEventListener('unhandledrejection', reportError);
+    };
   }, []);
-  return msg ? <div className="toast" role="status">{msg}</div> : null;
+  return toast ? <div className="toast" role={toast.error ? 'alert' : 'status'}>{toast.message}</div> : null;
 }
 
 // ---------------- クリップボード ----------------
 const copiedTimers = new WeakMap<Element, number>();
 /** el を渡すと、押したボタンを少しの間「コピーした」見た目にする */
 export async function copyText(text: string, el?: Element | null) {
-  if (el) {
-    el.classList.remove('copied');
-    void (el as HTMLElement).offsetWidth; // 連打でもアニメーションをやり直す
-    el.classList.add('copied');
-    clearTimeout(copiedTimers.get(el));
-    copiedTimers.set(el, window.setTimeout(() => el.classList.remove('copied'), 1200));
-  }
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -62,8 +63,24 @@ export async function copyText(text: string, el?: Element | null) {
     ta.style.opacity = '0';
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand('copy');
-    ta.remove();
+    try {
+      if (!document.execCommand('copy')) {
+        toastError(t('コピーできませんでした'));
+        return;
+      }
+    } catch {
+      toastError(t('コピーできませんでした'));
+      return;
+    } finally {
+      ta.remove();
+    }
+  }
+  if (el) {
+    el.classList.remove('copied');
+    void (el as HTMLElement).offsetWidth; // 連打でもアニメーションをやり直す
+    el.classList.add('copied');
+    clearTimeout(copiedTimers.get(el));
+    copiedTimers.set(el, window.setTimeout(() => el.classList.remove('copied'), 1200));
   }
   toast('コピーしました');
 }

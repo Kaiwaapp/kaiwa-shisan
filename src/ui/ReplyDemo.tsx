@@ -92,6 +92,7 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
   const [snapping, setSnapping] = useState(false);
   const rect = fitWindow(position, area);
   const frame = useRef<number | null>(null);
+  const suppressClick = useRef(false);
   const gesture = useRef<{
     action: Action;
     pointers: Map<number, Point>;
@@ -116,30 +117,43 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
       if (frame.current !== null) cancelAnimationFrame(frame.current);
     };
   }, []);
-  const start = (action: Action, event: PointerEvent<HTMLButtonElement>) => {
+  const start = (event: PointerEvent<HTMLElement>) => {
     if (event.button !== 0) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
     const point = { x: event.clientX, y: event.clientY };
     const active = gesture.current;
     if (active) {
-      if (event.pointerType !== 'touch' || action !== 'move' || active.action !== 'move' || active.pointers.size !== 1) return;
+      if (event.pointerType !== 'touch' || active.pointers.size !== 1) return;
+      active.action = 'move';
       active.pointers.set(event.pointerId, point);
-    } else {
-      const box = windowRef.current?.getBoundingClientRect();
-      const initial = box ? { x: box.x, y: box.y, width: box.width, height: box.height } : rect;
-      gesture.current = { action, pointers: new Map([[event.pointerId, point]]), rect: initial, moved: snapping };
-      setSnapping(false);
-      setPosition(initial);
+      active.moved = true;
+      suppressClick.current = true;
+      for (const id of active.pointers.keys()) event.currentTarget.setPointerCapture(id);
+      return;
     }
-    event.currentTarget.setPointerCapture(event.pointerId);
+    suppressClick.current = false;
+    if (event.pointerType !== 'touch' && target.closest('textarea')) return;
+    const action = target.closest('.reply-window-resize') ? 'resize' : 'move';
+    const box = event.currentTarget.getBoundingClientRect();
+    const initial = { x: box.x, y: box.y, width: box.width, height: box.height };
+    gesture.current = { action, pointers: new Map([[event.pointerId, point]]), rect: initial, moved: false };
   };
-  const change = (event: PointerEvent<HTMLButtonElement>) => {
+  const change = (event: PointerEvent<HTMLElement>) => {
     const drag = gesture.current;
     const point = drag?.pointers.get(event.pointerId);
     if (!drag || !point) return;
     const next = { x: event.clientX, y: event.clientY };
     const dx = next.x - point.x;
     const dy = next.y - point.y;
+    if (!drag.moved) {
+      if (Math.hypot(dx, dy) < 4) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      drag.moved = true;
+      suppressClick.current = true;
+    }
     if (!dx && !dy) return;
+    setSnapping(false);
     const current = fitWindow(drag.rect, area);
     const other = [...drag.pointers].find(([id]) => id !== event.pointerId)?.[1];
     if (other) {
@@ -155,14 +169,13 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
       drag.rect = adjustWindow(current, drag.action, dx, dy, area);
     }
     drag.pointers.set(event.pointerId, next);
-    drag.moved = true;
     if (frame.current !== null) return;
     frame.current = requestAnimationFrame(() => {
       frame.current = null;
       setPosition(drag.rect);
     });
   };
-  const finish = (event: PointerEvent<HTMLButtonElement>) => {
+  const finish = (event: PointerEvent<HTMLElement>) => {
     const drag = gesture.current;
     if (!drag?.pointers.delete(event.pointerId) || drag.pointers.size) return;
     if (frame.current !== null) cancelAnimationFrame(frame.current);
@@ -181,14 +194,6 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
     setSnapping(false);
     setPosition((previous) => adjustWindow(fitWindow(previous, area), action, dx * 16, dy * 16, area));
   };
-  const handle = (action: Action) => ({
-    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => start(action, event),
-    onPointerMove: change,
-    onPointerUp: finish,
-    onPointerCancel: finish,
-    onLostPointerCapture: finish,
-    onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => keyboard(action, event),
-  });
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<{ request: string; suggestion?: Suggestion }[]>([]);
   const [busy, setBusy] = useState(false);
@@ -214,10 +219,22 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
   return createPortal(
     <section ref={windowRef} className={`reply-window${snapping ? ' snapping' : ''}`} role="dialog" aria-labelledby={heading}
       style={{ transform: `translate3d(${rect.x}px, ${rect.y}px, 0)`, width: rect.width, height: rect.height }}
+      onPointerDown={start}
+      onPointerMove={change}
+      onPointerUp={finish}
+      onPointerCancel={finish}
+      onLostPointerCapture={(event) => { if (event.target === event.currentTarget) finish(event); }}
+      onPointerLeave={(event) => { if (!gesture.current?.moved) finish(event); }}
+      onClickCapture={(event) => {
+        if (!suppressClick.current || event.detail === 0) return;
+        suppressClick.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }}
       onKeyDown={(e) => { if (e.key === 'Escape' && !e.nativeEvent.isComposing) onClose(); }}>
       <header className="reply-window-header">
         <button ref={moveHandle} type="button" className="reply-window-move"
-          aria-label={t('AIチャットの小窓を移動')} {...handle('move')}>
+          aria-label={t('AIチャットの小窓を移動')} onKeyDown={(e) => keyboard('move', e)}>
           <span id={heading}>{t('AIチャット（お試し）')}</span>
         </button>
         <button type="button" className="icon-btn" aria-label={t('閉じる')} onClick={onClose}>×</button>
@@ -250,7 +267,7 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
         <button type="submit" className="btn small" disabled={busy || !prompt.trim()}>{t('送信')}</button>
       </form>
       <footer className="reply-window-footer">
-        <button type="button" className="reply-window-resize" aria-label={t('AIチャットの小窓のサイズを変更')} {...handle('resize')}>⌟</button>
+        <button type="button" className="reply-window-resize" aria-label={t('AIチャットの小窓のサイズを変更')} onKeyDown={(e) => keyboard('resize', e)}>⌟</button>
       </footer>
     </section>,
     document.body,

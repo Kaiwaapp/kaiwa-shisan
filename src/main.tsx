@@ -33,8 +33,15 @@ addEventListener('pageshow', retry);
 // キーボードが出ているか(見えている高さが大きく減ったら出ている)。編集画面の下の余白をこの間だけ付ける
 const vv = window.visualViewport;
 if (vv) {
-  const onVv = () => document.documentElement.classList.toggle('kb-open', vv.height < window.innerHeight - 120);
+  const onVv = () => {
+    const root = document.documentElement;
+    root.classList.toggle('kb-open', vv.height < window.innerHeight - 120);
+    root.style.setProperty('--visual-bottom', `${vv.offsetTop + vv.height}px`);
+  };
   vv.addEventListener('resize', onVv);
+  vv.addEventListener('scroll', onVv);
+  window.addEventListener('resize', onVv);
+  onVv();
 }
 
 createRoot(document.getElementById('root')!).render(

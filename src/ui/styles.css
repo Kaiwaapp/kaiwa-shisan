@@ -336,8 +336,9 @@ html, body { overscroll-behavior-y: none; }
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 60;
   bottom: calc(var(--tabbar-h) + var(--safe-b) + var(--ad-h) + 90px);
   background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 14px; font-weight: 600;
-  box-shadow: 0 6px 20px rgba(0,0,0,.2); animation: toast-in .15s ease-out; white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0,0,0,.2); animation: toast-in .15s ease-out; width: max-content; max-width: calc(100% - 32px); text-align: center;
 }
+.toast[role="alert"] { background: var(--surface); color: var(--danger); border: 1px solid currentColor; }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 
 .sheet-backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.3); display: flex; align-items: flex-end; justify-content: center; animation: fade .15s; }
@@ -360,6 +361,8 @@ html, body { overscroll-behavior-y: none; }
   top: 0;
   left: 0;
   contain: layout paint;
+  touch-action: none;
+  user-select: none;
   z-index: 45;
   display: flex;
   flex-direction: column;
@@ -380,17 +383,18 @@ html, body { overscroll-behavior-y: none; }
   font-weight: 700; cursor: grab; touch-action: none; user-select: none;
 }
 .reply-window-move:active { cursor: grabbing; }
-.reply-demo { flex: 1; min-height: 0; overflow: auto; padding: 12px; overflow-wrap: anywhere; }
+.reply-demo { touch-action: none; flex: 1; min-height: 0; overflow: auto; padding: 12px; overflow-wrap: anywhere; }
 .reply-turn { display: grid; gap: 8px; margin-block-end: 12px; }
 .reply-message { padding: 8px 10px; border-radius: 10px; background: var(--bg); white-space: pre-wrap; }
 .reply-message-user { justify-self: end; max-width: 85%; background: var(--accent-soft); }
 .reply-message > * + * { margin-top: 5px; }
 .reply-composer { display: flex; gap: 6px; align-items: flex-end; padding: 0 8px 4px; }
-.reply-composer .textarea { flex: 1; min-width: 0; max-height: 5em; padding: 7px; }
+.reply-composer .textarea { touch-action: none; user-select: text; flex: 1; min-width: 0; max-height: 5em; padding: 7px; }
 .reply-window-footer { display: flex; justify-content: flex-end; border-top: 1px solid var(--line); }
 .reply-window-resize { width: 44px; height: 30px; color: var(--accent); font-size: 24px; cursor: nwse-resize; touch-action: none; user-select: none; }
 .reply-demo p { margin: 0; }
 .sheet-note { margin: 0; padding: 12px 18px; text-align: center; line-height: 1.5; }
+.sheet-note.danger { color: var(--danger); }
 .sheet-item.cancel { justify-content: center; font-weight: 700; border-radius: 14px; border: none; color: var(--accent); }
 
 .drag-ghost {
@@ -710,4 +714,12 @@ html.kb-open .ad-banner { display: none; }
   padding: 16px;
   border: 1px solid var(--line);
   border-radius: 12px;
+}
+
+/* Safariのツールバーが開閉しても、固定操作は見えている画面の下端を基準にする。 */
+@media (max-width: 899px) {
+  .tabbar { top: calc(var(--visual-bottom, 100dvh) - var(--tabbar-h) - var(--safe-b)); bottom: auto; }
+  .fab { top: calc(var(--visual-bottom, 100dvh) - var(--tabbar-h) - var(--safe-b) - var(--ad-h) - 74px); bottom: auto; }
+  .ad-banner { top: calc(var(--visual-bottom, 100dvh) - var(--tabbar-h) - var(--safe-b) - var(--ad-h)); bottom: auto; }
+  .select-bar { top: calc(var(--visual-bottom, 100dvh) - var(--tabbar-h) - var(--safe-b) - var(--ad-h)); bottom: auto; translate: 0 -100%; }
 }
