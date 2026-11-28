@@ -9,7 +9,7 @@ import { openTodos, todoMarks, todosOf, type TodoMark } from '../core/schedule';
 import { ComboPicker, Header, sameNameHints } from './components';
 import { FoldHeader, useFold } from './folders';
 import { useFeatures } from './features';
-import { toast } from './interact';
+import { Sheet, toast } from './interact';
 import { autoFocusRef } from './focus';
 import { currentLang, t } from '../i18n';
 
@@ -36,23 +36,60 @@ const whoOf = (e: ScheduleEvent, data: AppData) => [
 ];
 
 // ---- カレンダーへの書き出し ----
-export function exportIcs(events: ScheduleEvent[], data: AppData, name = 'kaiwa-schedule.ics') {
-  if (!events.length) { toast(t('書き出す予定がありません')); return; }
-  const ics = toIcs(events, (e) => whoOf(e, data));
-  // iPhone(Safari・ホーム画面のアプリ)は text/calendar を開くと「カレンダーに追加」の画面が出る
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  if (ios) {
-    location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
-    return;
-  }
-  const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+function CalendarExport({ events, data, name = 'kaiwa-schedule.ics', className, label }: {
+  events: ScheduleEvent[];
+  data: AppData;
+  name?: string;
+  className: string;
+  label: string;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [sharing, setSharing] = useState(false);
+  const open = () => {
+    if (!events.length) {
+      toast(t('書き出す予定がありません'));
+      return;
+    }
+    setFile(new File([toIcs(events, (event) => whoOf(event, data))], name, { type: 'text/calendar' }));
+  };
+  const download = () => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  };
+  const share = async () => {
+    if (!file || sharing) return;
+    setSharing(true);
+    try {
+      await navigator.share({ files: [file] });
+    } catch (error) {
+      if (!(error instanceof Error && error.name === 'AbortError')) {
+        toast(t('共有できませんでした。「.icsファイルを保存」をお試しください。'));
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+  return (
+    <>
+      <button type="button" className={className} onClick={open}>{label}</button>
+      {file && (
+        <Sheet title={t('予定を書き出す')} onClose={() => setFile(null)} cancelLabel={t('閉じる')}>
+          <p className="muted small sheet-note">{t('書き出した.icsファイルを、対応するカレンダーアプリで開いて追加します。')}</p>
+          {typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] }) && (
+            <button type="button" className="sheet-item" disabled={sharing} onClick={share}>{t('.icsファイルを共有')}</button>
+          )}
+          <button type="button" className="sheet-item" onClick={download}>{t('.icsファイルを保存')}</button>
+        </Sheet>
+      )}
+    </>
+  );
 }
 
 // ---- 予定タブ ----
@@ -74,7 +111,7 @@ export function ScheduleScreen({ todo }: { todo?: boolean }) {
     <div className="screen">
       <Header
         title={todo ? t('ToDo') : t('予定')}
-        right={!todo && <button className="link" onClick={() => exportIcs(upcoming, data)}>{t('カレンダーへ')}</button>}
+        right={!todo && <CalendarExport events={upcoming} data={data} className="link" label={t('カレンダーへ')} />}
       />
       {feat.todo && (
         <div className="seg seg-wide" role="tablist">
@@ -84,7 +121,7 @@ export function ScheduleScreen({ todo }: { todo?: boolean }) {
       )}
       {todo ? <TodoView newHref="/todo/new" /> : <>
         <ScheduleView events={events} todos={feat.todo ? data.todos : undefined} newHref="/event/new" />
-        <p className="muted small schedule-note">{t('「カレンダーへ」で、これからの予定をiPhoneなどのカレンダーに追加できます（.icsファイル）。')}</p>
+        <p className="muted small schedule-note">{t('「カレンダーへ」で、これからの予定を.icsファイルに書き出せます。')}</p>
       </>}
     </div>
   );
@@ -620,7 +657,7 @@ export function EventEditor({ id, initialPerson, initialGroup, initialDate }: { 
         </section>
         <p className="muted small">{t('通知はカレンダーに追加したときに、カレンダーアプリから届きます。')}</p>
         {existing && (
-          <button className="btn block" onClick={() => exportIcs([existing], data, 'kaiwa-event.ics')}>{t('📅 カレンダーに追加（.ics）')}</button>
+          <CalendarExport events={[existing]} data={data} name="kaiwa-event.ics" className="btn block" label={t('📅 カレンダーに追加（.ics）')} />
         )}
         {existing && <button className="btn danger block" onClick={remove}>{t('この予定を削除')}</button>}
       </div>
