@@ -2,11 +2,11 @@
 // iPhoneのカレンダーへは .ics ファイルで書き出す(Webアプリからは直接書き込めないため)。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDiscardGuard } from './discard';
-import { today, type AppData, type EventAlarm, type ID, type ScheduleEvent, type Todo } from '../core/types';
+import { entryHasPerson, today, type AppData, type Entry, type EventAlarm, type ID, type ScheduleEvent, type Todo } from '../core/types';
 import { addDays, eventsOf, sortEvents, splitByDate, toIcs } from '../core/schedule';
 import { back, go, useData, usePref, useStore } from './hooks';
 import { openTodos, todoMarks, todosOf, type TodoMark } from '../core/schedule';
-import { ComboPicker, Header, sameNameHints } from './components';
+import { ComboPicker, EntryCard, Header, sameNameHints } from './components';
 import { FoldHeader, useFold } from './folders';
 import { useFeatures } from './features';
 import { toast } from './interact';
@@ -97,13 +97,14 @@ export function PersonSchedule({ person }: { person: { id: ID; name: string; gro
   const [open, setOpen] = useFold('person-schedule');
   const mine = useMemo(() => eventsOf(data.events ?? [], person), [data.events, person]);
   const myTodos = useMemo(() => (feat.todo ? todosOf(data.todos ?? [], person) : undefined), [feat.todo, data.todos, person]);
+  const entries = useMemo(() => data.entries.filter((entry) => entryHasPerson(entry, person)), [data.entries, person]);
   const upcoming = useMemo(() => splitByDate(mine, today()).upcoming, [mine]);
   const next = upcoming[0];
   return (
     <>
       <FoldHeader label={t('予定')} count={upcoming.length} open={open} onToggle={() => setOpen(!open)} />
       {!open && next && <EventRow e={next} data={data} hidePersonId={person.id} withDate />}
-      {open && <ScheduleView events={mine} todos={myTodos} newHref={`/event/new?person=${person.id}`} hidePersonId={person.id} compact />}
+      {open && <ScheduleView events={mine} todos={myTodos} entries={entries} newHref={`/event/new?person=${person.id}`} hidePersonId={person.id} compact />}
     </>
   );
 }
@@ -125,7 +126,7 @@ function ItemRow({ it, data, hidePersonId }: { it: DayItem; data: AppData; hideP
     : <TodoRow x={it.todo} data={data} hidePersonId={hidePersonId} mark={it.mark} />;
 }
 
-function ScheduleView({ events, todos, newHref, hidePersonId, compact }: { events: ScheduleEvent[]; todos?: Todo[]; newHref: string; hidePersonId?: ID; compact?: boolean }) {
+function ScheduleView({ events, todos, entries, newHref, hidePersonId, compact }: { events: ScheduleEvent[]; todos?: Todo[]; entries?: Entry[]; newHref: string; hidePersonId?: ID; compact?: boolean }) {
   const [view, setView] = usePref<'calendar' | 'list'>('scheduleView', 'calendar');
   const add = (date?: string) => go(newHref + (date ? (newHref.includes('?') ? '&' : '?') + 'date=' + date : ''));
   return (
@@ -138,17 +139,32 @@ function ScheduleView({ events, todos, newHref, hidePersonId, compact }: { event
         {compact && <button className="link" onClick={() => add()}>{t('＋ 予定を追加')}</button>}
       </div>
       {view === 'calendar'
-        ? <MonthView events={events} todos={todos} hidePersonId={hidePersonId} onAdd={add} />
+        ? <MonthView events={events} todos={todos} entries={entries} hidePersonId={hidePersonId} onAdd={add} />
         : <ListView events={events} todos={todos} hidePersonId={hidePersonId} />}
     </div>
   );
 }
 
-function MonthView({ events, todos, hidePersonId, onAdd }: { events: ScheduleEvent[]; todos?: Todo[]; hidePersonId?: ID; onAdd: (date: string) => void }) {
+function MonthView({ events, todos, entries, hidePersonId, onAdd }: { events: ScheduleEvent[]; todos?: Todo[]; entries?: Entry[]; hidePersonId?: ID; onAdd: (date: string) => void }) {
   const data = useData();
   const now = today();
-  const [sel, setSel] = useState(now);
-  const [month, setMonth] = useState(now.slice(0, 7));
+  const [sel, setSel] = useState<string>(() => history.state?.scheduleDay ?? now);
+  const month = sel.slice(0, 7);
+  const selectDay = (date: string) => {
+    history.replaceState({ ...history.state, scheduleDay: date }, '');
+    setSel(date);
+  };
+  const calendarEntries = entries ?? data.entries;
+  const entriesByDay = useMemo(() => {
+    const result = new Map<string, Entry[]>();
+    for (const entry of calendarEntries) {
+      if (entry.deletedAt || !entry.talkedOn) continue;
+      const day = result.get(entry.talkedOn) ?? [];
+      day.push(entry);
+      result.set(entry.talkedOn, day);
+    }
+    return result;
+  }, [calendarEntries]);
   const byDay = useMemo(() => {
     const m = new Map<string, DayItem[]>();
     for (const it of dayItems(events, todos)) m.set(it.date, [...(m.get(it.date) ?? []), it]);
@@ -162,15 +178,16 @@ function MonthView({ events, todos, hidePersonId, onAdd }: { events: ScheduleEve
   while (cells.length % 7) cells.push(null);
   const shift = (n: number) => {
     const d = new Date(y, mo - 1 + n, 1);
-    setMonth(`${d.getFullYear()}-${p(d.getMonth() + 1)}`);
+    selectDay(today(d));
   };
   const dayEvents = byDay.get(sel) ?? [];
+  const dayEntries = entriesByDay.get(sel) ?? [];
   return (
     <>
       <div className="cal">
         <div className="cal-head">
           <button className="icon-btn" onClick={() => shift(-1)} aria-label={t('前の月')}>‹</button>
-          <button className="cal-title" onClick={() => { setMonth(now.slice(0, 7)); setSel(now); }}>{currentLang() === 'ja' ? `${y}年${mo}月` : `${y}/${mo}`}</button>
+          <button className="cal-title" onClick={() => selectDay(now)}>{currentLang() === 'ja' ? `${y}年${mo}月` : `${y}/${mo}`}</button>
           <button className="icon-btn" onClick={() => shift(1)} aria-label={t('次の月')}>›</button>
         </div>
         <div className="cal-grid">
@@ -178,22 +195,30 @@ function MonthView({ events, todos, hidePersonId, onAdd }: { events: ScheduleEve
           {cells.map((d, i) => {
             if (!d) return <div key={'x' + i} />;
             const n = byDay.get(d)?.length ?? 0;
+            const notes = entriesByDay.get(d)?.length ?? 0;
             return (
-              <button key={d} className={`cal-d${d === now ? ' today' : ''}${d === sel ? ' sel' : ''}`} onClick={() => setSel(d)} aria-label={dayLabel(d) + (n ? ' ' + t('{n}件', { n }) : '')}>
+              <button key={d} className={`cal-d${d === now ? ' today' : ''}${d === sel ? ' sel' : ''}`} onClick={() => selectDay(d)} aria-pressed={d === sel} aria-label={[dayLabel(d), n ? t('予定・ToDo {n}件', { n }) : '', notes ? t('話題 {n}件', { n: notes }) : ''].filter(Boolean).join(' ')}>
                 <span>{Number(d.slice(8))}</span>
-                <span className="cal-dots">{n > 0 && '•'.repeat(Math.min(n, 3))}</span>
+                <span aria-hidden className="cal-dots">{n > 0 && '•'.repeat(Math.min(n, 3))}{notes > 0 && <span className="cal-topic-mark">▪</span>}</span>
               </button>
             );
           })}
         </div>
       </div>
+      <p className="muted small schedule-note">{t('• 予定・ToDo　▪ 話題')}</p>
       <div className="section-title schedule-day">
         <span>{dayLabel(sel)}</span>
-        <button className="link small-link" onClick={() => onAdd(sel)}>{t('＋ この日に追加')}</button>
+        <button className="link small-link" onClick={() => onAdd(sel)}>{t('＋ この日に予定を追加')}</button>
       </div>
       {dayEvents.length
         ? <div className="list">{dayEvents.map((it) => <ItemRow key={itemKey(it)} it={it} data={data} hidePersonId={hidePersonId} />)}</div>
         : <p className="muted small schedule-empty">{t('予定はありません')}</p>}
+      {dayEntries.length > 0 && (
+        <>
+          <div className="section-title">{t('この日の話題')}</div>
+          <div className="list">{dayEntries.map((entry) => <EntryCard key={entry.id} entry={entry} data={data} hidePersonId={hidePersonId} />)}</div>
+        </>
+      )}
     </>
   );
 }
