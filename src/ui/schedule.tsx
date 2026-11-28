@@ -288,13 +288,18 @@ function TodoView({ todos, personId, hidePersonId, newHref }: { todos?: Todo[]; 
   const data = useData();
   const store = useStore();
   const all = todos ?? data.todos ?? [];
-  const open = useMemo(() => openTodos(all), [all]);
-  const done = useMemo(() => all.filter((x) => x.done).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0)), [all]);
+  const [filter, setFilter] = useState('');
+  const genres = [...new Set(all.flatMap((todo) => todo.genre ? [todo.genre] : []))].sort();
+  const genre = genres.find((name) => filter === 'genre:' + name);
+  const activeFilter = genre ? filter : filter === 'none' && genres.length ? 'none' : '';
+  const filtered = activeFilter ? all.filter((todo) => (todo.genre || undefined) === genre) : all;
+  const open = openTodos(filtered);
+  const done = filtered.filter((todo) => todo.done).sort((a, b) => (b.doneAt ?? 0) - (a.doneAt ?? 0));
   const [doneOpen, setDoneOpen] = useFold('todo-done' + (personId ? '-p' : ''));
   const [draft, setDraft] = useState('');
   const add = async () => {
     if (!draft.trim()) return;
-    await store.saveTodo({ text: draft, personIds: personId ? [personId] : [] });
+    await store.saveTodo({ text: draft, genre, personIds: personId ? [personId] : [] });
     setDraft('');
   };
   return (
@@ -311,6 +316,16 @@ function TodoView({ todos, personId, hidePersonId, newHref }: { todos?: Todo[]; 
         <button className="btn small" disabled={!draft.trim()} onClick={add}>{t('追加')}</button>
       </div>
       <div className="todo-more"><button className="link small-link" onClick={() => go(newHref)}>{t('＋ 開始日・期限や相手を付けて追加')}</button></div>
+      {genres.length > 0 && (
+        <label className="field">
+          {t('ToDoのジャンル')}
+          <select className="select block" value={activeFilter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="">{t('すべてのジャンル')}</option>
+            <option value="none">{t('ジャンルなし')}</option>
+            {genres.map((name) => <option key={name} value={'genre:' + name}>{name}</option>)}
+          </select>
+        </label>
+      )}
       {open.length
         ? <div className="list">{open.map((x) => <TodoRow key={x.id} x={x} data={data} hidePersonId={hidePersonId} />)}</div>
         : <p className="muted small schedule-empty">{t('やることはありません')}</p>}
@@ -349,8 +364,9 @@ function TodoRow({ x, data, hidePersonId, mark }: { x: Todo; data: AppData; hide
       <button className="todo-body" onClick={() => go(`/todo/${x.id}`)}>
         {mark && <span className="event-time">{mark === 'start' ? t('ToDo・開始') : t('ToDo・期限')}</span>}
         <span className="todo-text">{x.text}</span>
-        {((!mark && (x.start || x.due)) || groups.length > 0 || people.length > 0) && (
+        {((!mark && (x.start || x.due)) || x.genre || groups.length > 0 || people.length > 0) && (
           <span className="card-meta">
+            {x.genre && <span className="chip small">{x.genre}</span>}
             {!mark && x.start && x.start !== x.due && <span className="date">{t('開始 {d}', { d: dayLabel(x.start) })}</span>}
             {!mark && x.due && <span className={`date${overdue ? ' overdue' : ''}`}>{t('期限 {d}', { d: dayLabel(x.due) })}</span>}
             {groups.map((g) => <span key={g!.id} className="chip group small">{g!.name}</span>)}
@@ -368,6 +384,8 @@ export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID 
   const feat = useFeatures();
   const existing = id ? data.todos?.find((x) => x.id === id) : undefined;
   const [text, setText] = useState(existing?.text ?? '');
+  const [genre, setGenre] = useState(existing?.genre ?? '');
+  const genres = [...new Set([t('ルーティン業務'), ...(data.todos ?? []).flatMap((todo) => todo.genre ? [todo.genre] : [])])];
   const [start, setStart] = useState(existing?.start ?? '');
   const [due, setDue] = useState(existing?.due ?? '');
   const [personIds, setPersonIds] = useState<ID[]>(() => existing?.personIds ?? (initialPerson ? [initialPerson] : []));
@@ -381,7 +399,7 @@ export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID 
     for (const p of data.people) for (const g of p.groupIds ?? []) count.set(g, (count.get(g) ?? 0) + 1);
     return data.groups.map((g) => ({ id: g.id, name: g.name, count: count.get(g.id) ?? 0, rank: g.selectedAt ?? g.createdAt }));
   }, [data.groups, data.people]);
-  const snap = JSON.stringify([text, start, due, personIds, groupIds, newPeople]);
+  const snap = JSON.stringify([text, genre, start, due, personIds, groupIds, newPeople]);
   const [initial] = useState(snap);
   const guardSave = useRef<() => Promise<boolean>>(async () => false);
   const { guard, sheet } = useDiscardGuard(!saving && snap !== initial, text.trim() ? () => guardSave.current() : undefined);
@@ -399,7 +417,7 @@ export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID 
     if (!canSave) return false;
     setSaving(true);
     try {
-      await store.saveTodo({ text, start: start || undefined, due: due || undefined, personIds, groupIds: feat.groups ? groupIds : existing?.groupIds, newPeople }, id);
+      await store.saveTodo({ text, genre, start: start || undefined, due: due || undefined, personIds, groupIds: feat.groups ? groupIds : existing?.groupIds, newPeople }, id);
       return true;
     } catch {
       toast(t('保存できませんでした。もう一度お試しください'));
@@ -438,6 +456,16 @@ export function TodoEditor({ id, initialPerson }: { id?: ID; initialPerson?: ID 
             newNames={newPeople}
             onChange={(s, n) => { setPersonIds(s); setNewPeople(n); }}
           />
+        </section>
+        <section className="field">
+          <label htmlFor="todoGenre">{t('ToDoのジャンル')}</label>
+          <input id="todoGenre" value={genre} onChange={(e) => setGenre(e.target.value)} placeholder={t('なくてもOK')} />
+          <div className="chips">
+            {genres.map((name) => (
+              <button key={name} type="button" className={`chip small${genre === name ? ' on' : ''}`} aria-pressed={genre === name}
+                onClick={() => setGenre(genre === name ? '' : name)}>{name}</button>
+            ))}
+          </div>
         </section>
         <section className="field row">
           <label htmlFor="todoStart">{t('開始日')}</label>

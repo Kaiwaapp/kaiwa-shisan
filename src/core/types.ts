@@ -209,6 +209,7 @@ export interface ScheduleEvent {
 export interface Todo {
   id: ID;
   text: string;
+  genre?: string;
   done: boolean;
   /** 完了にした日時 */
   doneAt?: number;

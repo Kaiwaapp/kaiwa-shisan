@@ -414,16 +414,18 @@ export class Store {
   }
 
   // ---- ToDo ----
-  async saveTodo(input: { text: string; start?: string; due?: string; personIds: ID[]; groupIds?: ID[]; newPeople?: string[] }, id?: ID): Promise<Todo> {
+  async saveTodo(input: { text: string; genre?: string; start?: string; due?: string; personIds: ID[]; groupIds?: ID[]; newPeople?: string[] }, id?: ID): Promise<Todo> {
     const now = Date.now();
     const prev = id ? this.data.todos!.find((x) => x.id === id) : undefined;
     const personIds = [...input.personIds];
     for (const name of input.newPeople ?? []) if (name.trim()) personIds.push((await this.addPerson(name, null, [], true)).id);
     const alive = new Set(this.data.groups.map((g) => g.id));
     const groupIds = [...new Set(input.groupIds ?? [])].filter((g) => alive.has(g));
+    const genre = input.genre?.trim() ?? prev?.genre;
     const td: Todo = {
       id: prev?.id ?? newId(),
       text: input.text.trim(),
+      ...(genre ? { genre } : {}),
       done: prev?.done ?? false,
       ...(prev?.doneAt ? { doneAt: prev.doneAt } : {}),
       ...(input.start ? { start: input.start } : {}),
