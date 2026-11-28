@@ -12,6 +12,7 @@ import { setFeature, useFeatures } from './features';
 import { compressImage, ImageStrip } from './images';
 import { HoldButton } from './fab';
 import { guessReading } from './reading';
+import { ReplyDemo } from './ReplyDemo';
 
 function NewNameReadings({ names, readings, onChange, auto, prefix = '' }: {
   names: string[];
@@ -117,6 +118,24 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   };
 
   const nameIs = (a: string, b: string) => normalize(a.trim()) === normalize(b.trim());
+  const addPerson = (name: string) => {
+    const found = data.people.find((p) => nameIs(p.name, name));
+    if (found) {
+      setPersonIds((xs) => (xs.includes(found.id) ? xs : [...xs, found.id]));
+      store.markSelected('person', found.id);
+    } else setNewPeople((xs) => (xs.some((x) => nameIs(x, name)) ? xs : [...xs, name]));
+  };
+  const addTopic = (name: string) => {
+    const found = data.topics.find((t) => nameIs(t.name, name));
+    if (found) {
+      setTopicIds((xs) => (xs.includes(found.id) ? xs : [...xs, found.id]));
+      setAiTopicIds((xs) => [...xs, found.id]);
+      store.markSelected('topic', found.id);
+    } else {
+      setNewTopics((xs) => (xs.some((x) => nameIs(x, name)) ? xs : [...xs, name]));
+      setAiNewTopics((xs) => [...xs, name]);
+    }
+  };
   const ai = useEntryAi({
     text,
     setText,
@@ -124,25 +143,9 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
     knownTopics: data.topics.map((t) => t.name),
     chosenPeople: [...data.people.filter((p) => personIds.includes(p.id)).map((p) => p.name), ...newPeople],
     chosenTopics: [...data.topics.filter((t) => topicIds.includes(t.id)).map((t) => t.name), ...newTopics],
-    addPerson: (name) => {
-      const found = data.people.find((p) => nameIs(p.name, name));
-      if (found) {
-        setPersonIds((xs) => (xs.includes(found.id) ? xs : [...xs, found.id]));
-        store.markSelected('person', found.id);
-      } else setNewPeople((xs) => (xs.some((x) => nameIs(x, name)) ? xs : [...xs, name]));
-    },
+    addPerson,
     attachImage: feat.images ? (img) => { void attachImages([img]); } : undefined,
-    addTopic: (name) => {
-      const found = data.topics.find((t) => nameIs(t.name, name));
-      if (found) {
-        setTopicIds((xs) => (xs.includes(found.id) ? xs : [...xs, found.id]));
-        setAiTopicIds((xs) => [...xs, found.id]);
-        store.markSelected('topic', found.id);
-      } else {
-        setNewTopics((xs) => (xs.some((x) => nameIs(x, name)) ? xs : [...xs, name]));
-        setAiNewTopics((xs) => [...xs, name]);
-      }
-    },
+    addTopic,
   });
 
   // 開いた時点の内容。これと違えば「入力した」とみなし、キャンセル時に確認する
@@ -321,6 +324,13 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           <p className="muted small">{t('画像{n}枚が付いています（設定の「話題」で画像の添付をオンにすると表示されます）', { n: imageIds.length })}</p>
         )}
         {ai.panel}
+        <ReplyDemo people={data.people.map((person) => person.name)} tags={data.topics.map((tag) => tag.name)}
+          onApply={(reply, people, tags) => {
+            setText((body) => body.trim() ? body + '\n\n' + reply : reply);
+            people.forEach(addPerson);
+            tags.forEach(addTopic);
+          }}
+        />
         {(newPeople.length > 0 || newTopics.length > 0) && (
           <label className="toggle small-toggle">
             <input type="checkbox" checked={feat.entryReadingFields} onChange={(e) => setFeature('entryReadingFields', e.target.checked)} />
