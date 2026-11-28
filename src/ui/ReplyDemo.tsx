@@ -40,6 +40,18 @@ function adjustWindow(rect: Rect, action: Action, dx: number, dy: number, area: 
   }, area);
 }
 
+function snapToCorner(rect: Rect, area: Rect): Rect {
+  const left = rect.x + rect.width / 2 < area.x + area.width / 2;
+  const top = rect.y + rect.height / 2 < area.y + area.height / 2;
+  return fitWindow({
+    ...rect,
+    x: left ? area.x + EDGE : area.x + area.width - rect.width - EDGE,
+    y: top ? area.y + EDGE : area.y + area.height - rect.height - EDGE,
+  }, area);
+}
+
+type Point = { x: number; y: number };
+
 export function ReplyDemo({ people, tags, onApply }: {
   people: string[];
   tags: string[];
@@ -68,6 +80,7 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
   onApply: (reply: string, people: string[], tags: string[]) => void;
 }) {
   const heading = useId();
+  const windowRef = useRef<HTMLElement>(null);
   const moveHandle = useRef<HTMLButtonElement>(null);
   const [area, setArea] = useState(visibleArea);
   const [position, setPosition] = useState<Rect>(() => ({
@@ -76,9 +89,15 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
     width: Math.min(300, area.width - 32),
     height: Math.min(320, area.height - 96),
   }));
+  const [snapping, setSnapping] = useState(false);
   const rect = fitWindow(position, area);
   const frame = useRef<number | null>(null);
-  const gesture = useRef<{ action: Action; pointer: number; x: number; y: number; rect: Rect } | null>(null);
+  const gesture = useRef<{
+    action: Action;
+    pointers: Map<number, Point>;
+    rect: Rect;
+    moved: boolean;
+  } | null>(null);
   useEffect(() => {
     const update = () => {
       const next = visibleArea();
@@ -98,16 +117,45 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
     };
   }, []);
   const start = (action: Action, event: PointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0 || gesture.current) return;
+    if (event.button !== 0) return;
+    const point = { x: event.clientX, y: event.clientY };
+    const active = gesture.current;
+    if (active) {
+      if (event.pointerType !== 'touch' || action !== 'move' || active.action !== 'move' || active.pointers.size !== 1) return;
+      active.pointers.set(event.pointerId, point);
+    } else {
+      const box = windowRef.current?.getBoundingClientRect();
+      const initial = box ? { x: box.x, y: box.y, width: box.width, height: box.height } : rect;
+      gesture.current = { action, pointers: new Map([[event.pointerId, point]]), rect: initial, moved: snapping };
+      setSnapping(false);
+      setPosition(initial);
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
-    gesture.current = { action, pointer: event.pointerId, x: event.clientX, y: event.clientY, rect };
   };
   const change = (event: PointerEvent<HTMLButtonElement>) => {
     const drag = gesture.current;
-    if (!drag || drag.pointer !== event.pointerId) return;
-    drag.rect = adjustWindow(fitWindow(drag.rect, area), drag.action, event.clientX - drag.x, event.clientY - drag.y, area);
-    drag.x = event.clientX;
-    drag.y = event.clientY;
+    const point = drag?.pointers.get(event.pointerId);
+    if (!drag || !point) return;
+    const next = { x: event.clientX, y: event.clientY };
+    const dx = next.x - point.x;
+    const dy = next.y - point.y;
+    if (!dx && !dy) return;
+    const current = fitWindow(drag.rect, area);
+    const other = [...drag.pointers].find(([id]) => id !== event.pointerId)?.[1];
+    if (other) {
+      const distance = Math.hypot(point.x - other.x, point.y - other.y);
+      const scale = Math.hypot(next.x - other.x, next.y - other.y) / Math.max(distance, 1);
+      const resized = fitWindow({ ...current, width: current.width * scale, height: current.height * scale }, area);
+      drag.rect = fitWindow({
+        ...resized,
+        x: current.x + (current.width - resized.width + dx) / 2,
+        y: current.y + (current.height - resized.height + dy) / 2,
+      }, area);
+    } else {
+      drag.rect = adjustWindow(current, drag.action, dx, dy, area);
+    }
+    drag.pointers.set(event.pointerId, next);
+    drag.moved = true;
     if (frame.current !== null) return;
     frame.current = requestAnimationFrame(() => {
       frame.current = null;
@@ -116,22 +164,28 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
   };
   const finish = (event: PointerEvent<HTMLButtonElement>) => {
     const drag = gesture.current;
-    if (!drag || drag.pointer !== event.pointerId) return;
+    if (!drag?.pointers.delete(event.pointerId) || drag.pointers.size) return;
     if (frame.current !== null) cancelAnimationFrame(frame.current);
     frame.current = null;
     gesture.current = null;
-    setPosition(drag.rect);
+    if (drag.moved) {
+      setSnapping(true);
+      setPosition(snapToCorner(drag.rect, area));
+    }
   };
   const keyboard = (action: Action, event: KeyboardEvent<HTMLButtonElement>) => {
     const dx = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
     const dy = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
     if (!dx && !dy) return;
     event.preventDefault();
+    setSnapping(false);
     setPosition((previous) => adjustWindow(fitWindow(previous, area), action, dx * 16, dy * 16, area));
   };
   const handle = (action: Action) => ({
     onPointerDown: (event: PointerEvent<HTMLButtonElement>) => start(action, event),
     onPointerMove: change,
+    onPointerUp: finish,
+    onPointerCancel: finish,
     onLostPointerCapture: finish,
     onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => keyboard(action, event),
   });
@@ -158,7 +212,7 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
     }
   };
   return createPortal(
-    <section className="reply-window" role="dialog" aria-labelledby={heading}
+    <section ref={windowRef} className={`reply-window${snapping ? ' snapping' : ''}`} role="dialog" aria-labelledby={heading}
       style={{ transform: `translate3d(${rect.x}px, ${rect.y}px, 0)`, width: rect.width, height: rect.height }}
       onKeyDown={(e) => { if (e.key === 'Escape' && !e.nativeEvent.isComposing) onClose(); }}>
       <header className="reply-window-header">

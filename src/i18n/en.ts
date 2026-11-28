@@ -60,7 +60,7 @@ const en: Record<string, string> = {
   'AIチャットを試す': 'Try AI chat',
   'AIチャットの小窓を移動': 'Move AI chat window',
   'AIチャットの小窓のサイズを変更': 'Resize AI chat window',
-  'AIチャットの小窓は、上部をドラッグして移動し、右下の角でサイズを変えられる': 'Drag the AI chat header to move the window or its bottom-right corner to resize it.',
+  'AIチャットの小窓は、上部をドラッグして離すと画面の角に収まる。上部を2本指でピンチするか、右下の角をドラッグするとサイズを変えられる': 'Drag the AI chat header and release to snap it into a corner. Pinch the header or drag the bottom-right handle to resize it.',
   'AIチャット（お試し）': 'AI chat demo',
   '固定の返信例で操作を試せます。入力内容は端末の外に送信されません。': 'Try this with a sample reply. What you type stays on this device.',
   'メッセージを入力': 'Type a message',
