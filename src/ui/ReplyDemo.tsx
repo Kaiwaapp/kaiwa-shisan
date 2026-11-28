@@ -35,8 +35,8 @@ function adjustWindow(rect: Rect, action: Action, dx: number, dy: number, area: 
   if (action === 'move') return fitWindow({ ...rect, x: rect.x + dx, y: rect.y + dy }, area);
   return fitWindow({
     ...rect,
-    width: rect.width + dx,
-    height: rect.height + dy,
+    width: Math.min(rect.width + dx, area.x + area.width - rect.x - EDGE),
+    height: Math.min(rect.height + dy, area.y + area.height - rect.y - EDGE),
   }, area);
 }
 
@@ -71,15 +71,20 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
   const moveHandle = useRef<HTMLButtonElement>(null);
   const [area, setArea] = useState(visibleArea);
   const [position, setPosition] = useState<Rect>(() => ({
-    x: area.x + area.width - 344,
+    x: area.x + area.width - 324,
     y: area.y + area.height - 376,
-    width: Math.min(336, area.width - 32),
+    width: Math.min(300, area.width - 32),
     height: Math.min(320, area.height - 96),
   }));
   const rect = fitWindow(position, area);
+  const frame = useRef<number | null>(null);
   const gesture = useRef<{ action: Action; pointer: number; x: number; y: number; rect: Rect } | null>(null);
   useEffect(() => {
-    const update = () => setArea(visibleArea());
+    const update = () => {
+      const next = visibleArea();
+      setArea((previous) => previous.x === next.x && previous.y === next.y
+        && previous.width === next.width && previous.height === next.height ? previous : next);
+    };
     const viewport = window.visualViewport;
     window.addEventListener('resize', update);
     viewport?.addEventListener('resize', update);
@@ -89,6 +94,7 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
       window.removeEventListener('resize', update);
       viewport?.removeEventListener('resize', update);
       viewport?.removeEventListener('scroll', update);
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
     };
   }, []);
   const start = (action: Action, event: PointerEvent<HTMLButtonElement>) => {
@@ -99,10 +105,22 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
   const change = (event: PointerEvent<HTMLButtonElement>) => {
     const drag = gesture.current;
     if (!drag || drag.pointer !== event.pointerId) return;
-    setPosition(adjustWindow(drag.rect, drag.action, event.clientX - drag.x, event.clientY - drag.y, area));
+    drag.rect = adjustWindow(fitWindow(drag.rect, area), drag.action, event.clientX - drag.x, event.clientY - drag.y, area);
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    if (frame.current !== null) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      setPosition(drag.rect);
+    });
   };
   const finish = (event: PointerEvent<HTMLButtonElement>) => {
-    if (gesture.current?.pointer === event.pointerId) gesture.current = null;
+    const drag = gesture.current;
+    if (!drag || drag.pointer !== event.pointerId) return;
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = null;
+    gesture.current = null;
+    setPosition(drag.rect);
   };
   const keyboard = (action: Action, event: KeyboardEvent<HTMLButtonElement>) => {
     const dx = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
@@ -131,7 +149,7 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
   };
   return createPortal(
     <section className="reply-window" role="dialog" aria-labelledby={heading}
-      style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
+      style={{ transform: `translate3d(${rect.x}px, ${rect.y}px, 0)`, width: rect.width, height: rect.height }}
       onKeyDown={(e) => { if (e.key === 'Escape' && !e.nativeEvent.isComposing) onClose(); }}>
       <header className="reply-window-header">
         <button ref={moveHandle} type="button" className="reply-window-move"
