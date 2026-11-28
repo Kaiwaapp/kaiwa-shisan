@@ -356,6 +356,9 @@ html, body { overscroll-behavior-y: none; }
 .sheet-item.danger { color: var(--danger); }
 .reply-window {
   position: fixed;
+  top: 0;
+  left: 0;
+  contain: layout paint;
   z-index: 45;
   display: flex;
   flex-direction: column;
@@ -374,8 +377,14 @@ html, body { overscroll-behavior-y: none; }
 }
 .reply-window-move:active { cursor: grabbing; }
 .reply-demo { flex: 1; min-height: 0; overflow: auto; padding: 12px; overflow-wrap: anywhere; }
+.reply-turn { display: grid; gap: 8px; margin-block-end: 12px; }
+.reply-message { padding: 8px 10px; border-radius: 10px; background: var(--bg); white-space: pre-wrap; }
+.reply-message-user { justify-self: end; max-width: 85%; background: var(--accent-soft); }
+.reply-message > * + * { margin-top: 5px; }
+.reply-composer { display: flex; gap: 6px; align-items: flex-end; padding: 0 8px 4px; }
+.reply-composer .textarea { flex: 1; min-width: 0; max-height: 5em; padding: 7px; }
 .reply-window-footer { display: flex; justify-content: flex-end; border-top: 1px solid var(--line); }
-.reply-window-resize { width: 44px; height: 32px; color: var(--accent); font-size: 24px; cursor: nwse-resize; touch-action: none; user-select: none; }
+.reply-window-resize { width: 44px; height: 30px; color: var(--accent); font-size: 24px; cursor: nwse-resize; touch-action: none; user-select: none; }
 .reply-demo p { margin: 0; }
 .sheet-note { margin: 0; padding: 12px 18px; text-align: center; line-height: 1.5; }
 .sheet-item.cancel { justify-content: center; font-weight: 700; border-radius: 14px; border: none; color: var(--accent); }
