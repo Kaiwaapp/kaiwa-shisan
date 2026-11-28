@@ -561,15 +561,14 @@ export function PersonScreen({ id }: { id: ID }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [reading, setReading] = useState('');
-  const [memo, setMemo] = useState('');
   const [pfolder, setPfolder] = useState<ID | null>(null);
   const [pgroups, setPgroups] = useState<ID[]>([]);
   const [prel, setPrel] = useState<string | undefined>(undefined);
-  const pdirty = editing && !!person && (name !== person.name || reading !== (person.reading ?? '') || memo !== person.memo || pfolder !== (person.folderId ?? null)
+  const pdirty = editing && !!person && (name !== person.name || reading !== (person.reading ?? '') || pfolder !== (person.folderId ?? null)
     || pgroups.join() !== (person.groupIds ?? []).join() || (feat.relations && prel !== person.relation));
   const savePerson = async () => {
     if (!name.trim()) return false;
-    await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), memo, folderId: pfolder, groupIds: pgroups.filter((g) => data.groups.some((x) => x.id === g)), ...(feat.relations ? { relation: prel } : {}) });
+    await store.updatePerson(id, { name: name.trim(), reading: reading.trim(), folderId: pfolder, groupIds: pgroups.filter((g) => data.groups.some((x) => x.id === g)), ...(feat.relations ? { relation: prel } : {}) });
     setEditing(false);
   };
   const pguard = useDiscardGuard(!!pdirty, name.trim() ? savePerson : undefined);
@@ -582,9 +581,9 @@ export function PersonScreen({ id }: { id: ID }) {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [mine]);
   const shown = useMemo(() => {
-    const base = topicFilter ? mine.filter((e) => e.topics.some((t) => t.topicId === topicFilter)) : mine;
+    const base = topicFilter && topicCounts.some(([id]) => id === topicFilter) ? mine.filter((e) => e.topics.some((t) => t.topicId === topicFilter)) : mine;
     return sortEntriesBy(searchEntries({ ...data, entries: base }, dq), sort);
-  }, [mine, topicFilter, dq, data, sort]);
+  }, [mine, topicFilter, topicCounts, dq, data, sort]);
 
   if (!person) return <Missing />;
 
@@ -593,11 +592,11 @@ export function PersonScreen({ id }: { id: ID }) {
       <Header
         title={person.name}
         left={<button className="link" onClick={() => confirmLeave(() => back('/people'))}>{t('‹ 人')}</button>}
-        right={<span className="header-actions">{!editing && <FavToggle kind="person" id={id} on={!!person.favorite} className="in-header" />}<button className="link" onClick={() => { if (editing) { pguard.guard(() => setEditing(false)); return; } setName(person.name); setReading(person.reading ?? ''); setMemo(person.memo); setPfolder(person.folderId ?? null); setPgroups(person.groupIds ?? []); setPrel(person.relation); setEditing(true); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
+        right={<span className="header-actions"><FavToggle kind="person" id={id} on={!!person.favorite} className="in-header" /><button className="link" aria-expanded={editing} onClick={() => { if (editing) { pguard.guard(() => setEditing(false)); return; } setName(person.name); setReading(person.reading ?? ''); setPfolder(person.folderId ?? null); setPgroups(person.groupIds ?? []); setPrel(person.relation); setEditing(true); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
       />
       {pguard.sheet}
-      {editing ? (
-        <div className="form">
+      {editing && (
+        <section className="form detail-edit">
           <section className="field">
             <label>{t('名前')}</label>
             <input value={name} onChange={(e) => setName(e.target.value)} />
@@ -621,10 +620,6 @@ export function PersonScreen({ id }: { id: ID }) {
             <label>{t('グループ（いくつでも）')}</label>
             <GroupToggles value={pgroups} onChange={setPgroups} />
           </section>}
-          <section className="field">
-            <label>{t('メモ（関係・好きなものなど）')}</label>
-            <textarea className="textarea" rows={3} value={memo} onChange={(e) => setMemo(e.target.value)} />
-          </section>
           <button className="btn primary block" disabled={!name.trim()} onClick={savePerson}>
             {t('保存')}
           </button>
@@ -636,50 +631,46 @@ export function PersonScreen({ id }: { id: ID }) {
           }}>
             {t('この人を削除')}
           </button>
-        </div>
-      ) : (
-        <>
-          {((feat.groups && (person.groupIds?.length ?? 0) > 0) || (feat.relations && person.relation)) && (
-            <div className="chips person-groups">
-              {feat.relations && <RelationBadge id={person.relation} />}
-              {feat.groups && groupsOf(data.groups, person).map((g) => (
-                <button key={g.id} className="chip group small" onClick={() => go(groupHref(g.id))}>{g.name}</button>
-              ))}
-            </div>
-          )}
-          {feat.profile && <PersonProfileSection person={person} entries={mine} />}
-          {feat.schedule && <PersonSchedule person={person} />}
-          {feat.schedule && feat.todo && <PersonTodos person={person} />}
-          <FoldHeader label={t('{name}に話したこと', { name: person.name })} count={mine.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
-          {entriesOpen && <>
-          {mine.length > 3 && <SearchBox value={q} onChange={setQ} placeholder={t('{name}に話したことを検索', { name: person.name })} />}
-          {mine.length > 1 && (
-            <div className="toolbar">
-              <span className="count">{t('{n}件', { n: shown.length })}</span>
-              <SortSelect value={sort} options={DETAIL_SORTS} onChange={setSort} />
-            </div>
-          )}
-          <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? t('該当なし') : t('まだ話題がありません')} />
-          {topicCounts.length > 0 && (<>
-            <div className="section-title">{t('タグ')}</div>
-            <div className="chips filter">
-              {topicCounts.map(([tid, n]) => {
-                const t = data.topics.find((x) => x.id === tid);
-                if (!t) return null;
-                return (
-                  <button key={tid} className={`chip topic ${topicFilter === tid ? 'on' : ''}`} onClick={() => setTopicFilter(topicFilter === tid ? null : tid)}>
-                    #{t.name} <span className="n">{n}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </>)}
-          </>}
-          <div className="section-title">{t('メモ')}</div>
-          <PersonMemo id={id} memo={person.memo} />
-          <AddEntryFab to={`/new?person=${id}`} label={t('＋ {name}に話したことを記録', { name: person.name })} />
-        </>
+        </section>
       )}
+      {((feat.groups && (person.groupIds?.length ?? 0) > 0) || (feat.relations && person.relation)) && (
+        <div className="chips person-groups">
+          {feat.relations && <RelationBadge id={person.relation} />}
+          {feat.groups && groupsOf(data.groups, person).map((g) => (
+            <button key={g.id} className="chip group small" onClick={() => go(groupHref(g.id))}>{g.name}</button>
+          ))}
+        </div>
+      )}
+      {feat.profile && <PersonProfileSection person={person} entries={mine} />}
+      <FoldHeader label={t('{name}に話したこと', { name: person.name })} count={mine.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
+      {entriesOpen && <>
+        {mine.length > 3 && <SearchBox value={q} onChange={setQ} placeholder={t('{name}に話したことを検索', { name: person.name })} />}
+        {mine.length > 1 && (
+          <div className="toolbar">
+            <span className="count">{t('{n}件', { n: shown.length })}</span>
+            <SortSelect value={sort} options={DETAIL_SORTS} onChange={setSort} />
+          </div>
+        )}
+        {topicCounts.length > 0 && (
+          <div className="chips filter">
+            {topicCounts.map(([tid, n]) => {
+              const t = data.topics.find((x) => x.id === tid);
+              if (!t) return null;
+              return (
+                <button key={tid} className={`chip topic ${topicFilter === tid ? 'on' : ''}`} onClick={() => setTopicFilter(topicFilter === tid ? null : tid)}>
+                  #{t.name} <span className="n">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <EntryList entries={shown} data={data} hidePersonId={id} empty={mine.length ? t('該当なし') : t('まだ話題がありません')} />
+      </>}
+      {feat.schedule && <PersonSchedule person={person} />}
+      {feat.schedule && feat.todo && <PersonTodos person={person} />}
+      <div className="section-title">{t('メモ')}</div>
+      <PersonMemo id={id} memo={person.memo} />
+      <AddEntryFab to={`/new?person=${id}`} label={t('＋ {name}に話したことを記録', { name: person.name })} />
     </div>
   );
 }
@@ -712,7 +703,7 @@ export function TopicScreen({ id }: { id: ID }) {
     for (const e of entries) for (const p of e.personIds) m.set(p, (m.get(p) ?? 0) + 1);
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [entries]);
-  const shown = sortEntriesBy(personFilter ? entries.filter((e) => e.personIds.includes(personFilter)) : entries, sort);
+  const shown = sortEntriesBy(personFilter && people.some(([id]) => id === personFilter) ? entries.filter((e) => e.personIds.includes(personFilter)) : entries, sort);
 
   if (!topic) return <Missing />;
   return (
@@ -720,11 +711,11 @@ export function TopicScreen({ id }: { id: ID }) {
       <Header
         title={`#${topic.name}`}
         left={<button className="link" onClick={() => confirmLeave(() => back('/topics'))}>{t('‹ タグ')}</button>}
-        right={<span className="header-actions">{!editing && <FavToggle kind="topic" id={id} on={!!topic.favorite} className="in-header" />}<button className="link" onClick={() => { if (editing) { tguard.guard(() => setEditing(false)); return; } setName(topic.name); setReading(topic.reading ?? ''); setTfolder(topic.folderId ?? null); setEditing(true); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
+        right={<span className="header-actions"><FavToggle kind="topic" id={id} on={!!topic.favorite} className="in-header" /><button className="link" aria-expanded={editing} onClick={() => { if (editing) { tguard.guard(() => setEditing(false)); return; } setName(topic.name); setReading(topic.reading ?? ''); setTfolder(topic.folderId ?? null); setEditing(true); }}>{editing ? t('閉じる') : t('編集')}</button></span>}
       />
       {tguard.sheet}
-      {editing ? (
-        <div className="form">
+      {editing && (
+        <section className="form detail-edit">
           <section className="field">
             <label>{t('タグの名前')}</label>
             <input value={name} onChange={(e) => setName(e.target.value)} />
@@ -750,38 +741,35 @@ export function TopicScreen({ id }: { id: ID }) {
           }}>
             {t('このタグを削除')}
           </button>
-        </div>
-      ) : (
-        <>
-          <div className="section-title">{t('話した相手')} <span className="muted">{t('{n}人', { n: people.length })}</span></div>
-          {people.length > 0 ? (
-            <div className="chips filter">
-              {people.map(([pid, n]) => {
-                const p = data.people.find((x) => x.id === pid);
-                if (!p) return null;
-                return (
-                  <button key={pid} className={`chip person ${personFilter === pid ? 'on' : ''}`} onClick={() => setPersonFilter(personFilter === pid ? null : pid)}>
-                    {p.name} <span className="n">{n}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="muted pad">{t('まだ誰にも話していません')}</p>
-          )}
-          <FoldHeader label={t('このタグの話題')} count={entries.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
-          {entriesOpen && <>
-            {entries.length > 1 && (
-              <div className="toolbar">
-                <span className="count">{t('{n}件', { n: shown.length })}</span>
-                <SortSelect value={sort} options={DETAIL_SORTS} onChange={setSort} />
-              </div>
-            )}
-            <EntryList entries={shown} data={data} hideTopicId={id} empty={t('まだ話題がありません')} />
-          </>}
-          <AddEntryFab to={`/new?topic=${id}`} label={t('＋ {name}の話題を追加', { name: '#' + topic.name })} />
-        </>
+        </section>
       )}
+      <FoldHeader label={t('このタグの話題')} count={entries.length} open={entriesOpen} onToggle={() => setEntriesOpen(!entriesOpen)} />
+      {entriesOpen && <>
+        <div className="section-title">{t('話した相手')} <span className="muted">{t('{n}人', { n: people.length })}</span></div>
+        {people.length > 0 ? (
+          <div className="chips filter">
+            {people.map(([pid, n]) => {
+              const p = data.people.find((x) => x.id === pid);
+              if (!p) return null;
+              return (
+                <button key={pid} className={`chip person ${personFilter === pid ? 'on' : ''}`} onClick={() => setPersonFilter(personFilter === pid ? null : pid)}>
+                  {p.name} <span className="n">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="muted pad">{t('まだ誰にも話していません')}</p>
+        )}
+        {entries.length > 1 && (
+          <div className="toolbar">
+            <span className="count">{t('{n}件', { n: shown.length })}</span>
+            <SortSelect value={sort} options={DETAIL_SORTS} onChange={setSort} />
+          </div>
+        )}
+        <EntryList entries={shown} data={data} hideTopicId={id} empty={t('まだ話題がありません')} />
+      </>}
+      <AddEntryFab to={`/new?topic=${id}`} label={t('＋ {name}の話題を追加', { name: '#' + topic.name })} />
     </div>
   );
 }
