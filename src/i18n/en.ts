@@ -10,6 +10,7 @@ const en: Record<string, string> = {
   'リンクが開けない場合は、AIが返したJSONを入力欄に貼り付けて「読み込んで確認する」を押す': 'If the link does not open, paste the AI’s JSON and tap Review import.',
   '相手とタグの読み仮名も依頼する': 'Request kana readings for people and tags',
   'peopleとtagsの各項目はnameとreadingを持つオブジェクトにしてください。readingには確実に分かる日本語の読み仮名をひらがなで入れ、不明な読みは空文字にしてください。': 'For each item in people and tags, return an object with name and reading. Use hiragana for known Japanese readings and leave unknown readings empty.',
+  'AI返信を取り込む': 'Import AI replies',
   'AIの返信案を取り込む': 'Import AI replies',
   '話題一覧にAIの返信案を取り込むボタンを表示する': 'Show the AI reply import button in the topic list.',
   'AIチャットのお試し小窓': 'AI chat demo window',

@@ -1,7 +1,7 @@
 // タブとメニューのアイコン。文字の記号だとiPhoneで「☺」などが色付きの絵文字になり、他と見た目が揃わないため、同じ線の太さのSVGで描く
 import type { ReactNode } from 'react';
 
-export type IconName = 'entry' | 'person' | 'topic' | 'settings' | 'group' | 'folder' | 'schedule';
+export type IconName = 'entry' | 'person' | 'topic' | 'settings' | 'group' | 'folder' | 'schedule' | 'import';
 
 const PATHS: Record<IconName, ReactNode> = {
   entry: <><path d="M3.5 20.5H8L20.5 8 16 3.5 3.5 16z" /><path d="M13 6.5l4.5 4.5" /></>,
@@ -10,6 +10,7 @@ const PATHS: Record<IconName, ReactNode> = {
   settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></>,
   group: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" /><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M18 14.4c2 .9 3.5 2.9 3.5 5.6" /></>,
   folder: <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H10l2 2.5h7.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z" />,
+  import: <path d="M12 3v11m-4-4 4 4 4-4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" />,
   schedule: <><rect x="3.5" y="5" width="17" height="15.5" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" /></>,
 };
 
