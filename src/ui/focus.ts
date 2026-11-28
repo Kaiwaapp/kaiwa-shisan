@@ -1,3 +1,5 @@
+import { pageScroller } from './hooks';
+
 /**
  * 入力欄にフォーカスしたときの余計なスクロールを抑える。
  *
@@ -21,10 +23,12 @@ function keepVisible(el: HTMLElement) {
     vv.removeEventListener('resize', check);
     if (document.activeElement !== el) return;
     const r = el.getBoundingClientRect();
-    const bottom = vv.offsetTop + vv.height - 12;
+    const scroller = pageScroller(el);
+    const scrollBottom = scroller instanceof HTMLElement ? scroller.getBoundingClientRect().bottom : Infinity;
+    const bottom = Math.min(vv.offsetTop + vv.height, scrollBottom) - 12;
     // 複数行の欄は全部見えなくてよい(先頭の数行が見えれば書ける)
     const need = Math.min(r.bottom, r.top + 64) - bottom;
-    if (need > 0) window.scrollBy({ top: need, behavior: 'smooth' });
+    if (need > 0) scroller.scrollBy({ top: need, behavior: 'smooth' });
   };
   vv.addEventListener('resize', check);
   setTimeout(check, 600);

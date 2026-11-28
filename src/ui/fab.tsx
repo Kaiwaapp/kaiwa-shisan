@@ -1,6 +1,6 @@
 // 長押しでメニューを出すボタン。右下の「＋」(長押しで何を作るか選ぶ)と話題の保存ボタン(長押しで保存後の動きを選ぶ)で使う。
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { go } from './hooks';
+import { go, pageScroller } from './hooks';
 import { Sheet } from './interact';
 import { t } from '../i18n';
 import { Icon } from './icons';
@@ -11,7 +11,7 @@ export interface CreateItem { icon: ReactNode; label: string; run: () => void }
 type AddKind = 'folder' | 'group';
 const EVT = 'kaiwa:add';
 export function requestAdd(kind: AddKind) {
-  window.scrollTo({ top: 0 });
+  pageScroller().scrollTo({ top: 0 });
   window.dispatchEvent(new CustomEvent(EVT, { detail: kind }));
 }
 export function useAddRequest(kind: AddKind, onRequest: () => void, enabled = true) {

@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Store, folderPath } from './store';
 import { IdbRepository } from './idbRepository';
 import { nameMatches, searchEntries, sortEntriesBy, sortNames, statsBy } from './search';
@@ -14,6 +14,28 @@ const fresh = async () => {
 };
 
 describe('Store', () => {
+  it('タグを開いた日時の保存に失敗しても、タグと話題は参照できる', async () => {
+    const repo = new IdbRepository('test-' + n++);
+    const store = new Store(repo);
+    await store.init();
+    const tag = await store.addTopic('旅行');
+    const entry = await store.saveEntry({ text: '京都', personIds: [], topicIds: [tag.id], talkedOn: '2026-11-28' });
+    const failure = new Error('IndexedDB unavailable');
+    const putTopic = vi.spyOn(repo, 'putTopic').mockRejectedValueOnce(failure);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await expect(store.markViewed('topic', tag.id)).resolves.toBeUndefined();
+      expect(store.snapshot.topics).toContainEqual(tag);
+      expect(store.snapshot.entries).toContainEqual(entry);
+      expect(warn).toHaveBeenCalledWith('Could not record the last viewed time', failure);
+      await store.updateTopic(tag.id, { name: '国内旅行' });
+      expect(store.snapshot.topics[0].name).toBe('国内旅行');
+    } finally {
+      putTopic.mockRestore();
+      warn.mockRestore();
+    }
+  });
+
   it('ToDoのジャンルを保存し、未指定の編集では保持し、空欄で消せる', async () => {
     const s = await fresh();
     const input = { text: '週次集計', personIds: [] };

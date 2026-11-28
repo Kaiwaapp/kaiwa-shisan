@@ -36,7 +36,7 @@ if (vv) {
   const onVv = () => {
     const root = document.documentElement;
     root.classList.toggle('kb-open', vv.height < window.innerHeight - 120);
-    root.style.setProperty('--visual-bottom', `${vv.offsetTop + vv.height}px`);
+    root.style.setProperty('--visual-height', `${vv.height}px`);
   };
   vv.addEventListener('resize', onVv);
   vv.addEventListener('scroll', onVv);

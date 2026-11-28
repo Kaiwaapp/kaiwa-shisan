@@ -48,6 +48,12 @@ const parse = (): Route => {
   return { path: p.split('/').filter(Boolean).map(decodeURIComponent), query: new URLSearchParams(q) };
 };
 
+/** スマホのタブ画面だけ本文をスクロールする。編集画面とPCは従来どおりウインドウを使う。 */
+export function pageScroller(element?: Element): HTMLElement | Window {
+  const main = document.querySelector<HTMLElement>('.tabbed-app > .main');
+  return main && matchMedia('(max-width: 899px)').matches && (!element || main.contains(element)) ? main : window;
+}
+
 let navDepth = 0;
 
 // 画面ごとのスクロール位置。新しく開いた画面は一番上から、戻った画面は元の位置から表示する
@@ -55,12 +61,16 @@ const scrollPos = new Map<string, number>();
 let toTop = false;
 if (typeof window !== 'undefined') {
   try { history.scrollRestoration = 'manual'; } catch { /* 古いブラウザ */ }
-  addEventListener('scroll', () => { scrollPos.set(location.hash, scrollY); }, { passive: true });
+  addEventListener('scroll', (event) => {
+    const scroller = pageScroller();
+    if (scroller === window && event.target === document) scrollPos.set(location.hash, scrollY);
+    if (scroller instanceof HTMLElement && event.target === scroller) scrollPos.set(location.hash, scroller.scrollTop);
+  }, { passive: true, capture: true });
   addEventListener('hashchange', () => {
     const y = toTop ? 0 : scrollPos.get(location.hash) ?? 0;
     toTop = false;
     // 新しい画面が描かれてから動かす
-    requestAnimationFrame(() => requestAnimationFrame(() => scrollTo(0, y)));
+    requestAnimationFrame(() => requestAnimationFrame(() => pageScroller().scrollTo(0, y)));
   });
 }
 
