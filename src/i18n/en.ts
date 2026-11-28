@@ -77,6 +77,7 @@ const en: Record<string, string> = {
   '最終バックアップ: {d}': 'Last backup: {d}',
   'まだありません': 'None yet',
   'バックアップを書き出す': 'Export backup',
+  'バックアップを読み込む方法': 'How to restore a backup',
   'バックアップから読み込む': 'Import backup',
   '読み込むファイル: 話題{e}件・人{p}人・タグ{t}件・フォルダ{f}個': 'File contents: {e} topics, {p} people, {t} tags, {f} folders',
   '今のデータに統合する': 'Merge into current data',

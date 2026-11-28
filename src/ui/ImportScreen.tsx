@@ -77,11 +77,6 @@ export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: Imp
       )}
       {step === 'input' && source === 'reply' && (
         <div className="form">
-          <ol className="import-steps">
-            <li>{t('下のボタンで依頼文をコピーし、返信案を作ったChatGPTのチャットに送る')}</li>
-            <li>{t('ChatGPTが返したJSONをコピーして、下の欄に貼り付ける')}</li>
-            <li>{t('「記録画面に入力」で修正して保存するか、「読み込んで確認する」でそのまま取り込む')}</li>
-          </ol>
           {topics.length > 0 && (
             <label className="toggle">
               <input type="checkbox" checked={includeKnownTags} onChange={(e) => setIncludeKnownTags(e.target.checked)} />
@@ -103,6 +98,14 @@ export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: Imp
           {err && <p className="ai-msg error" role="alert">{err}</p>}
           <button className="btn primary block" disabled={!raw.trim()} onClick={() => openReply(true)}>{t('記録画面に入力')}</button>
           <button className="btn block" disabled={!raw.trim()} onClick={() => openReply(false)}>{t('読み込んで確認する')}</button>
+          <details className="howto">
+            <summary>{t('AIの返信案を取り込む方法')}</summary>
+            <ol className="import-steps">
+              <li>{t('「チャットAIへの依頼文をコピー」で依頼文をコピーし、返信案を作ったChatGPTのチャットに送る')}</li>
+              <li>{t('ChatGPTが返したJSONをコピーして、入力欄に貼り付ける')}</li>
+              <li>{t('「記録画面に入力」で修正して保存するか、「読み込んで確認する」でそのまま取り込む')}</li>
+            </ol>
+          </details>
         </div>
       )}
       {step === 'input' && source !== 'reply' && !isAi(source) && (
@@ -179,31 +182,6 @@ function InputStep({ source, raw, fileName, err, onRaw, onNext }: {
   };
   return (
     <div className="form">
-      {source === 'line' ? (
-        <details className="howto" open={!raw}>
-          <summary>{t('LINEのトーク履歴を保存する方法')}</summary>
-          <ol className="import-steps">
-            <li>{t('LINEで取り込みたい相手のトークを開く')}</li>
-            <li>{t('右上の「≡」→「設定」→「トーク履歴を送信」')}</li>
-            <li>{t('「ファイルに保存」を選んで保存する')}</li>
-            <li>{t('下の「ファイルを選ぶ」から、保存した.txtを選ぶ')}</li>
-          </ol>
-          <p className="muted small">{t('相手ごとに1回ずつ取り込みます。グループのトークも取り込めます。')}</p>
-        </details>
-      ) : (
-        <details className="howto">
-          <summary>{t('iPhoneのメモをまとめて書き出す方法')}</summary>
-          <ol className="import-steps">
-            <li>{t('「ショートカット」アプリで新規ショートカットを作る')}</li>
-            <li>{t('「メモを検索」を追加（フォルダで絞り込みも可）')}</li>
-            <li>{t('「テキストを結合」を追加し、区切りを「カスタム」で === にする')}</li>
-            <li>{t('「クリップボードにコピー」を追加して実行する')}</li>
-            <li>{t('下の欄に貼り付ける（=== で1件ずつに分かれます）')}</li>
-          </ol>
-          <p className="muted small">{t('数件だけなら、メモを開いて全文をコピーし、そのまま貼り付けても大丈夫です。')}</p>
-        </details>
-      )}
-
       <button className="btn block" onClick={() => fileRef.current?.click()}>{t('ファイルを選ぶ（.txt）')}</button>
       <input ref={fileRef} type="file" accept=".txt,text/plain" hidden onChange={(e) => onFile(e.target.files?.[0])} />
       {fileName && <p className="muted small pad">{t('選んだファイル: {f}', { f: fileName })}</p>}
@@ -219,6 +197,30 @@ function InputStep({ source, raw, fileName, err, onRaw, onNext }: {
       </section>
       {err && <p className="ai-msg error">{err}</p>}
       <button className="btn primary block" disabled={!raw.trim()} onClick={onNext}>{t('読み込んで確認する')}</button>
+      {source === 'line' ? (
+        <details className="howto">
+          <summary>{t('LINEのトーク履歴を保存する方法')}</summary>
+          <ol className="import-steps">
+            <li>{t('LINEで取り込みたい相手のトークを開く')}</li>
+            <li>{t('右上の「≡」→「設定」→「トーク履歴を送信」')}</li>
+            <li>{t('「ファイルに保存」を選んで保存する')}</li>
+            <li>{t('上の「ファイルを選ぶ」から、保存した.txtを選ぶ')}</li>
+          </ol>
+          <p className="muted small">{t('相手ごとに1回ずつ取り込みます。グループのトークも取り込めます。')}</p>
+        </details>
+      ) : (
+        <details className="howto">
+          <summary>{t('iPhoneのメモをまとめて書き出す方法')}</summary>
+          <ol className="import-steps">
+            <li>{t('「ショートカット」アプリで新規ショートカットを作る')}</li>
+            <li>{t('「メモを検索」を追加（フォルダで絞り込みも可）')}</li>
+            <li>{t('「テキストを結合」を追加し、区切りを「カスタム」で === にする')}</li>
+            <li>{t('「クリップボードにコピー」を追加して実行する')}</li>
+            <li>{t('入力欄に貼り付ける（=== で1件ずつに分かれます）')}</li>
+          </ol>
+          <p className="muted small">{t('数件だけなら、メモを開いて全文をコピーし、そのまま貼り付けても大丈夫です。')}</p>
+        </details>
+      )}
     </div>
   );
 }
@@ -253,25 +255,6 @@ function AiInputStep({ service, fileName, count, onLoaded, onNext }: {
   };
   return (
     <div className="form">
-      {service === 'chatgpt' ? (
-        <details className="howto" open={count === null}>
-          <summary>{t('ChatGPTのデータを書き出す方法')}</summary>
-          <ol className="import-steps">
-            <li>{t('ChatGPTの「設定」→「データコントロール」→「データをエクスポートする」')}</li>
-            <li>{t('届いたメールのリンクから.zipをダウンロードする')}</li>
-            <li>{t('下の「ファイルを選ぶ」から、その.zipをそのまま選ぶ')}</li>
-          </ol>
-        </details>
-      ) : (
-        <details className="howto" open={count === null}>
-          <summary>{t('Claudeのデータを書き出す方法')}</summary>
-          <ol className="import-steps">
-            <li>{t('claude.aiの「設定」→「プライバシー」→「データをエクスポート」')}</li>
-            <li>{t('届いたメールのリンクから.zipをダウンロードする')}</li>
-            <li>{t('下の「ファイルを選ぶ」から、その.zipをそのまま選ぶ')}</li>
-          </ol>
-        </details>
-      )}
       <p className="muted small pad">{t('解凍した中の conversations.json を選んでも大丈夫です。ファイルはこの端末の中だけで読み、どこにも送りません。')}</p>
       <button className="btn block" disabled={busy} onClick={() => fileRef.current?.click()}>
         {busy ? t('読み込み中…') : t('ファイルを選ぶ（.zip / .json）')}
@@ -281,6 +264,25 @@ function AiInputStep({ service, fileName, count, onLoaded, onNext }: {
       {other && <p className="ai-msg">{t('{s}のデータのようです。このまま取り込めます。', { s: AI_NAME[service === 'chatgpt' ? 'claude' : 'chatgpt'] })}</p>}
       {err && <p className="ai-msg error">{err}</p>}
       <button className="btn primary block" disabled={!count} onClick={onNext}>{t('読み込んで確認する')}</button>
+      {service === 'chatgpt' ? (
+        <details className="howto">
+          <summary>{t('ChatGPTのデータを書き出す方法')}</summary>
+          <ol className="import-steps">
+            <li>{t('ChatGPTの「設定」→「データコントロール」→「データをエクスポートする」')}</li>
+            <li>{t('届いたメールのリンクから.zipをダウンロードする')}</li>
+            <li>{t('上の「ファイルを選ぶ」から、その.zipをそのまま選ぶ')}</li>
+          </ol>
+        </details>
+      ) : (
+        <details className="howto">
+          <summary>{t('Claudeのデータを書き出す方法')}</summary>
+          <ol className="import-steps">
+            <li>{t('claude.aiの「設定」→「プライバシー」→「データをエクスポート」')}</li>
+            <li>{t('届いたメールのリンクから.zipをダウンロードする')}</li>
+            <li>{t('上の「ファイルを選ぶ」から、その.zipをそのまま選ぶ')}</li>
+          </ol>
+        </details>
+      )}
     </div>
   );
 }
