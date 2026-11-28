@@ -14,6 +14,15 @@ const fresh = async () => {
 };
 
 describe('Store', () => {
+  it('ToDoのジャンルを保存し、未指定の編集では保持し、空欄で消せる', async () => {
+    const s = await fresh();
+    const input = { text: '週次集計', personIds: [] };
+    const todo = await s.saveTodo({ ...input, genre: ' ルーティン業務 ' });
+    expect(parseBackup(JSON.stringify(toBackup(s.snapshot))).todos?.[0].genre).toBe('ルーティン業務');
+    expect((await s.saveTodo(input, todo.id)).genre).toBe('ルーティン業務');
+    expect((await s.saveTodo({ ...input, genre: '' }, todo.id)).genre).toBeUndefined();
+  });
+
   it('話題から追加した同名の人と新規タグにそれぞれの読み仮名を保存する', async () => {
     const s = await fresh();
     s.readingGuess = () => 'じどう';
