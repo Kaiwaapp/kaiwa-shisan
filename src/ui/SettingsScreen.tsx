@@ -227,7 +227,6 @@ export function BackupSettingsScreen() {
               : t('まだ書き出したことがないので、増分でも全部を書き出します。')}
           </p>
           <button className="btn block" onClick={() => fileRef.current?.click()}>{t('バックアップから読み込む')}</button>
-          <p className="muted small">{t('一括のファイルも増分のファイルも読み込めます。増分は、一括のあとに書き出した順に読み込むと元に戻せます。')}</p>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => onFile(e.target.files?.[0])} />
           {pending && pending.kind === 'incremental' && (
             <div className="confirm">
@@ -254,6 +253,10 @@ export function BackupSettingsScreen() {
             </div>
           )}
           {msg && <p className="notice">{msg}</p>}
+          <details className="muted small">
+            <summary>{t('バックアップを読み込む方法')}</summary>
+            <p className="muted small">{t('一括のファイルも増分のファイルも読み込めます。増分は、一括のあとに書き出した順に読み込むと元に戻せます。')}</p>
+          </details>
         </section>
 
         <section className="panel">
