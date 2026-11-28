@@ -1,7 +1,7 @@
 // 他のアプリから取り込む画面(試作)。App.tsx から遅延読み込みされるので、普段の起動には影響しない。
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  aiToDrafts, guessSelf, guessSplit, lineToDrafts, parseAiExport, parseLine, parseReplyDraft, textToDrafts,
+  aiToDrafts, guessSelf, guessSplit, lineToDrafts, parseAiExport, parseLine, parseReplyDrafts, textToDrafts,
   type AiConversation, type ImportDraft, type LineChat, type TextSplit,
 } from '../core/importers';
 import { isZip, readZipText } from '../core/unzip';
@@ -31,31 +31,49 @@ const splitNames = (text: string) => text.split(/[,、，]/).map((name) => name.
 
 addDict('en', enImport);
 
-export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: ImportDraft) => void }) {
+export default function ImportScreen({ directReply, linkedReply, onOpenReply }: {
+  directReply?: boolean;
+  linkedReply?: string | null;
+  onOpenReply: (draft: ImportDraft) => void;
+}) {
   const { topics } = useData();
   const [includeKnownTags, setIncludeKnownTags] = useState(false);
-  const [step, setStep] = useState<Step>('source');
-  const [source, setSource] = useState<Source>('text');
-  const [raw, setRaw] = useState('');
+  const [includeReadings, setIncludeReadings] = useState(false);
+  const [step, setStep] = useState<Step>(() => {
+    if (!directReply) return 'source';
+    return linkedReply && parseReplyDrafts(linkedReply).length ? 'preview' : 'input';
+  });
+  const [source, setSource] = useState<Source>(directReply ? 'reply' : 'text');
+  const [raw, setRaw] = useState(linkedReply ?? '');
   const [fileName, setFileName] = useState('');
-  const [err, setErr] = useState('');
+  const [err, setErr] = useState(() => linkedReply != null && step === 'input'
+    ? t('リンクから返信案を読み込めませんでした。AIが返したJSONを貼り付けてください。')
+    : '');
   const [convs, setConvs] = useState<AiConversation[] | null>(null);
   const [result, setResult] = useState<{ r: ImportResult; folderId: string | null; n: number } | null>(null);
 
+  useEffect(() => {
+    if (linkedReply != null && location.hash.startsWith('#/import/reply?')) {
+      // リンクの内容は画面の状態に移し、アドレス欄からは取り除く。
+      history.replaceState(history.state, '', '#/import/reply');
+    }
+  }, [linkedReply]);
+
   const pick = (s: Source) => { setSource(s); setRaw(''); setConvs(null); setFileName(''); setErr(''); setStep('input'); };
 
+  const replyDrafts = useMemo(() => source === 'reply' ? parseReplyDrafts(raw) : [], [source, raw]);
   const openReply = (editor: boolean) => {
-    const draft = parseReplyDraft(raw);
-    if (!draft) {
+    if (!replyDrafts.length) {
       setErr(t('返信案を読み取れませんでした。AIが返したJSONをコピーしてください。'));
       return;
     }
-    if (editor) onOpenReply(draft);
+    if (editor && replyDrafts.length === 1) onOpenReply(replyDrafts[0]);
     else setStep('preview');
   };
 
   const onBack = () => {
-    if (step === 'input') setStep('source');
+    if (directReply && step !== 'preview') back('/');
+    else if (step === 'input') setStep('source');
     else if (step === 'preview') setStep('input');
     else back('/settings');
   };
@@ -64,7 +82,7 @@ export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: Imp
 
   return (
     <div className="screen import">
-      <Header title={title} left={<button className="link" onClick={onBack}>‹ {step === 'source' || step === 'done' ? t('設定') : t('戻る')}</button>} />
+      <Header title={title} left={<button className="link" onClick={onBack}>‹ {!directReply && (step === 'source' || step === 'done') ? t('設定') : t('戻る')}</button>} />
       {step === 'source' && <SourceStep onPick={pick} />}
       {step === 'input' && isAi(source) && (
         <AiInputStep
@@ -83,27 +101,41 @@ export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: Imp
               <span>{t('既存のタグ名を依頼文に含める')}</span>
             </label>
           )}
+          <label className="toggle">
+            <input type="checkbox" checked={includeReadings} onChange={(e) => setIncludeReadings(e.target.checked)} />
+            <span>{t('相手とタグの読み仮名も依頼する')}</span>
+          </label>
           <button className="btn block" type="button" onClick={(e) => {
-            const prompt = t('採用する返信案を会話資産に登録します。次のJSON形式だけで返してください。titleは短い見出し、textは採用する返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。') + '\n{"title":"","text":"","people":[],"tags":[]}';
+            const instruction = t('採用する返信案を会話資産に登録します。返信案ごとに1件のオブジェクトを作り、次の形式のJSON配列を作ってください。titleは短い見出し、textは返信文そのもの、peopleはやり取りの相手（自分を除く）、tagsは再利用しやすい話題タグです。不明な相手は推測せず空配列にしてください。元のやり取りは含めないでください。');
+            const readings = includeReadings
+              ? '\n' + t('peopleとtagsの各項目はnameとreadingを持つオブジェクトにしてください。readingには確実に分かる日本語の読み仮名をひらがなで入れ、不明な読みは空文字にしてください。')
+              : '';
+            const format = includeReadings
+              ? '[{"title":"","text":"","people":[{"name":"","reading":""}],"tags":[{"name":"","reading":""}]}]'
+              : '[{"title":"","text":"","people":[],"tags":[]}]';
+            const prompt = instruction + readings + '\n' + format;
             const tags = includeKnownTags ? [...new Set(topics.map(({ name }) => name))] : [];
             const hints = tags.length > 0
               ? '\n\n' + t('既存タグの一覧です。意味が合うものは一覧の表記をそのまま使い、合うものがない場合は新しいタグを提案してください。') + '\n' + JSON.stringify(tags)
               : '';
-            void copyText(prompt + hints, e.currentTarget);
+            const base = new URL(import.meta.env.BASE_URL, location.origin);
+            const template = base.href + '#/import/reply?data={encoded_json}';
+            const link = '\n\n' + t('JSON配列をUTF-8でURLエンコードし、下のURLの{placeholder}に入れて「会話資産で開く」というクリックできるMarkdownリンクを返してください。リンクを正しく作れない場合は、代わりにJSON配列をコードブロックで返してください。', { placeholder: '{encoded_json}' }) + '\n' + template;
+            void copyText(prompt + hints + link, e.currentTarget);
           }}>{t('チャットAIへの依頼文をコピー')}</button>
           <label className="field">
             {t('返信案のJSONを貼り付け')}
             <textarea className="textarea" value={raw} onChange={(e) => { setRaw(e.target.value); setErr(''); }} />
           </label>
           {err && <p className="ai-msg error" role="alert">{err}</p>}
-          <button className="btn primary block" disabled={!raw.trim()} onClick={() => openReply(true)}>{t('記録画面に入力')}</button>
-          <button className="btn block" disabled={!raw.trim()} onClick={() => openReply(false)}>{t('読み込んで確認する')}</button>
+          {replyDrafts.length <= 1 && <button className="btn primary block" disabled={!raw.trim()} onClick={() => openReply(true)}>{t('記録画面に入力')}</button>}
+          <button className={`btn block${replyDrafts.length > 1 ? ' primary' : ''}`} disabled={!raw.trim()} onClick={() => openReply(false)}>{t('読み込んで確認する')}</button>
           <details className="howto">
             <summary>{t('AIの返信案を取り込む方法')}</summary>
             <ol className="import-steps">
               <li>{t('「チャットAIへの依頼文をコピー」で依頼文をコピーし、返信案を作ったChatGPTのチャットに送る')}</li>
-              <li>{t('ChatGPTが返したJSONをコピーして、入力欄に貼り付ける')}</li>
-              <li>{t('「記録画面に入力」で修正して保存するか、「読み込んで確認する」でそのまま取り込む')}</li>
+              <li>{t('AIが返した「会話資産で開く」を押し、確認画面で返信案を選んで取り込む')}</li>
+              <li>{t('リンクが開けない場合は、AIが返したJSONを入力欄に貼り付けて「読み込んで確認する」を押す')}</li>
             </ol>
           </details>
         </div>
@@ -133,7 +165,7 @@ export default function ImportScreen({ onOpenReply }: { onOpenReply: (draft: Imp
           onDone={(r, folderId, n) => { setResult({ r, folderId, n }); setStep('done'); }}
         />
       )}
-      {step === 'done' && result && <DoneStep {...result} onAgain={() => { setResult(null); setStep('source'); }} />}
+      {step === 'done' && result && <DoneStep {...result} onAgain={() => { setResult(null); if (directReply) pick('reply'); else setStep('source'); }} />}
     </div>
   );
 }
@@ -287,6 +319,10 @@ function AiInputStep({ service, fileName, count, onLoaded, onNext }: {
   );
 }
 
+function NameWithReading({ name, reading }: { name: string; reading?: string }) {
+  return reading ? <ruby>{name}<rt>{reading}</rt></ruby> : name;
+}
+
 function PreviewStep({ source, raw, convs, fileName, onDone }: {
   source: Source; raw: string; convs: AiConversation[]; fileName: string;
   onDone: (r: ImportResult, folderId: string | null, n: number) => void;
@@ -306,7 +342,7 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
   const [shortReply, setShortReply] = useState(true);
   const ai_ = isAi(source);
   const base = useMemo(
-    () => (source === 'reply' ? [parseReplyDraft(raw)].filter((draft) => draft !== null) : ai_
+    () => (source === 'reply' ? parseReplyDrafts(raw) : ai_
       ? aiToDrafts(convs, { onlyMine, aiName: AI_NAME[source as 'chatgpt' | 'claude'], maxReply: shortReply ? REPLY_MAX : 0 })
       : chat ? lineToDrafts(chat, self, { onlyMine }) : textToDrafts(raw, split, [])),
     [ai_, convs, source, shortReply, chat, self, onlyMine, raw, split],
@@ -512,8 +548,16 @@ function PreviewStep({ source, raw, convs, fileName, onDone }: {
                   value={d.talkedOn}
                   onChange={(e) => e.target.value && edit(d.key, { talkedOn: e.target.value })}
                 />
-                {d.people.map((p) => <span key={p} className="chip person small">{p}</span>)}
-                {d.topics.map((x) => <span key={x} className="chip topic small">#{x}</span>)}
+                {d.people.map((name) => (
+                  <span key={name} className="chip person small">
+                    <NameWithReading name={name} reading={d.personReadings?.get(normalize(name))} />
+                  </span>
+                ))}
+                {d.topics.map((name) => (
+                  <span key={name} className="chip topic small">
+                    <NameWithReading name={'#' + name} reading={d.topicReadings?.get(normalize(name))} />
+                  </span>
+                ))}
               </div>
             </div>
           </li>

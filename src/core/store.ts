@@ -1,3 +1,4 @@
+import type { ImportDraft } from './importers';
 import type { Repository } from './repository';
 import { applyIncremental, mergeData, type ParsedBackup } from './backup';
 import { entryHasPerson, newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type ScheduleEvent, type Todo, type Topic, mergeProfiles } from './types';
@@ -808,7 +809,7 @@ export class Store {
    * 取り消し用に、新しく作ったもののIDを返す。
    */
   async importDrafts(
-    drafts: { title: string; text: string; talkedOn: string; people: string[]; topics: string[]; aiTopics?: boolean }[],
+    drafts: (Omit<ImportDraft, 'key' | 'include'> & { aiTopics?: boolean })[],
     folder: { id: ID | null } | { newName: string; parentId: ID | null },
   ): Promise<ImportResult> {
     const now = Date.now();
@@ -823,11 +824,27 @@ export class Store {
       created.folderIds.push(f.id);
       folderId = f.id;
     } else folderId = folder.id;
+    const namesWithReadings = (kind: 'person' | 'topic') => {
+      const readings = new Map<string, string>();
+      for (const draft of drafts) {
+        const names = kind === 'person' ? draft.people : draft.topics;
+        const proposed = kind === 'person' ? draft.personReadings : draft.topicReadings;
+        for (const name of names) {
+          const key = normalize(name);
+          const reading = proposed?.get(key);
+          if (reading && !readings.has(key)) readings.set(key, reading);
+        }
+      }
+      return readings;
+    };
+    const personReadings = namesWithReadings('person');
+    const topicReadings = namesWithReadings('topic');
     const person = (name: string) => {
       const k = normalize(name.trim());
       let p = people.get(k);
       if (!p) {
-        p = { id: newId(), name: name.trim(), memo: '', folderId: null, createdAt: now, updatedAt: now };
+        const reading = personReadings.get(k);
+        p = { id: newId(), name: name.trim(), memo: '', ...(reading ? { reading } : {}), folderId: null, createdAt: now, updatedAt: now };
         people.set(k, p);
         incoming.people.push(p);
         created.personIds.push(p.id);
@@ -838,7 +855,8 @@ export class Store {
       const k = normalize(name.trim());
       let tp = topics.get(k);
       if (!tp) {
-        tp = { id: newId(), name: name.trim(), folderId: null, createdAt: now, updatedAt: now };
+        const reading = topicReadings.get(k);
+        tp = { id: newId(), name: name.trim(), ...(reading ? { reading } : {}), folderId: null, createdAt: now, updatedAt: now };
         topics.set(k, tp);
         incoming.topics.push(tp);
         created.topicIds.push(tp.id);

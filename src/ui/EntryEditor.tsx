@@ -63,8 +63,8 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
   const [newPeople, setNewPeople] = useState(() => replyNames.people.filter(({ id }) => !id).map(({ name }) => name));
   const [topicIds, setTopicIds] = useState<ID[]>(() => existing?.topics.map((t) => t.topicId) ?? (initialTopic ? [initialTopic] : replyNames.tags.flatMap(({ id }) => id ? [id] : [])));
   const [newTopics, setNewTopics] = useState(() => replyNames.tags.filter(({ id }) => !id).map(({ name }) => name));
-  const [personReadings, setPersonReadings] = useState<(string | undefined)[]>([]);
-  const [topicReadings, setTopicReadings] = useState<(string | undefined)[]>([]);
+  const [personReadings, setPersonReadings] = useState(() => newPeople.map((name) => initialReply?.personReadings?.get(normalize(name))));
+  const [topicReadings, setTopicReadings] = useState(() => newTopics.map((name) => initialReply?.topicReadings?.get(normalize(name))));
   const [talkedOn, setTalkedOn] = useState(existing?.talkedOn ?? initialReply?.talkedOn ?? today());
   const [saving, setSaving] = useState(false);
   // 新しい話題のお気に入り(保存時に付ける)。既存の話題は☆を押した時点で保存する
@@ -324,13 +324,13 @@ export function EntryEditor({ id, initialPerson, initialTopic, initialFolder, in
           <p className="muted small">{t('画像{n}枚が付いています（設定の「話題」で画像の添付をオンにすると表示されます）', { n: imageIds.length })}</p>
         )}
         {ai.panel}
-        <ReplyDemo people={data.people.map((person) => person.name)} tags={data.topics.map((tag) => tag.name)}
+        {feat.replyDemo && <ReplyDemo people={data.people.map((person) => person.name)} tags={data.topics.map((tag) => tag.name)}
           onApply={(reply, people, tags) => {
             setText((body) => body.trim() ? body + '\n\n' + reply : reply);
             people.forEach(addPerson);
             tags.forEach(addTopic);
           }}
-        />
+        />}
         {(newPeople.length > 0 || newTopics.length > 0) && (
           <label className="toggle small-toggle">
             <input type="checkbox" checked={feat.entryReadingFields} onChange={(e) => setFeature('entryReadingFields', e.target.checked)} />

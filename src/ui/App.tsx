@@ -184,7 +184,12 @@ function Shell() {
   else if (head === 'settings' && sub === 'premium') screen = <PremiumSettingsScreen />;
   else if (head === 'settings' && sub === 'backup') screen = <BackupSettingsScreen />;
   else if (head === 'settings') screen = <SettingsScreen />;
-  else if (head === 'import') screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}><ImportScreen onOpenReply={openReply} /></Suspense>;
+  else if (head === 'import') {
+    const linkedReply = sub === 'reply' ? query.get('data') : null;
+    screen = <Suspense fallback={<div className="loading">{t('読み込み中…')}</div>}>
+      <ImportScreen key={linkedReply ?? sub} directReply={sub === 'reply'} linkedReply={linkedReply} onOpenReply={openReply} />
+    </Suspense>;
+  }
   else if (head === 'organize') screen = <OrganizeScreen key={sub} scope={sub === 'person' || sub === 'topic' ? sub : 'entry'} />;
   else if (head === 'all') screen = <AllEntriesScreen key="all" />;
   else if (head === 'fav') screen = <AllEntriesScreen key="fav" fav />;

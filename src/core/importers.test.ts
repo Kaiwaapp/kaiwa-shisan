@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { deflateRawSync } from 'node:zlib';
 import { readZipText, isZip } from './unzip';
-import { aiToDrafts, parseAiExport, parseReplyDraft, guessSelf, guessSplit, lineToDrafts, parseLine, splitText, textToDrafts } from './importers';
+import { aiToDrafts, parseAiExport, parseReplyDrafts, guessSelf, guessSplit, lineToDrafts, parseLine, splitText, textToDrafts } from './importers';
 import { Store } from './store';
 import { IdbRepository } from './idbRepository';
 
@@ -171,14 +171,39 @@ function makeZip(files: [string, string, boolean][]): Uint8Array {
 describe('AIの返信案の取り込み', () => {
   it('返信を省略せず、相手とタグを取り込む', () => {
     const text = '週末は空いています。\n'.repeat(30).trim();
-    const draft = parseReplyDraft('```json\n' + JSON.stringify({
+    const [draft] = parseReplyDrafts('```json\n' + JSON.stringify({
       title: '週末の予定', text, people: [' 田中 ', '田中'], tags: ['#予定', ' 趣味 '],
     }) + '\n```');
     expect(draft).toMatchObject({ title: '週末の予定', text, people: ['田中'], topics: ['予定', '趣味'] });
   });
 
   it('返信本文がないデータを受け付けない', () => {
-    expect(parseReplyDraft('{"text":" "}')).toBeNull();
-    expect(parseReplyDraft('テキスト')).toBeNull();
+    expect(parseReplyDrafts('{"text":" "}')).toEqual([]);
+    expect(parseReplyDrafts('テキスト')).toEqual([]);
+  });
+
+
+  it('複数の返信をそれぞれ読み込み、不正な返信が混じると受け付けない', () => {
+    const data = [{ text: 'ありがとう', people: ['田中'], tags: ['#お礼'] }, { text: 'また明日', people: ['佐藤'] }];
+    const [first, second] = parseReplyDrafts(JSON.stringify(data));
+    expect(first).toMatchObject({ text: 'ありがとう', people: ['田中'], topics: ['お礼'] });
+    expect(second).toMatchObject({ text: 'また明日', people: ['佐藤'], topics: [] });
+    expect(first.key).not.toBe(second.key);
+    expect(parseReplyDrafts(JSON.stringify([...data, { text: ' ' }]))).toEqual([]);
+  });
+
+  it('読み仮名つきの複数返信を保存し、既存の人の読みは保持する', async () => {
+    const store = new Store(new IdbRepository('reply-import-readings'));
+    await store.init();
+    await store.addPerson('佐藤', null, [], false, 'さとう');
+    const drafts = parseReplyDrafts(JSON.stringify([
+      { text: 'ありがとう', people: ['山田'], tags: [{ name: '#御礼', reading: 'おれい' }] },
+      { text: 'また明日', people: [{ name: '山田', reading: 'やまだ' }, { name: '佐藤', reading: 'さと' }] },
+    ]));
+    await store.importDrafts(drafts, { id: null });
+    expect(store.snapshot.entries).toHaveLength(2);
+    expect(store.snapshot.people.find((p) => p.name === '山田')?.reading).toBe('やまだ');
+    expect(store.snapshot.people.find((p) => p.name === '佐藤')?.reading).toBe('さとう');
+    expect(store.snapshot.topics.find((t) => t.name === '御礼')?.reading).toBe('おれい');
   });
 });

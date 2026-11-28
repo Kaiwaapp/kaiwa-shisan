@@ -88,6 +88,7 @@ html, body { overscroll-behavior-y: none; }
 .link { color: var(--accent); font-size: 16px; padding: 6px 0; }
 .link.strong { font-weight: 700; }
 
+.reply-import-shortcut { margin-bottom: 12px; }
 .search { position: relative; margin: 4px 0 12px; }
 .search input {
   width: 100%; padding: 10px 36px 10px 14px; border-radius: 12px;
@@ -673,6 +674,7 @@ html.kb-open .ad-banner { display: none; }
 .cal-d:active { background: var(--bg); }
 .cal-d.today span:first-child { color: var(--accent); font-weight: 800; }
 .cal-d.sel { background: var(--accent-soft); }
+.cal-topic-mark { margin-inline-start: 2px; color: var(--topic); }
 .cal-dots { color: var(--accent); font-size: 12px; height: 12px; letter-spacing: 1px; }
 .schedule-day { display: flex; align-items: center; justify-content: space-between; }
 .schedule-empty { margin: 4px 2px 8px; }
