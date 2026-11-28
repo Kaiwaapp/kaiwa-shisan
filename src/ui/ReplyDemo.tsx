@@ -1,7 +1,44 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { demoSuggest, type Suggestion } from '../core/ai';
 import { t } from '../i18n';
-import { Sheet } from './interact';
+import { focusNoScroll } from './focus';
+
+type Rect = { x: number; y: number; width: number; height: number };
+type Action = 'move' | 'resize';
+const EDGE = 8;
+
+function visibleArea(): Rect {
+  const viewport = window.visualViewport;
+  return {
+    x: viewport?.offsetLeft ?? 0,
+    y: viewport?.offsetTop ?? 0,
+    width: viewport?.width ?? window.innerWidth,
+    height: viewport?.height ?? window.innerHeight,
+  };
+}
+
+function fitWindow(rect: Rect, area: Rect): Rect {
+  const maxWidth = Math.max(1, area.width - EDGE * 2);
+  const maxHeight = Math.max(1, area.height - EDGE * 2);
+  const width = Math.min(maxWidth, Math.max(220, rect.width));
+  const height = Math.min(maxHeight, Math.max(156, rect.height));
+  return {
+    x: Math.max(area.x + EDGE, Math.min(rect.x, area.x + area.width - width - EDGE)),
+    y: Math.max(area.y + EDGE, Math.min(rect.y, area.y + area.height - height - EDGE)),
+    width,
+    height,
+  };
+}
+
+function adjustWindow(rect: Rect, action: Action, dx: number, dy: number, area: Rect): Rect {
+  if (action === 'move') return fitWindow({ ...rect, x: rect.x + dx, y: rect.y + dy }, area);
+  return fitWindow({
+    ...rect,
+    width: rect.width + dx,
+    height: rect.height + dy,
+  }, area);
+}
 
 export function ReplyDemo({ people, tags, onApply }: {
   people: string[];
@@ -9,22 +46,77 @@ export function ReplyDemo({ people, tags, onApply }: {
   onApply: (reply: string, people: string[], tags: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const close = () => {
+    setOpen(false);
+    if (trigger.current) focusNoScroll(trigger.current);
+  };
   return (
     <>
-      <button type="button" className="link small-link" onClick={() => setOpen(true)}>{t('AIチャットを試す')}</button>
+      <button ref={trigger} type="button" className="link small-link" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>{t('AIチャットを試す')}</button>
       {open && (
-        <ReplyDemoSheet people={people} tags={tags} onClose={() => setOpen(false)} onApply={onApply} />
+        <ReplyDemoWindow people={people} tags={tags} onClose={close} onApply={onApply} />
       )}
     </>
   );
 }
 
-function ReplyDemoSheet({ people, tags, onClose, onApply }: {
+function ReplyDemoWindow({ people, tags, onClose, onApply }: {
   people: string[];
   tags: string[];
   onClose: () => void;
   onApply: (reply: string, people: string[], tags: string[]) => void;
 }) {
+  const heading = useId();
+  const moveHandle = useRef<HTMLButtonElement>(null);
+  const [area, setArea] = useState(visibleArea);
+  const [position, setPosition] = useState<Rect>(() => ({
+    x: area.x + area.width - 344,
+    y: area.y + area.height - 376,
+    width: Math.min(336, area.width - 32),
+    height: Math.min(320, area.height - 96),
+  }));
+  const rect = fitWindow(position, area);
+  const gesture = useRef<{ action: Action; pointer: number; x: number; y: number; rect: Rect } | null>(null);
+  useEffect(() => {
+    const update = () => setArea(visibleArea());
+    const viewport = window.visualViewport;
+    window.addEventListener('resize', update);
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
+    if (moveHandle.current) focusNoScroll(moveHandle.current);
+    return () => {
+      window.removeEventListener('resize', update);
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
+    };
+  }, []);
+  const start = (action: Action, event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0 || gesture.current) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    gesture.current = { action, pointer: event.pointerId, x: event.clientX, y: event.clientY, rect };
+  };
+  const change = (event: PointerEvent<HTMLButtonElement>) => {
+    const drag = gesture.current;
+    if (!drag || drag.pointer !== event.pointerId) return;
+    setPosition(adjustWindow(drag.rect, drag.action, event.clientX - drag.x, event.clientY - drag.y, area));
+  };
+  const finish = (event: PointerEvent<HTMLButtonElement>) => {
+    if (gesture.current?.pointer === event.pointerId) gesture.current = null;
+  };
+  const keyboard = (action: Action, event: KeyboardEvent<HTMLButtonElement>) => {
+    const dx = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    const dy = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+    if (!dx && !dy) return;
+    event.preventDefault();
+    setPosition((previous) => adjustWindow(fitWindow(previous, area), action, dx * 16, dy * 16, area));
+  };
+  const handle = (action: Action) => ({
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => start(action, event),
+    onPointerMove: change,
+    onLostPointerCapture: finish,
+    onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => keyboard(action, event),
+  });
   const [prompt, setPrompt] = useState('');
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,9 +129,18 @@ function ReplyDemoSheet({ people, tags, onClose, onApply }: {
       setBusy(false);
     }
   };
-  return (
-    <Sheet title={t('AIチャット（お試し）')} onClose={onClose} cancelLabel={t('閉じる')}>
-      <div className="form reply-demo" onKeyDown={(e) => { if (e.key === 'Escape' && !e.nativeEvent.isComposing) onClose(); }}>
+  return createPortal(
+    <section className="reply-window" role="dialog" aria-labelledby={heading}
+      style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
+      onKeyDown={(e) => { if (e.key === 'Escape' && !e.nativeEvent.isComposing) onClose(); }}>
+      <header className="reply-window-header">
+        <button ref={moveHandle} type="button" className="reply-window-move"
+          aria-label={t('AIチャットの小窓を移動')} {...handle('move')}>
+          <span id={heading}>{t('AIチャット（お試し）')}</span>
+        </button>
+        <button type="button" className="icon-btn" aria-label={t('閉じる')} onClick={onClose}>×</button>
+      </header>
+      <div className="form reply-demo">
         <p className="muted small">{t('固定の返信例で操作を試せます。入力内容は端末の外に送信されません。')}</p>
         <label className="field">
           {t('相談したい内容')}
@@ -66,6 +167,10 @@ function ReplyDemoSheet({ people, tags, onClose, onApply }: {
           </section>
         )}
       </div>
-    </Sheet>
+      <footer className="reply-window-footer">
+        <button type="button" className="reply-window-resize" aria-label={t('AIチャットの小窓のサイズを変更')} {...handle('resize')}>⌟</button>
+      </footer>
+    </section>,
+    document.body,
   );
 }
