@@ -25,6 +25,13 @@ import { RelationBadge, RelationBar, RelationPicker } from './RelationParts';
 import { relationName, useRelations } from './relations';
 import { PersonSchedule, PersonTodos } from './schedule';
 
+function ReplyImportShortcut() {
+  const { replyShortcut } = useFeatures();
+  const { sel } = useInteract();
+  if (!replyShortcut || sel.active) return null;
+  return <button type="button" className="btn ghost block reply-import-shortcut" onClick={() => go('/import/reply')}>{t('AIの返信案を取り込む')}</button>;
+}
+
 // ---- 話題タブ: iPhoneのメモのように、フォルダと話題が並ぶ(フォルダは入れ子可) ----
 export function FolderScreen({ folderId }: { folderId: ID | null }) {
   const data = useData();
@@ -105,6 +112,7 @@ export function FolderScreen({ folderId }: { folderId: ID | null }) {
       ) : (
         <>
           <SearchBox value={q} onChange={setQ} placeholder={folder ? t('「{name}」の中を検索', { name: folder.name }) : t('本文・人・タグで検索')} />
+          {!folderId && <ReplyImportShortcut />}
           {results ? (
             <>
               <div className="toolbar">
@@ -226,6 +234,7 @@ export function AllEntriesScreen({ fav }: { fav?: boolean }) {
     <div className="screen">
       <Header title={fav ? t('★ お気に入りの話題') : t('すべての話題')} left={<button className="link" onClick={() => back('/')}>{t('‹ 戻る')}</button>} />
       <SearchBox value={q} onChange={setQ} placeholder={fav ? t('お気に入りの話題を検索') : t('本文・人・タグで検索（読み仮名も可）')} />
+      {!fav && <ReplyImportShortcut />}
       <div className="toolbar">
         <span className="count">{t('{n}件', { n: list.length })}</span>
         <SortSelect value={sort} options={ENTRY_SORTS} onChange={setSort} />

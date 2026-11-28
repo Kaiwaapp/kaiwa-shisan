@@ -2,11 +2,11 @@
 // iPhoneのカレンダーへは .ics ファイルで書き出す(Webアプリからは直接書き込めないため)。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDiscardGuard } from './discard';
-import { today, type AppData, type EventAlarm, type ID, type ScheduleEvent, type Todo } from '../core/types';
+import { entryHasPerson, today, type AppData, type EventAlarm, type ID, type ScheduleEvent, type Todo } from '../core/types';
 import { addDays, eventsOf, sortEvents, splitByDate, toIcs } from '../core/schedule';
 import { back, go, useData, usePref, useStore } from './hooks';
 import { openTodos, todoMarks, todosOf, type TodoMark } from '../core/schedule';
-import { ComboPicker, Header, sameNameHints } from './components';
+import { ComboPicker, EntryList, Header, sameNameHints } from './components';
 import { FoldHeader, useFold } from './folders';
 import { useFeatures } from './features';
 import { Sheet, toast, toastError } from './interact';
@@ -198,8 +198,29 @@ function ScheduleView({ events, todos, newHref, hidePersonId, compact }: { event
 function MonthView({ events, todos, hidePersonId, onAdd }: { events: ScheduleEvent[]; todos?: Todo[]; hidePersonId?: ID; onAdd: (date: string) => void }) {
   const data = useData();
   const now = today();
-  const [sel, setSel] = useState(now);
-  const [month, setMonth] = useState(now.slice(0, 7));
+  const { calendarHistory } = useFeatures();
+  const [sel, setSel] = useState(() => {
+    const saved = history.state?.scheduleDay;
+    return typeof saved === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(saved) ? saved : now;
+  });
+  const month = sel.slice(0, 7);
+  const selectDay = (date: string) => {
+    history.replaceState({ ...history.state, scheduleDay: date }, '');
+    setSel(date);
+  };
+  const person = hidePersonId ? data.people.find((p) => p.id === hidePersonId) : undefined;
+  const entriesByDay = useMemo(() => {
+    const days = new Map<string, typeof data.entries>();
+    if (calendarHistory) {
+      for (const entry of data.entries) {
+        if (person && !entryHasPerson(entry, person)) continue;
+        const entries = days.get(entry.talkedOn);
+        if (entries) entries.push(entry);
+        else days.set(entry.talkedOn, [entry]);
+      }
+    }
+    return days;
+  }, [calendarHistory, data.entries, person]);
   const byDay = useMemo(() => {
     const m = new Map<string, DayItem[]>();
     for (const it of dayItems(events, todos)) m.set(it.date, [...(m.get(it.date) ?? []), it]);
@@ -213,15 +234,16 @@ function MonthView({ events, todos, hidePersonId, onAdd }: { events: ScheduleEve
   while (cells.length % 7) cells.push(null);
   const shift = (n: number) => {
     const d = new Date(y, mo - 1 + n, 1);
-    setMonth(`${d.getFullYear()}-${p(d.getMonth() + 1)}`);
+    selectDay(today(d));
   };
   const dayEvents = byDay.get(sel) ?? [];
+  const dayEntries = entriesByDay.get(sel) ?? [];
   return (
     <>
       <div className="cal">
         <div className="cal-head">
           <button className="icon-btn" onClick={() => shift(-1)} aria-label={t('前の月')}>‹</button>
-          <button className="cal-title" onClick={() => { setMonth(now.slice(0, 7)); setSel(now); }}>{currentLang() === 'ja' ? `${y}年${mo}月` : `${y}/${mo}`}</button>
+          <button className="cal-title" onClick={() => selectDay(now)}>{currentLang() === 'ja' ? `${y}年${mo}月` : `${y}/${mo}`}</button>
           <button className="icon-btn" onClick={() => shift(1)} aria-label={t('次の月')}>›</button>
         </div>
         <div className="cal-grid">
@@ -229,22 +251,31 @@ function MonthView({ events, todos, hidePersonId, onAdd }: { events: ScheduleEve
           {cells.map((d, i) => {
             if (!d) return <div key={'x' + i} />;
             const n = byDay.get(d)?.length ?? 0;
+            const notes = entriesByDay.get(d)?.length ?? 0;
             return (
-              <button key={d} className={`cal-d${d === now ? ' today' : ''}${d === sel ? ' sel' : ''}`} onClick={() => setSel(d)} aria-label={dayLabel(d) + (n ? ' ' + t('{n}件', { n }) : '')}>
+              <button key={d} className={`cal-d${d === now ? ' today' : ''}${d === sel ? ' sel' : ''}`} onClick={() => selectDay(d)} aria-pressed={d === sel}
+                aria-label={[dayLabel(d), n ? t('予定・ToDo {n}件', { n }) : '', notes ? t('話題 {n}件', { n: notes }) : ''].filter(Boolean).join(' ')}>
                 <span>{Number(d.slice(8))}</span>
-                <span className="cal-dots">{n > 0 && '•'.repeat(Math.min(n, 3))}</span>
+                <span className="cal-dots" aria-hidden="true">{n > 0 && '•'.repeat(Math.min(n, 3))}{notes > 0 && <span className="cal-topic-mark">▪</span>}</span>
               </button>
             );
           })}
         </div>
       </div>
+      {calendarHistory && <p className="muted small schedule-note">{t('• 予定・ToDo　▪ 話題')}</p>}
       <div className="section-title schedule-day">
         <span>{dayLabel(sel)}</span>
-        <button className="link small-link" onClick={() => onAdd(sel)}>{t('＋ この日に追加')}</button>
+        <button className="link small-link" onClick={() => onAdd(sel)}>{t('＋ この日に予定を追加')}</button>
       </div>
       {dayEvents.length
         ? <div className="list">{dayEvents.map((it) => <ItemRow key={itemKey(it)} it={it} data={data} hidePersonId={hidePersonId} />)}</div>
         : <p className="muted small schedule-empty">{t('予定はありません')}</p>}
+      {calendarHistory && (
+        <>
+          <div className="section-title">{t('この日の話題')}</div>
+          <EntryList entries={dayEntries} data={data} hidePersonId={hidePersonId} empty={t('この日の話題はありません')} />
+        </>
+      )}
     </>
   );
 }

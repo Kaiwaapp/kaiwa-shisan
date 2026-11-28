@@ -2,6 +2,7 @@
 // UIやReactに依存しない純粋な関数だけにして、取り込み画面を開いたときだけ読み込まれるようにする。
 
 import { today } from './types';
+import { normalize } from './search';
 
 /** 取り込む前の話題1件(プレビューで直せる) */
 export interface ImportDraft {
@@ -15,30 +16,57 @@ export interface ImportDraft {
   people: string[];
   /** タグの名前(AIの提案など) */
   topics: string[];
+  personReadings?: ReadonlyMap<string, string>;
+  topicReadings?: ReadonlyMap<string, string>;
 }
 
-/** チャットAIで整えた返信案を1件の話題候補として読む。 */
-export function parseReplyDraft(raw: string): ImportDraft | null {
+/** 1件のJSONオブジェクトと、複数件のJSON配列を受け付ける。 */
+export function parseReplyDrafts(raw: string): ImportDraft[] {
+  const input = raw.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, '$1');
+  let value: unknown;
   try {
-    const input = raw.trim().replace(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i, '$1');
-    const value = JSON.parse(input);
-    if (!value || typeof value.text !== 'string' || !value.text.trim()) return null;
-    const names = (items: unknown, stripHash = false) => Array.isArray(items)
-      ? [...new Set(items.filter((item): item is string => typeof item === 'string')
-        .map((name) => (stripHash ? name.trim().replace(/^#/, '') : name).trim()).filter(Boolean))]
-      : [];
-    return {
-      key: 'reply',
-      include: true,
-      title: typeof value.title === 'string' ? value.title.trim() : '',
-      text: value.text.trim(),
-      talkedOn: today(),
-      people: names(value.people),
-      topics: names(value.tags, true),
-    };
+    value = JSON.parse(input);
   } catch {
-    return null;
+    return [];
   }
+  const replies: unknown[] = Array.isArray(value) ? value : [value];
+  const readNames = (items: unknown, stripHash = false) => {
+    const names = new Set<string>();
+    const readings = new Map<string, string>();
+    for (const item of Array.isArray(items) ? items as unknown[] : []) {
+      const fields = typeof item === 'string' ? { name: item } : item as Record<string, unknown> | null;
+      if (typeof fields?.name !== 'string') continue;
+      const name = (stripHash ? fields.name.trim().replace(/^#/, '') : fields.name).trim();
+      if (!name) continue;
+      names.add(name);
+      if ('reading' in fields && typeof fields.reading === 'string' && fields.reading.trim()) {
+        const key = normalize(name);
+        if (!readings.has(key)) readings.set(key, fields.reading.trim());
+      }
+    }
+    return { names: [...names], readings };
+  };
+  const drafts: ImportDraft[] = [];
+  const date = today();
+  for (const reply of replies) {
+    if (!reply || typeof reply !== 'object') return [];
+    const { title, text, people, tags } = reply as Record<string, unknown>;
+    if (typeof text !== 'string' || !text.trim()) return [];
+    const persons = readNames(people);
+    const topics = readNames(tags, true);
+    drafts.push({
+      key: `reply-${drafts.length}`,
+      include: true,
+      title: typeof title === 'string' ? title.trim() : '',
+      text: text.trim(),
+      talkedOn: date,
+      people: persons.names,
+      topics: topics.names,
+      ...(persons.readings.size ? { personReadings: persons.readings } : {}),
+      ...(topics.readings.size ? { topicReadings: topics.readings } : {}),
+    });
+  }
+  return drafts;
 }
 
 export type TextSplit = 'blank' | 'marker' | 'none';

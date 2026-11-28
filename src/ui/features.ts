@@ -23,6 +23,10 @@ export interface Features {
   images: boolean;
   /** 設定の「他のアプリから取り込む」 */
   import: boolean;
+  replyShortcut: boolean;
+  replyDemo: boolean;
+  calendarHistory: boolean;
+  pressHint: boolean;
   /** 人のプロフィール(年齢・仕事・趣味など) */
   profile: boolean;
   /** 人の関係(友達・家族など)と、人タブの関係での絞り込み */
@@ -51,11 +55,11 @@ export const FEATURE_KEYS = ['folders', 'favorites', 'groups', 'recent', 'title'
 
 /** 設定 > 機能とカスタマイズ の並び。機能のグループごとに折りたためる。新しい設定は当てはまるグループに足す */
 export const FEATURE_GROUPS: { key: string; title: string; items: (keyof Features)[] }[] = [
-  { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent', 'entryReadingFields', 'stayAfterSave'] },
+  { key: 'entry', title: '話題', items: ['title', 'memo', 'images', 'copy', 'recent', 'entryReadingFields', 'stayAfterSave', 'replyShortcut', 'replyDemo'] },
   { key: 'person', title: '人', items: ['readingPerson', 'relations', 'groups', 'profile'] },
   { key: 'topic', title: 'タグ', items: ['readingTopic', 'presetHint'] },
-  { key: 'schedule', title: '予定', items: ['schedule', 'scheduleToday', 'todo'] },
-  { key: 'common', title: '全体', items: ['folders', 'favorites', 'import', 'confirmDiscard'] },
+  { key: 'schedule', title: '予定', items: ['schedule', 'scheduleToday', 'todo', 'calendarHistory'] },
+  { key: 'common', title: '全体', items: ['folders', 'favorites', 'import', 'confirmDiscard', 'pressHint'] },
 ];
 
 /** 設定画面に出す名前と説明(表示時に t() を通す) */
@@ -69,6 +73,10 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
   memo: { label: '話題のメモ', note: '話題の本文とは別に、相手の反応などを書いておく欄' },
   copy: { label: 'コピーボタン', note: '一覧と話題を開いた画面のコピーボタン' },
   images: { label: '画像の添付', note: '話題に写真やスクショを添付する機能' },
+  replyShortcut: { label: 'AIの返信案を取り込む', note: '話題一覧にAIの返信案を取り込むボタンを表示する' },
+  replyDemo: { label: 'AIチャットのお試し小窓', note: '話題の記録画面にAIチャットのお試しボタンを表示する' },
+  calendarHistory: { label: 'カレンダーに話題の履歴を表示', note: 'カレンダーの日付を選ぶと、その日に話した記録を表示する' },
+  pressHint: { label: '長押し操作の案内', note: 'まだ確認していない場合、一覧に長押し操作の案内を表示する' },
   import: { label: '他のアプリから取り込む', note: '設定の取り込みの項目' },
   relations: { label: '関係', note: '人に友達・家族などの関係を付けて、人タブで絞り込む' },
   profile: { label: '人のプロフィール', note: '人の画面の年齢・仕事・趣味などの欄' },
@@ -84,7 +92,7 @@ export const FEATURE_LABELS: Record<keyof Features, { label: string; note: strin
 };
 
 const KEY = 'kaiwa-shisan:features';
-const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, entryReadingFields: true, title: true, memo: true, copy: true, images: true, import: true, profile: true, relations: true, confirmDiscard: true, stayAfterSave: false, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, todo: true, noAds: false };
+const DEFAULTS: Features = { folders: true, favorites: true, groups: true, recent: true, entryReadingFields: true, title: true, memo: true, copy: true, images: true, import: true, replyShortcut: true, replyDemo: true, calendarHistory: true, pressHint: true, profile: true, relations: true, confirmDiscard: true, stayAfterSave: false, readingPerson: false, readingTopic: false, presetHint: true, schedule: true, scheduleToday: true, todo: true, noAds: false };
 
 const load = (): Features => {
   try {

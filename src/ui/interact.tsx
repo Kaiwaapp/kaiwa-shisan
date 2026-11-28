@@ -710,7 +710,8 @@ export function PressHint() {
     try { return localStorage.getItem(PRESS_HINT_KEY) === '1'; } catch { return true; }
   });
   const { sel } = useInteract();
-  if (seen || sel.active) return null;
+  const { pressHint } = useFeatures();
+  if (!pressHint || seen || sel.active) return null;
   const ok = () => {
     setSeen(true);
     try { localStorage.setItem(PRESS_HINT_KEY, '1'); } catch { /* noop */ }
