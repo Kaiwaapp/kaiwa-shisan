@@ -106,9 +106,11 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder, 
   const groups = feat.groups ? (entry.groupIds ?? []).map((id) => data.groups.find((g) => g.id === id)).filter(Boolean) : [];
   const hints = sameNameHints(data.people, data.groups);
   const folder = !hideFolder && feat.folders && entry.folderId ? data.folders.find((f) => f.id === entry.folderId) : undefined;
-  const item: ItemRef = { kind: 'entry', id: entry.id, label: entryLabel(entry, 24) || t('（本文なし）'), scope: 'entry' };
+  const item: ItemRef = { kind: 'entry', id: entry.id, label: entryLabel(entry, 24) || t('（本文なし）'), scope: 'entry',
+    entryLink: hidePersonId ? { kind: 'person', id: hidePersonId } : hideTopicId ? { kind: 'topic', id: hideTopicId } : undefined,
+  };
   const { lifted, handlers } = usePress(item, () => go(`/edit/${entry.id}`));
-  const { sel } = useInteract();
+  const { sel, openMenu } = useInteract();
   return (
     <article className={`card ${lifted ? 'lifted' : ''} ${sel.active ? 'selecting' : ''}`} {...reorderProps(list, 'entry', entry.id)} {...handlers}>
       <SelectMark item={item} />
@@ -137,6 +139,16 @@ export function EntryCard({ entry, data, hidePersonId, hideTopicId, hideFolder, 
         {topics.map((t) => (
           <span key={t!.id} className="chip topic small">#{t!.name}</span>
         ))}
+        {!sel.active && item.entryLink && (
+          <button
+            className="entry-more link"
+            aria-label={t('話題の操作')}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); openMenu(item); }}
+          >
+            ⋯
+          </button>
+        )}
       </div>
     </article>
   );

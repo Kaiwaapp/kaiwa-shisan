@@ -128,6 +128,8 @@ export interface Entry {
   personIds: ID[];
   /** 話したグループ(グループ自体を相手として付ける。メンバーには展開しない) */
   groupIds?: ID[];
+  /** グループ経由の紐づけから個別に外した人 */
+  excludedPersonIds?: ID[];
   topics: TopicTag[];
   /** 話した日 (YYYY-MM-DD) */
   talkedOn: string;
@@ -265,5 +267,5 @@ export const entryPreview = (e: { title?: string; text: string }): { head: strin
 };
 
 /** その話題の相手に入っている人か(直接、またはグループのメンバーとして) */
-export const entryHasPerson = (e: Pick<Entry, 'personIds' | 'groupIds'>, p: Pick<Person, 'id' | 'groupIds'>): boolean =>
-  e.personIds.includes(p.id) || !!e.groupIds?.some((g) => p.groupIds?.includes(g));
+export const entryHasPerson = (e: Pick<Entry, 'personIds' | 'groupIds' | 'excludedPersonIds'>, p: Pick<Person, 'id' | 'groupIds'>): boolean =>
+  e.personIds.includes(p.id) || (!e.excludedPersonIds?.includes(p.id) && !!e.groupIds?.some((g) => p.groupIds?.includes(g)));

@@ -411,6 +411,29 @@ describe('起動時の読み込み', () => {
     expect(s.snapshot.entries[0].groupIds).toBeUndefined();
   });
 
+  it('話題から人やタグだけを外し、他のグループメンバーや話題を残す', async () => {
+    const s = await fresh();
+    const group = await s.addGroup('職場');
+    const a = await s.addPerson('佐藤', null, [group.id]);
+    const b = await s.addPerson('鈴木', null, [group.id]);
+    const tag = await s.addTopic('会議');
+    const other = await s.addTopic('仕事');
+    const input = { text: '会議の話', personIds: [a.id], groupIds: [group.id], topicIds: [tag.id, other.id], talkedOn: '2026-11-20' };
+    const entry = await s.saveEntry(input);
+    expect(await s.unlinkEntry(entry.id, { kind: 'person', id: a.id })).toBe(true);
+    expect(await s.unlinkEntry(entry.id, { kind: 'topic', id: tag.id })).toBe(true);
+    const [updated] = s.snapshot.entries;
+    expect(updated.text).toBe(input.text);
+    expect(updated.groupIds).toEqual([group.id]);
+    expect(updated.topics.map((t) => t.topicId)).toEqual([other.id]);
+    expect(entryHasPerson(updated, a)).toBe(false);
+    expect(entryHasPerson(updated, b)).toBe(true);
+    expect(statsBy(s.snapshot, 'person').get(a.id)?.count ?? 0).toBe(0);
+    const edit = { ...input, personIds: [], topicIds: [other.id] };
+    expect(entryHasPerson(await s.saveEntry(edit, entry.id), a)).toBe(false);
+    expect(entryHasPerson(await s.saveEntry({ ...edit, personIds: [a.id] }, entry.id), a)).toBe(true);
+  });
+
   it('話題の新しい相手は、同じ名前の人がいても別の人として作る', async () => {
     const s = await fresh();
     const a = await s.addPerson('田中');

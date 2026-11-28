@@ -128,7 +128,7 @@ export function statsBy(data: AppData, key: 'person' | 'topic'): Map<string, Nam
   if (key === 'person') for (const p of data.people) for (const g of p.groupIds ?? []) members.set(g, [...(members.get(g) ?? []), p.id]);
   for (const e of data.entries) {
     const ids = key === 'person'
-      ? [...new Set([...e.personIds, ...(e.groupIds ?? []).flatMap((g) => members.get(g) ?? [])])]
+      ? [...new Set([...e.personIds, ...(e.groupIds ?? []).flatMap((g) => members.get(g) ?? []).filter((id) => !e.excludedPersonIds?.includes(id))])]
       : e.topics.map((t) => t.topicId);
     for (const id of ids) {
       const s = m.get(id) ?? { count: 0, first: '', last: '' };

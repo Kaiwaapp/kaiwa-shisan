@@ -1,6 +1,6 @@
 import type { Repository } from './repository';
 import { applyIncremental, mergeData, type ParsedBackup } from './backup';
-import { newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type ScheduleEvent, type Todo, type Topic, mergeProfiles } from './types';
+import { entryHasPerson, newId, type AppData, type Entry, type EntryImage, type Folder, type FolderScope, type Group, type ID, type Person, type ScheduleEvent, type Todo, type Topic, mergeProfiles } from './types';
 import { normalize, reorderValues } from './search';
 import { buildSamples } from './samples';
 
@@ -162,6 +162,8 @@ export class Store {
       ...((input.memo ?? prev?.memo ?? '').trim() ? { memo: (input.memo ?? prev?.memo ?? '').trim() } : {}),
       personIds: [...new Set(personIds)],
       ...(groupIds.length ? { groupIds } : {}),
+      ...(groupIds.length && prev?.excludedPersonIds?.length
+        ? { excludedPersonIds: prev.excludedPersonIds.filter((p) => !personIds.includes(p)) } : {}),
       folderId: input.folderId === undefined ? (prev?.folderId ?? null) : input.folderId,
       topics: [...new Set(topicIds)].map((topicId) => ({
         topicId,
@@ -188,6 +190,26 @@ export class Store {
         : [...this.data.entries, entry],
     });
     return entry;
+  }
+
+  async unlinkEntry(entryId: ID, link: { kind: 'person' | 'topic'; id: ID }): Promise<boolean> {
+    const entry = this.data.entries.find((e) => e.id === entryId && !e.deletedAt);
+    if (!entry) return false;
+    const updated: Entry = { ...entry, updatedAt: Date.now() };
+    delete updated.sample;
+    if (link.kind === 'topic') {
+      updated.topics = entry.topics.filter((tag) => tag.topicId !== link.id);
+      if (updated.topics.length === entry.topics.length) return false;
+    } else {
+      const person = this.data.people.find((p) => p.id === link.id);
+      if (!person || !entryHasPerson(entry, person)) return false;
+      updated.personIds = entry.personIds.filter((id) => id !== person.id);
+      if (entry.groupIds?.some((id) => person.groupIds?.includes(id))) {
+        updated.excludedPersonIds = [...new Set([...(entry.excludedPersonIds ?? []), person.id])];
+      }
+    }
+    await this.putEntries([updated]);
+    return true;
   }
 
   /** 話題を「最近削除した項目」へ移す(30日間は復元できる) */
@@ -349,8 +371,8 @@ export class Store {
   async deletePerson(id: ID) {
     const now = Date.now();
     const touched = this.data.entries
-      .filter((e) => e.personIds.includes(id))
-      .map((e) => ({ ...e, personIds: e.personIds.filter((x) => x !== id), updatedAt: now }));
+      .filter((e) => e.personIds.includes(id) || e.excludedPersonIds?.includes(id))
+      .map((e) => ({ ...e, personIds: e.personIds.filter((x) => x !== id), excludedPersonIds: e.excludedPersonIds?.filter((x) => x !== id), updatedAt: now }));
     for (const e of touched) await this.repo.putEntry(e);
     const { events, todos } = await this.fixEvents((e) => (e.personIds.includes(id) ? { ...e, personIds: e.personIds.filter((x) => x !== id), updatedAt: now } : null));
     await this.repo.deletePerson(id);
@@ -603,10 +625,11 @@ export class Store {
     if (!src || !dst) return;
     const now = Date.now();
     const touched = this.data.entries
-      .filter((e) => e.personIds.includes(sourceId))
+      .filter((e) => e.personIds.includes(sourceId) || e.excludedPersonIds?.includes(sourceId))
       .map((e) => ({
         ...e,
         personIds: [...new Set(e.personIds.map((x) => (x === sourceId ? targetId : x)))],
+        excludedPersonIds: e.excludedPersonIds?.filter((x) => x !== sourceId),
         updatedAt: now,
       }));
     for (const e of touched) await this.repo.putEntry(e);

@@ -17,6 +17,7 @@ export interface ItemRef {
   label: string;
   /** フォルダの場合はそのフォルダの種類 */
   scope: FolderScope;
+  entryLink?: { kind: 'person' | 'topic'; id: ID };
 }
 export const itemKey = (i: { kind: ItemKind; id: ID }) => `${i.kind}:${i.id}`;
 export const scopeOfKind = (k: 'entry' | 'person' | 'topic'): FolderScope => k;
@@ -189,6 +190,7 @@ function ItemMenu() {
   const named =
     item.kind === 'person' ? data.people.find((p) => p.id === item.id)
       : item.kind === 'topic' ? data.topics.find((t) => t.id === item.id) : undefined;
+  const link = item.entryLink;
   const pinned = entry?.pinned ?? named?.pinned ?? false;
   const act = (fn: () => unknown) => async () => { close(); await fn(); };
   return (
@@ -226,7 +228,14 @@ function ItemMenu() {
       {item.kind === 'folder' && item.scope === 'entry' && (
         <button className="sheet-item danger" onClick={() => openClear(item.id)}><span className="ic">🗑</span>{t('中の話題をすべて削除')}</button>
       )}
-      <button className="sheet-item danger" onClick={act(() => deleteItems(store, [item]))}><span className="ic">🗑</span>{item.kind === 'folder' ? t('フォルダを削除') : t('削除')}</button>
+      {entry && link && (
+        <button className="sheet-item" onClick={act(async () => {
+          if (await store.unlinkEntry(entry.id, link)) toast(t('話題との紐づけを外しました'));
+        })}>
+          <span className="ic" aria-hidden="true">−</span>{link.kind === 'person' ? t('この人との紐づけを外す') : t('このタグを外す')}
+        </button>
+      )}
+      <button className="sheet-item danger" onClick={act(() => deleteItems(store, [item]))}><span className="ic">🗑</span>{item.kind === 'folder' ? t('フォルダを削除') : link ? t('話題を削除') : t('削除')}</button>
     </Sheet>
   );
 }
