@@ -136,13 +136,23 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
     onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => keyboard(action, event),
   });
   const [prompt, setPrompt] = useState('');
-  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [messages, setMessages] = useState<{ request: string; suggestion?: Suggestion }[]>([]);
   const [busy, setBusy] = useState(false);
+  const transcript = useRef<HTMLDivElement>(null);
   const reply = t('教えてくれてありがとう！ よかったら、もう少し詳しく聞かせて。');
-  const preview = async () => {
+  useEffect(() => {
+    const list = transcript.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [messages]);
+  const send = async () => {
+    const request = prompt.trim();
+    if (busy || !request) return;
+    setPrompt('');
     setBusy(true);
+    setMessages((previous) => [...previous, { request }]);
     try {
-      setSuggestion(await demoSuggest(prompt, { people, topics: tags }));
+      const suggestion = await demoSuggest(request, { people, topics: tags });
+      setMessages((previous) => [...previous.slice(0, -1), { request, suggestion }]);
     } finally {
       setBusy(false);
     }
@@ -158,33 +168,33 @@ function ReplyDemoWindow({ people, tags, onClose, onApply }: {
         </button>
         <button type="button" className="icon-btn" aria-label={t('閉じる')} onClick={onClose}>×</button>
       </header>
-      <div className="form reply-demo">
-        <p className="muted small">{t('固定の返信例で操作を試せます。入力内容は端末の外に送信されません。')}</p>
-        <label className="field">
-          {t('相談したい内容')}
-          <textarea className="textarea" rows={3} value={prompt} disabled={busy} onChange={(e) => {
-            setPrompt(e.target.value);
-            setSuggestion(null);
-          }} />
-        </label>
-        <button type="button" className="btn block" disabled={busy || !prompt.trim()} onClick={preview}>
-          {busy ? t('考え中…') : t('返信例を見る')}
-        </button>
-        {suggestion && (
-          <section className="form" aria-live="polite">
-            <div>
-              <strong>{t('返信例')}</strong>
-              <p>{reply}</p>
-              {suggestion.people.length > 0 && <p className="muted small">{t('相手')} {suggestion.people.join('、')}</p>}
-              <p className="muted small">{t('タグ')} {suggestion.topics.join('、')}</p>
-            </div>
-            <button type="button" className="btn primary block" onClick={() => {
-              onApply(reply, suggestion.people, suggestion.topics);
-              onClose();
-            }}>{t('返信例を記録に入れる')}</button>
-          </section>
+      <div ref={transcript} className="reply-demo" role="log">
+        {messages.length === 0 && (
+          <p className="muted small">{t('固定の返信例で操作を試せます。入力内容は端末の外に送信されません。')}</p>
         )}
+        {messages.map(({ request, suggestion }, index) => (
+          <div className="reply-turn" key={index}>
+            <p className="reply-message reply-message-user">{request}</p>
+            {suggestion ? (
+              <div className="reply-message">
+                <strong>{t('返信例')}</strong>
+                <p>{reply}</p>
+                {suggestion.people.length > 0 && <p className="muted small">{t('相手')} {suggestion.people.join('、')}</p>}
+                <p className="muted small">{t('タグ')} {suggestion.topics.join('、')}</p>
+                <button type="button" className="link small-link" onClick={() => {
+                  onApply(reply, suggestion.people, suggestion.topics);
+                  onClose();
+                }}>{t('返信例を記録に入れる')}</button>
+              </div>
+            ) : <p className="muted small">{t('考え中…')}</p>}
+          </div>
+        ))}
       </div>
+      <form className="reply-composer" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+        <textarea className="textarea" rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+          placeholder={t('メッセージを入力')} aria-label={t('メッセージを入力')} />
+        <button type="submit" className="btn small" disabled={busy || !prompt.trim()}>{t('送信')}</button>
+      </form>
       <footer className="reply-window-footer">
         <button type="button" className="reply-window-resize" aria-label={t('AIチャットの小窓のサイズを変更')} {...handle('resize')}>⌟</button>
       </footer>
